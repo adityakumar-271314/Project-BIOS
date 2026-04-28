@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://cqow47bch5ocs"]
 
-[ext_resource type="PackedScene" uid="uid://bc6xuva503vln" path="res://scenes/Agent.tscn" id="1_o5qli"]
+[ext_resource type="Texture2D" uid="uid://d10cfq0sqlpa1" path="res://Assests/background.jpg" id="1_0wfyh"]
+[ext_resource type="PackedScene" uid="uid://wes1oy7p0j2f" path="res://scenes/Agent.tscn" id="1_sugp2"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_h2yge"]
 size = Vector2(1239.0006, 38.5)
@@ -10,18 +11,11 @@ size = Vector2(43.500065, 687.50226)
 
 [node name="Node2D" type="Node2D" unique_id=1689833882]
 
-[node name="CharacterBody2D" parent="." unique_id=731061817 instance=ExtResource("1_o5qli")]
-
-[node name="ColorRect" type="ColorRect" parent="." unique_id=1216429822]
-z_index = -1
-anchors_preset = -1
-offset_top = -1.0
-offset_right = 1152.0
-offset_bottom = 647.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="CharacterBody2D" parent="." unique_id=989377595 instance=ExtResource("1_sugp2")]
+position = Vector2(576, 324)
 
 [node name="wall3" type="StaticBody2D" parent="." unique_id=930364635]
+visible = false
 position = Vector2(0, 649)
 
 [node name="ColorRect" type="ColorRect" parent="wall3" unique_id=1182246570]
@@ -36,6 +30,7 @@ scale = Vector2(0.9999995, 0.9999995)
 shape = SubResource("RectangleShape2D_h2yge")
 
 [node name="wall4" type="StaticBody2D" parent="." unique_id=516073187]
+visible = false
 position = Vector2(-40, -5)
 
 [node name="ColorRect" type="ColorRect" parent="wall4" unique_id=1370287937]
@@ -51,6 +46,7 @@ scale = Vector2(0.9999994, 0.9999994)
 shape = SubResource("RectangleShape2D_h2yge")
 
 [node name="wall" type="StaticBody2D" parent="." unique_id=2030895725]
+visible = false
 position = Vector2(-5.9604645e-08, -0.99999976)
 scale = Vector2(0.99999994, 0.99999994)
 
@@ -61,11 +57,12 @@ shape = SubResource("RectangleShape2D_0xm2m")
 
 [node name="ColorRect" type="ColorRect" parent="wall" unique_id=2027312473]
 offset_left = -44.000004
-offset_top = 0.9999998
+offset_top = 0.9999999
 offset_bottom = 689.0
 color = Color(0.6666667, 0.99215686, 1, 1)
 
 [node name="wall2" type="StaticBody2D" parent="." unique_id=1291158145]
+visible = false
 position = Vector2(1152, 2.3841858e-07)
 scale = Vector2(0.99999994, 0.99999994)
 
@@ -78,3 +75,15 @@ color = Color(0.6666667, 0.99215686, 1, 1)
 position = Vector2(21.75, 323.2498)
 scale = Vector2(0.99999726, 0.99999726)
 shape = SubResource("RectangleShape2D_0xm2m")
+
+[node name="TextureRect" type="TextureRect" parent="." unique_id=2125064197]
+z_index = -10
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = 1152.0
+offset_bottom = 648.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("1_0wfyh")
+expand_mode = 1

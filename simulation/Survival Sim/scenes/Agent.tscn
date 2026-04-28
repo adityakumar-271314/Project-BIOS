@@ -1,51 +1,63 @@
-[gd_scene format=3 uid="uid://bc6xuva503vln"]
+[gd_scene format=3 uid="uid://wes1oy7p0j2f"]
 
-[ext_resource type="Script" uid="uid://c1n1ef7a48cjj" path="res://scripts/character_body_2d.gd" id="1_h5bnm"]
-[ext_resource type="Texture2D" uid="uid://ri7hsy3tbdw6" path="res://Assests/black.png" id="2_c810y"]
+[ext_resource type="Script" uid="uid://5k25ydtqnpby" path="res://scripts/character_body_2d.gd" id="1_7e1ma"]
+[ext_resource type="Texture2D" uid="uid://ri7hsy3tbdw6" path="res://Assests/black.png" id="2_u0ubg"]
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_ig7tw"]
-size = Vector2(64, 64)
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_jyhfs"]
+size = Vector2(62, 62)
 
-[sub_resource type="GDScript" id="GDScript_7e1ma"]
-script/source = "extends RayCast2D
+[node name="CharacterBody2D" type="CharacterBody2D" unique_id=989377595]
+script = ExtResource("1_7e1ma")
 
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=478933091]
 
-# Called when the node enters the scene tree for the first time.
-func _ready() -> void:
-	pass # Replace with function body.
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer" unique_id=1097718854]
+offset_right = 40.0
+offset_bottom = 40.0
 
+[node name="EnergyBar" type="ProgressBar" parent="CanvasLayer/VBoxContainer" unique_id=888689722]
+self_modulate = Color(0, 0.29411766, 0, 1)
+z_index = 5
+layout_mode = 2
 
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
-	pass
-"
+[node name="Energy" type="Label" parent="CanvasLayer/VBoxContainer/EnergyBar" unique_id=1383720641]
+modulate = Color(0, 0.29411766, 0, 1)
+z_index = 5
+layout_mode = 0
+offset_left = 147.0
+offset_right = 234.0
+offset_bottom = 23.0
 
-[node name="CharacterBody2D" type="CharacterBody2D" unique_id=731061817]
-position = Vector2(576, 324)
-motion_mode = 1
-script = ExtResource("1_h5bnm")
+[node name="IntegrityBar" type="ProgressBar" parent="CanvasLayer/VBoxContainer" unique_id=2045947710]
+self_modulate = Color(0, 0, 1, 1)
+z_index = 5
+layout_mode = 2
 
-[node name="Sprite2D" type="Sprite2D" parent="." unique_id=861764582]
-position = Vector2(-4.2915344e-06, 0)
-scale = Vector2(0.99999917, 1)
-texture = ExtResource("2_c810y")
+[node name="Integrity" type="Label" parent="CanvasLayer/VBoxContainer/IntegrityBar" unique_id=1681002262]
+modulate = Color(0, 0, 1, 1)
+z_index = 5
+layout_mode = 0
+offset_left = 148.0
+offset_top = 2.0
+offset_right = 235.0
+offset_bottom = 25.0
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=743525370]
-position = Vector2(0, -0.25)
-scale = Vector2(0.99999946, 0.99999946)
-shape = SubResource("RectangleShape2D_ig7tw")
+[node name="Action" type="Label" parent="CanvasLayer/VBoxContainer" unique_id=1370181133]
+modulate = Color(0.8509804, 0.2784314, 0, 1)
+z_index = 5
+layout_mode = 2
 
-[node name="Camera2D" type="Camera2D" parent="." unique_id=58267554]
+[node name="Stress" type="Label" parent="CanvasLayer/VBoxContainer" unique_id=727207019]
+modulate = Color(0.56078434, 0, 1, 1)
+z_index = 5
+layout_mode = 2
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1930465531]
+z_index = 10
+texture = ExtResource("2_u0ubg")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=2010327584]
+shape = SubResource("RectangleShape2D_jyhfs")
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=963776658]
 zoom = Vector2(2, 2)
-
-[node name="Centre-Ray" type="RayCast2D" parent="Camera2D" unique_id=464893306]
-scale = Vector2(3.24, 3.24)
-target_position = Vector2(88, 0)
-collide_with_areas = true
-script = SubResource("GDScript_7e1ma")
-
-[node name="Left-Ray" type="RayCast2D" parent="Camera2D" unique_id=1190774323]
-target_position = Vector2(100, -60)
-
-[node name="Right-Ray" type="RayCast2D" parent="Camera2D" unique_id=1467507864]
-target_position = Vector2(100, 60)

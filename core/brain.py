@@ -3,7 +3,7 @@ import math
 class GoalStackManager:
     def __init__(self):
         self.current_goal = "WANDER"
-        self.persistence = 1.3 
+        self.persistence = 1.1 
 
     def _sigmoidal_curve(self, value, threshold=40, steepness=-0.15):
         return 100 / (1 + math.exp(-steepness * (value - threshold)))

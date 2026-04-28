@@ -15,18 +15,16 @@ class BodyStateTracker:
         self.energy = max(0, self.energy - decay_rate)
         self.reserves += food 
         
-        # Integrity Logic
         self.integrity -= external_damage
 
-        # Natural Healing
+
         if self.energy > 50 and external_damage == 0 and self.integrity < 100.0:
             self.integrity = min(100.0, self.integrity + 0.05)
 
-        # Starvation
+       
         if self.energy <= 0:
             self.integrity -= 0.5 
 
-        # Digestion: Move reserves to active energy
         if self.energy < 100 and self.reserves > 0:
             transfer_amount = min(100.0 - self.energy, self.reserves, 5.0)
             self.energy += transfer_amount
