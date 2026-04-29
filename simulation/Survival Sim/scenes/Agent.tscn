@@ -1,19 +1,29 @@
 [gd_scene format=3 uid="uid://wes1oy7p0j2f"]
 
-[ext_resource type="Script" uid="uid://5k25ydtqnpby" path="res://scripts/character_body_2d.gd" id="1_7e1ma"]
+[ext_resource type="Script" uid="uid://5k25ydtqnpby" path="res://scripts/AgentBody.gd" id="1_7e1ma"]
+[ext_resource type="Script" uid="uid://dv2r4lap25wqx" path="res://scripts/SurvivalUI.gd" id="2_5hfgq"]
 [ext_resource type="Texture2D" uid="uid://ri7hsy3tbdw6" path="res://Assests/black.png" id="2_u0ubg"]
+[ext_resource type="Script" uid="uid://bkynup0hbshao" path="res://scripts/BrainLink.gd" id="4_6cj2t"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_5hfgq"]
+font_color = Color(0, 0.7826358, 0, 1)
+
+[sub_resource type="LabelSettings" id="LabelSettings_6cj2t"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_jyhfs"]
 size = Vector2(62, 62)
 
 [node name="CharacterBody2D" type="CharacterBody2D" unique_id=989377595]
+position = Vector2(576, 324)
+collision_layer = 2
 script = ExtResource("1_7e1ma")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=478933091]
+script = ExtResource("2_5hfgq")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer" unique_id=1097718854]
-offset_right = 40.0
-offset_bottom = 40.0
+offset_right = 42.0
+offset_bottom = 112.0
 
 [node name="EnergyBar" type="ProgressBar" parent="CanvasLayer/VBoxContainer" unique_id=888689722]
 self_modulate = Color(0, 0.29411766, 0, 1)
@@ -24,9 +34,11 @@ layout_mode = 2
 modulate = Color(0, 0.29411766, 0, 1)
 z_index = 5
 layout_mode = 0
-offset_left = 147.0
-offset_right = 234.0
-offset_bottom = 23.0
+offset_left = 207.0
+offset_right = 267.0
+offset_bottom = 29.0
+text = "Energy"
+label_settings = SubResource("LabelSettings_5hfgq")
 
 [node name="IntegrityBar" type="ProgressBar" parent="CanvasLayer/VBoxContainer" unique_id=2045947710]
 self_modulate = Color(0, 0, 1, 1)
@@ -37,12 +49,14 @@ layout_mode = 2
 modulate = Color(0, 0, 1, 1)
 z_index = 5
 layout_mode = 0
-offset_left = 148.0
+offset_left = 208.0
 offset_top = 2.0
-offset_right = 235.0
+offset_right = 274.0
 offset_bottom = 25.0
+text = "Integrity"
+label_settings = SubResource("LabelSettings_6cj2t")
 
-[node name="Action" type="Label" parent="CanvasLayer/VBoxContainer" unique_id=1370181133]
+[node name="MotorStatus" type="Label" parent="CanvasLayer/VBoxContainer" unique_id=1370181133]
 modulate = Color(0.8509804, 0.2784314, 0, 1)
 z_index = 5
 layout_mode = 2
@@ -61,3 +75,17 @@ shape = SubResource("RectangleShape2D_jyhfs")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=963776658]
 zoom = Vector2(2, 2)
+
+[node name="Sensors" type="Node2D" parent="." unique_id=574170296]
+
+[node name="RayCenter" type="RayCast2D" parent="Sensors" unique_id=579218187]
+target_position = Vector2(200, 0)
+
+[node name="RayLeft" type="RayCast2D" parent="Sensors" unique_id=1448801005]
+target_position = Vector2(120, -120)
+
+[node name="RayRight" type="RayCast2D" parent="Sensors" unique_id=1570531546]
+target_position = Vector2(120, 120)
+
+[node name="BrainLink" type="Node" parent="." unique_id=895446742]
+script = ExtResource("4_6cj2t")
