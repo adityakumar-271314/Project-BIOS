@@ -16,6 +16,12 @@ run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
+[global_group]
+
+landmark=""
+food=""
+hazard=""
+
 [physics]
 
 3d/physics_engine="Jolt Physics"

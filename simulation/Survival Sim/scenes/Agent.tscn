@@ -13,6 +13,12 @@ font_color = Color(0, 0.7826358, 0, 1)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_jyhfs"]
 size = Vector2(62, 62)
 
+[sub_resource type="CircleShape2D" id="CircleShape2D_5hfgq"]
+radius = 200.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_5hfgq"]
+size = Vector2(64, 64)
+
 [node name="CharacterBody2D" type="CharacterBody2D" unique_id=989377595]
 position = Vector2(576, 324)
 collision_layer = 2
@@ -87,5 +93,19 @@ target_position = Vector2(120, -120)
 [node name="RayRight" type="RayCast2D" parent="Sensors" unique_id=1570531546]
 target_position = Vector2(120, 120)
 
+[node name="ProximitySensor" type="Area2D" parent="Sensors" unique_id=713510831]
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Sensors/ProximitySensor" unique_id=1678588157]
+shape = SubResource("CircleShape2D_5hfgq")
+
 [node name="BrainLink" type="Node" parent="." unique_id=895446742]
 script = ExtResource("4_6cj2t")
+
+[node name="BodySurround" type="Area2D" parent="." unique_id=1999311289]
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BodySurround" unique_id=680950823]
+shape = SubResource("RectangleShape2D_5hfgq")
