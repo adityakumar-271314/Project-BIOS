@@ -13,7 +13,7 @@ Project BIOS is an experimental AI framework where agent behavior is governed by
 ### Architecture
 - **Physiological Layer (BST):** Tracks energy decay, physical integrity, and metabolic reserves.
 - **Affective Layer (EHE):** Simulates stress and fear vectors that modulate decision-making.
-- **Cognitive Layer (GSM):** A non-linear drive-selection engine using sigmoidal urgency curves.
+- **Cognitive Layer (GSM):** A non-linear drive-selection engine.
 
 ### The Bridge
 The "Mind" (Python) and "Body" (Godot Engine) communicate via a TCP socket bridge, allowing for a strict separation between cognitive logic and physical simulation.
