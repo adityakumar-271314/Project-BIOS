@@ -17,3 +17,5 @@ Project BIOS is an experimental AI framework where agent behavior is governed by
 
 ### The Bridge
 The "Mind" (Python) and "Body" (Godot Engine) communicate via a TCP socket bridge, allowing for a strict separation between cognitive logic and physical simulation.
+
+> Note: This project is in it's very early stage of prototyping
