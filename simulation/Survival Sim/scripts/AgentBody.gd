@@ -1,103 +1,93 @@
 extends CharacterBody2D
-@onready	var ray_c = $Sensors/RayCenter
-@onready	var ray_l = $Sensors/RayLeft
-@onready	var ray_r = $Sensors/RayRight
-@onready	var proximity_sensor = $Sensors/ProximitySensor
+
+@onready var ray_c = $Sensors/RayCenter
+@onready var ray_l = $Sensors/RayLeft
+@onready var ray_r = $Sensors/RayRight
+@onready var proximity_sensor = $Sensors/ProximitySensor
 @export var speed = 400.0
 
-func _physics_process(delta):
+var current_normals = []
+var prev_vel = Vector2.ZERO # Added for acceleration
+
+
+func _physics_process(_delta):
+	# Movement logic remains same
 	var direction = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	if direction:
 		velocity = direction * speed
 	else:
 		velocity = velocity.move_toward(Vector2.ZERO, speed)
+	
 	move_and_slide()
-
-var last_position = Vector2.ZERO
-var stuck_timer = 0.0
-
-
-
-func get_ray_data() -> Dictionary:
-	var current_vel = get_real_velocity().length()
-		
-	var intended_vel = velocity.length()
 	
-
-	var physically_stuck = intended_vel > 10 and current_vel < 15
-	var data = {
-		"ray_c": 1.0, 
-		"ray_l": 1.0, 
-		"ray_r": 1.0,
-		"current_rotation": rotation, 
-		"is_stuck": physically_stuck
-	}
-	if ray_c.is_colliding():
-		data["ray_c"] = ray_c.global_position.distance_to(ray_c.get_collision_point()) / 200.0
-	if ray_l.is_colliding():
-		data["ray_l"] = ray_l.global_position.distance_to(ray_l.get_collision_point()) / 200.0
-	if ray_r.is_colliding():
-		data["ray_r"] = ray_r.global_position.distance_to(ray_r.get_collision_point()) / 200.0
-	
-
-	return data
-
-
+	current_normals.clear()
+	for i in range(get_slide_collision_count()):
+		var norm = get_slide_collision(i).get_normal()
+		if not current_normals.has(norm):
+			current_normals.append(norm)
 
 func get_sensory_data() -> Dictionary:
-	var ray_data = get_ray_data()
-	var sensed_objects = []
+	var cur_vel = get_real_velocity()
+	var delta = get_physics_process_delta_time()
+	#for debug
+	var x = global_position.x 
+	var y = global_position.y
+
+	# Prevent division by zero if delta is somehow 0
+	var accel = (cur_vel - prev_vel) / delta if delta > 0 else Vector2.ZERO
+	prev_vel = cur_vel 
 	
-	
-	# Detect BOTH solid bodies and trigger areas
-	var detections = proximity_sensor.get_overlapping_bodies()
-	detections.append_array(proximity_sensor.get_overlapping_areas())
-	
+	var physically_stuck = velocity.length() > 10 and cur_vel.length() < 15
+	var normals_data = []
+	for n in current_normals: 
+		normals_data.append({"x": n.x, "y": n.y})
+
+	var data = {
+		"delta" : delta,
+		"accel": {"x": accel.x, "y": accel.y},
+		"ray_c": 1.0, "ray_l": 1.0, "ray_r": 1.0,
+		"current_rotation": rotation, 
+		"is_stuck": physically_stuck,
+		"collision_normals": normals_data,
+		"sensed_objects": [],
+		"global_x": x,
+		"global_y": y
+	}
+
+	# Raycasts
+	if ray_c.is_colliding(): data["ray_c"] = ray_c.global_position.distance_to(ray_c.get_collision_point()) / 200.0
+	if ray_l.is_colliding(): data["ray_l"] = ray_l.global_position.distance_to(ray_l.get_collision_point()) / 200.0
+	if ray_r.is_colliding(): data["ray_r"] = ray_r.global_position.distance_to(ray_r.get_collision_point()) / 200.0
+
+	# Proximity
+	var detections = proximity_sensor.get_overlapping_bodies() + proximity_sensor.get_overlapping_areas()
 	for obj in detections:
-		# Skip self or the ground
-		if obj == self or obj is StaticBody2D and obj.name == "Walls": continue
+		if obj == self or (obj is StaticBody2D and obj.name == "Walls"): continue
+		
+		var target = obj
+		if not (obj.is_in_group("food") or obj.is_in_group("hazard") or obj.is_in_group("landmark")):
+			target = obj.get_parent()
 			
-		var to_obj = obj.global_position - global_position
-		var dist = to_obj.length()
 		var type = "unknown"
+		if target.is_in_group("food"): type = "food"
+		elif target.is_in_group("hazard"): type = "hazard"
+		elif target.is_in_group("landmark"): type = "landmark"
 		
-		if obj.is_in_group("food") or obj.get_parent().is_in_group("food"): 
-			type = "food"
-		elif obj.is_in_group("hazard") or obj.get_parent().is_in_group("hazard"): 
-			type = "hazard"
 		if type != "unknown":
-			pass
-			# debug print("GODOT SCANNER SEES: ", type, " | Distance: ", snapped(to_obj.length(), 1))
-		# Skip ghosts (dist 0)
-		if dist < 5: continue 
-		
-		var angle = Vector2.RIGHT.rotated(rotation).angle_to(to_obj)
-		
-		
-		if obj.is_in_group("food"): type = "food"
-		elif obj.is_in_group("hazard"): type = "hazard"
-		elif obj.is_in_group("landmark"): type = "landmark"
-		
-		# If it's still unknown, check the parent (common for complex scenes)
-		if type == "unknown" and obj.get_parent().is_in_group("food"): type = "food"
+			var to_obj = target.global_position - global_position
+			var u_id = -1
+			if target.has_meta("unique_id"):
+				u_id = target.get_meta("unique_id")
+			elif target.get_parent() and target.get_parent().has_meta("unique_id"):
+				u_id = target.get_parent().get_meta("unique_id")
 
-		sensed_objects.append({"type": type, "dist": dist, "angle": angle})
-		
-	ray_data["sensed_objects"] = sensed_objects
-	
-
-
-	return ray_data
-
+			data["sensed_objects"].append({
+				"id": u_id, "type": type, "dist": to_obj.length(), 
+				"angle": Vector2.RIGHT.rotated(rotation).angle_to(to_obj)
+			})
+	return data
 
 func execute_move(motor_data: Dictionary):
-	var thrust = motor_data.get("thrust", 0.0)
-	var steer = motor_data.get("steer", 0.0)
-	
-	# 1. Update Rotation based on steer primitive
-	rotation += steer * get_process_delta_time() * 4.0 
-	
-	# 2. Update Velocity based on NEW rotation
-	velocity = Vector2.RIGHT.rotated(rotation) * (thrust * 150.0)
-	
+	rotation += motor_data.get("steer", 0.0) * get_process_delta_time() * 4.0 
+	velocity = Vector2.RIGHT.rotated(rotation) * (motor_data.get("thrust", 0.0) * 150.0)
 	move_and_slide()

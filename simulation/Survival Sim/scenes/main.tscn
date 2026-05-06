@@ -7,6 +7,20 @@
 [ext_resource type="PackedScene" uid="uid://dnmmqqj7mhs2n" path="res://scenes/landmark.tscn" id="5_tipki"]
 [ext_resource type="Script" uid="uid://bhgtp1be0go2d" path="res://scripts/WorldGenerator.gd" id="6_85g3d"]
 
+[sub_resource type="GDScript" id="GDScript_tefeu"]
+script/source = "extends Node2D
+
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	Engine.time_scale = 1.0 
+
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta: float) -> void:
+	pass
+"
+
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_0xm2m"]
 size = Vector2(43.500065, 687.50226)
 
@@ -14,6 +28,7 @@ size = Vector2(43.500065, 687.50226)
 size = Vector2(1239.0006, 38.5)
 
 [node name="Node2D" type="Node2D" unique_id=1689833882]
+script = SubResource("GDScript_tefeu")
 
 [node name="CharacterBody2D" parent="." unique_id=989377595 instance=ExtResource("1_sugp2")]
 
@@ -22,7 +37,8 @@ z_index = -10
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = 1152.0
+offset_left = 1.0
+offset_right = 1153.0
 offset_bottom = 648.0
 grow_horizontal = 2
 grow_vertical = 2

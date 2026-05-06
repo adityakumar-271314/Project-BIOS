@@ -1,0 +1,1670 @@
+Directory structure:
+└── Project-BIOS/
+    ├── README.md
+    ├── bridge.py
+    ├── LICENSE
+    ├── requirements.txt
+    ├── core/
+    │   ├── __init__.py
+    │   ├── agent.py
+    │   ├── body.py
+    │   ├── brain.py
+    │   ├── emotions.py
+    │   └── hippocampus.py
+    ├── docs/
+    │   ├── HARDWARE.md
+    │   └── THEORY.md
+    ├── simulation/
+    │   └── Survival Sim/
+    │       ├── project.godot
+    │       ├── scenes.gd
+    │       ├── scenes.gd.uid
+    │       ├── .editorconfig
+    │       ├── scenes/
+    │       │   ├── Agent.tscn
+    │       │   ├── fire.tscn
+    │       │   ├── food.tscn
+    │       │   ├── landmark.tscn
+    │       │   └── main.tscn
+    │       └── scripts/
+    │           ├── AgentBody.gd
+    │           ├── AgentBody.gd.uid
+    │           ├── BrainLink.gd
+    │           ├── BrainLink.gd.uid
+    │           ├── Food.gd
+    │           ├── Food.gd.uid
+    │           ├── Hazard.gd
+    │           ├── Hazard.gd.uid
+    │           ├── SurvivalUI.gd
+    │           ├── SurvivalUI.gd.uid
+    │           ├── WorldGenerator.gd
+    │           └── WorldGenerator.gd.uid
+    └── tests/
+        └── test_drives.py
+
+================================================
+FILE: README.md
+================================================
+# Project BIOS: Embodied Survival Simulation
+**Intelligence as a byproduct of metabolic constraint.**
+
+Project BIOS is an experimental AI framework where agent behavior is governed by internal homeostatic drives rather than pre-scripted logic or large language models. 
+
+## Quick Start
+1. **Clone the repo:** `git clone https://github.com/adityakumar-271314/Project-BIOS.git`
+2. **Start the Brain:** Run `python bridge.py` from the root directory.
+3. **Start the Simulation:** Open the `simulation/Survival Sim` folder in Godot 4.x and press **F5** (Play).
+4. **Observe:** Watch the Godot window for agent movement and visual representation of energy, integrity levels alongside stress value and current sction.
+
+
+### Architecture
+- **Physiological Layer (BST):** Tracks energy decay, physical integrity, and metabolic reserves.
+- **Affective Layer (EHE):** Simulates stress and fear vectors that modulate decision-making.
+- **Cognitive Layer (GSM):** A non-linear drive-selection engine.
+
+### The Bridge
+The "Mind" (Python) and "Body" (Godot Engine) communicate via a TCP socket bridge, allowing for a strict separation between cognitive logic and physical simulation.
+
+> Note: This project is in it's very early stage of prototyping
+
+
+
+================================================
+FILE: bridge.py
+================================================
+import math
+import socket
+import json
+from core.agent import Agent  
+
+
+# TODO: Refactor sensory data pipeline. Currently mixing float/dict types across modules.
+
+def run_brain_server():
+    host = "127.0.0.1"
+    port = 9999
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind((host, port))
+    server.listen(1)
+    
+    print(f"BIOS Brain Server active on {host}:{port}. Waiting for Godot...")
+    
+    conn, addr = server.accept()
+    client_file = conn.makefile('rw', encoding='utf-8')
+    agent = Agent()
+    DEBUG = False # Set to True to enable detailed debug output each tick
+    try:
+        while True:
+            line = client_file.readline()
+            if not line: break
+
+            try:
+                world_data = json.loads(line) 
+                sensors = {
+                    "is_real_data": True,
+                    "delta": float(world_data.get("delta", 0.016)),
+                    "accel": world_data.get("accel", {"x": 0.0, "y": 0.0}),
+                    "ray_c": float(world_data.get("ray_c", 1.0)),
+                    "ray_l": float(world_data.get("ray_l", 1.0)),
+                    "ray_r": float(world_data.get("ray_r", 1.0)),
+                    "current_rotation": float(world_data.get("current_rotation", 0.0)),
+                    "is_stuck": bool(world_data.get("is_stuck", False)),
+                    "sensed_objects": world_data.get("sensed_objects", []),
+                    "hazard_stim": float(world_data.get("hazard_stim", 0.0)),
+                    "food_stim": float(world_data.get("food_stim", 0.0)),
+                    "collision_normals": world_data.get("collision_normals", []),
+                    "real_pos_x": float(world_data.get("global_x", 0.0)),
+                    "real_pos_y": float(world_data.get("global_y", 0.0))
+                }
+
+                # Invert (godot) Y axis for consistency with internal coordinate system
+                raw_normals = world_data.get("collision_normals", [])
+                formatted_normals = []
+                for n in raw_normals:
+                    nx = float(n.get("x", 0.0))
+                    ny = float(n.get("y", 0.0))
+                    formatted_normals.append({
+                        "x": -nx,   
+                        "y": -ny
+                    })
+                    sensors["collision_normals"] = formatted_normals
+                sensors["accel"]["y"] = -world_data.get("accel", {}).get("y", 0.0)
+                sensors["current_rotation"] = -float(world_data.get("current_rotation", 0.0))
+                for obj in sensors["sensed_objects"]:
+                    obj["angle"] = -obj["angle"]
+                    
+            except Exception as e:
+                print(f"BRIDGE ERROR: {e}")
+                # Complete fallback dictionary to prevent KeyError/NameError
+                sensors = {
+                    "is_real_data": False,
+                    "delta": 0.016, "accel": {"x": 0.0, "y": 0.0},
+                    "ray_c": 1.0, "ray_l": 1.0, "ray_r": 1.0, 
+                    "hazard_stim": 0.0, "food_stim": 0.0,
+                    "sensed_objects": [], "collision_normals": [],
+                    "current_rotation": 0.0, "is_stuck": False
+                }
+            motor_output = agent.tick(
+                env_damage=sensors["hazard_stim"],
+                food=sensors["food_stim"],
+                sensor_data=sensors,
+                delta=sensors["delta"] 
+            )
+            
+            if not agent.bst.is_alive:
+                response = {"action": "DECEASED", "alive": False}
+                client_file.write(json.dumps(response) + "\n")
+                client_file.flush()
+                break
+            
+            response = {
+                "thrust": motor_output.get("thrust", 0.0),
+                "steer": motor_output.get("steer", 0.0),
+                "energy": agent.bst.energy,
+                "integrity": agent.bst.integrity,
+                "stress": agent.ehe.stress,
+                "alive": agent.bst.is_alive
+            }
+
+            client_file.write(json.dumps(response) + "\n")
+            client_file.flush()
+
+
+
+
+            # --- DEBUGGING BLOCK ---
+            if DEBUG:
+                real_pos_x = sensors.get("real_pos_x", 576.0) 
+                real_pos_y = sensors.get("real_pos_y", 324.0)
+
+                # 1. Get the raw mental coordinates
+                internal = agent.memory.internal_pos
+
+                # 2. Transform Mental -> Godot Space
+                # We add the spawn offset and invert the Y axis
+                mental_in_godot_x = internal.x + 576.0
+                mental_in_godot_y = 324.0 - internal.y  
+
+                # 3. Calculate "Drift" (Distance between reality and imagination)
+                error_x = real_pos_x - mental_in_godot_x
+                error_y = real_pos_y - mental_in_godot_y
+                drift_distance = math.sqrt(error_x**2 + error_y**2)
+
+                print("-" * 50)
+                print(f"REAL POSITION:   ({real_pos_x:.1f}, {real_pos_y:.1f})")
+                print(f"MENTAL ESTIMATE: ({mental_in_godot_x:.1f}, {mental_in_godot_y:.1f})")
+                print(f"DRIFT ERROR:     {drift_distance:.2f} pixels")
+                print(f"MEMORY STATS:    Cells: {len(agent.memory._grid)} | Landmarks: {len(agent.memory._landmarks)}")
+
+                if drift_distance > 50:
+                    print("WARNING: Agent is experiencing high spatial drift!")
+                print("-" * 50)
+
+
+
+
+
+    
+    except Exception as e:
+        print(f"Connection Error: {e}")
+    finally:
+        conn.close()
+        server.close()
+
+if __name__ == "__main__":
+    run_brain_server()
+
+
+================================================
+FILE: LICENSE
+================================================
+MIT License
+
+Copyright (c) 2026 adityakumar-271314
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+
+================================================
+FILE: requirements.txt
+================================================
+# BIOS Simulation Requirements
+# Currently utilizing Python Standard Library
+
+
+================================================
+FILE: core/__init__.py
+================================================
+[Empty file]
+
+
+================================================
+FILE: core/agent.py
+================================================
+from .body import BodyStateTracker
+from .emotions import EmotionHormoneEngine
+from .brain import GoalStackManager
+from .hippocampus import SpatialMemory, Vector2
+class Agent:
+    def __init__(self):
+        self.bst = BodyStateTracker()
+        self.ehe = EmotionHormoneEngine()
+        self.gsm = GoalStackManager()
+        self.memory = SpatialMemory(cell_size=50.0, landmark_alpha=0.2)
+
+    def tick(self, env_damage, food, sensor_data, delta=0.016):
+        
+
+        self.memory.update(sensor_data)
+        spatial_bias = self.memory.get_spatial_bias()
+        self.ehe.update(self.bst, sensor_data)
+        motor_output = self.gsm.evaluate_priorities(
+            self.ehe, 
+            sensor_data,
+            spatial_bias
+        )
+
+        self.bst.update(
+            stress=self.ehe.stress,
+            external_damage=env_damage,
+            food_stimulus=food,
+            thrust=motor_output.get("thrust", 0.0),
+            steer=motor_output.get("steer", 0.0),
+            delta=delta
+        )
+        
+        return motor_output
+
+
+================================================
+FILE: core/body.py
+================================================
+import math
+
+class BodyStateTracker:
+    def __init__(self):
+        self.energy = 100.0
+        self.integrity = 100.0
+        self.reserves = 0.0
+        self.is_alive = True
+        
+        self.velocity = 0.0
+        self.angular_velocity = 0.0
+        self.absolute_rotation = 0.0 # Facing East (0 radians)
+
+    def update(self, external_damage=0, food_stimulus=0, stress=0.0, thrust=0.0, steer=0.0, delta=0.016):
+        if not self.is_alive: return
+
+        self.velocity = thrust * 120.0
+        self.angular_velocity = steer * 4.0
+
+        motion_cost = (abs(thrust) * 0.06) + (abs(steer) * 0.04)
+        existence_decay = (math.exp(0.05 * self.energy) - 1) / (math.exp(0.05 * 100) - 1)
+        stress_tax = stress * 0.05
+        
+        total_cost = (motion_cost + existence_decay + stress_tax) / 10.0
+        self.energy = max(0, self.energy - total_cost)
+
+        self.absolute_rotation += self.angular_velocity * delta
+        # Keep it in -PI to PI range
+        self.absolute_rotation = math.atan2(math.sin(self.absolute_rotation), math.cos(self.absolute_rotation))
+        
+        if external_damage > 0:
+            self.integrity -= external_damage 
+
+        if self.energy > 50 and external_damage <= 0 and self.integrity < 100.0:
+            self.integrity = min(100.0, self.integrity + 0.05)
+
+        if self.energy <= 0:
+            self.integrity -= 0.2 
+
+        self.reserves += food_stimulus
+        if self.energy < 100 and self.reserves > 0:
+            transfer = min(100.0 - self.energy, self.reserves, 5.0)
+            self.energy += transfer
+            self.reserves -= transfer
+        
+        if self.reserves > 50:
+            self.integrity -= (self.reserves - 50) * 0.01
+
+        if self.integrity <= 0:
+            self.is_alive = False
+
+
+================================================
+FILE: core/brain.py
+================================================
+import random
+
+class GoalStackManager:
+    def __init__(self):
+        self.drift_angle = 0.0
+        self.drift_timer = 0
+        self.last_steer = 0.0
+
+    def evaluate_priorities(self, ehe, sensor_data, spatial_bias):
+        food_force = 0.0
+        hazard_force = 0.0
+        wall_force = 0.0
+        memory_steer_force = 0.0
+        
+        sensed = sensor_data.get("sensed_objects", [])
+        
+        for obj in sensed:
+            # PULL TOWARD FOOD
+            if obj["type"] == "food":
+                # Stronger pull when hungry and closer
+                dist_mult = 100.0 / max(obj["dist"], 10)
+                food_force -= obj["angle"] * (ehe.drive * dist_mult * 0.8)
+                
+            # PUSH AWAY FROM FIRE
+            if obj["type"] == "hazard":
+                # Massive repulsion scaled by fear
+                hazard_force += obj["angle"] * (ehe.fear * 4.5)
+
+        if spatial_bias.length() > 0.1:
+            memory_steer_force = spatial_bias.x * 2.0
+            
+        # WALL REPULSION 
+        rl = sensor_data.get("ray_l", 1.0)
+        rr = sensor_data.get("ray_r", 1.0)
+        
+        if rl < 0.7: wall_force += (0.7 - rl) * 3.0
+        if rr < 0.7: wall_force -= (0.7 - rr) * 3.0
+       
+        # SUM FORCES
+        total_steer = food_force + hazard_force + wall_force + memory_steer_force
+
+        # WANDER if nothing is happening
+        if abs(total_steer) < 0.1:
+            total_steer = self.drift_logic()
+
+        # SMOOTHING (Anti-shiver)
+        final_steer = (total_steer * 0.4) + (self.last_steer * 0.6)
+        self.last_steer = final_steer
+
+        # THRUST CALCULATION
+        thrust = 0.7 + (ehe.fear * 0.4) - (ehe.stress * 0.3)
+
+        return {
+            "thrust": self._clamp(thrust, 0.2, 1.1),
+            "steer": final_steer
+        }
+
+    def drift_logic(self):
+        self.drift_timer -= 1
+        if self.drift_timer <= 0:
+            self.drift_timer = random.randint(60, 150)
+            self.drift_angle = random.uniform(-0.5, 0.5)
+        return self.drift_angle
+
+    def _clamp(self, value, min_val, max_val):
+        return max(min_val, min(value, max_val))
+
+
+================================================
+FILE: core/emotions.py
+================================================
+class EmotionHormoneEngine:
+    def __init__(self):
+        self.stress = 0.0
+        self.fear = 0.0
+        self.drive = 0.0
+
+    def update(self, bst, sensor_data):
+        #  DRIVE: Normalized hunger
+        self.drive = (100.0 - bst.energy) / 100.0
+        hazard_stim = sensor_data.get("hazard_stim", 0.0) 
+        if hazard_stim > 0.1:
+            self.fear = min(1.0, self.fear + 0.3)
+        else:
+            self.fear = max(0.0, self.fear - 0.02)
+            
+        #  STRESS: Walls + Pain
+        integrity_stress = (100.0 - bst.integrity) / 100.0
+        rc = sensor_data.get("ray_c", 1.0)
+        wall_pressure = (1.0 - rc) if rc < 0.6 else 0.0
+        
+        target_stress = max(integrity_stress, wall_pressure)
+        self.stress += (target_stress - self.stress) * 0.05
+
+
+================================================
+FILE: core/hippocampus.py
+================================================
+"""
+Project BIOS â€” SpatialMemory (Hippocampus)
+==========================================
+Dead-reckoning odometry + landmark re-zeroing + sparse trauma/bounty grid +
+planning bias vector.  No GPS; all coordinates are in the agent's own
+internal frame (origin = spawn point).
+"""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple
+
+# ---------------------------------------------------------------------------
+# Tiny Vector2 â€” avoids numpy dependency while keeping math cleanor
+# ---------------------------------------------------------------------------
+
+class Vector2:
+    """Lightweight 2-D vector with the operations we actually need."""
+
+    __slots__ = ("x", "y")
+
+    def __init__(self, x: float = 0.0, y: float = 0.0) -> None:
+        self.x = x
+        self.y = y
+
+    # --- arithmetic ----------------------------------------------------------
+
+    def __add__(self, o: "Vector2") -> "Vector2":
+        return Vector2(self.x + o.x, self.y + o.y)
+
+    def __sub__(self, o: "Vector2") -> "Vector2":
+        return Vector2(self.x - o.x, self.y - o.y)
+
+    def __mul__(self, scalar: float) -> "Vector2":
+        return Vector2(self.x * scalar, self.y * scalar)
+
+    def __rmul__(self, scalar: float) -> "Vector2":
+        return self.__mul__(scalar)
+
+    def __truediv__(self, scalar: float) -> "Vector2":
+        return Vector2(self.x / scalar, self.y / scalar)
+
+    def __repr__(self) -> str:
+        return f"Vector2({self.x:.3f}, {self.y:.3f})"
+
+    # --- geometry ------------------------------------------------------------
+
+    def length(self) -> float:
+        return math.sqrt(self.x * self.x + self.y * self.y)
+
+    def length_sq(self) -> float:
+        return self.x * self.x + self.y * self.y
+
+    def normalized(self) -> "Vector2":
+        mag = self.length()
+        return Vector2(self.x / mag, self.y / mag) if mag > 1e-9 else Vector2()
+
+    def dot(self, o: "Vector2") -> float:
+        return self.x * o.x + self.y * o.y
+
+    def slide(self, normal: "Vector2") -> "Vector2":
+        """Remove the component of *self* that points into *normal*."""
+        # v_slide = v - (v Â· nÌ‚) * nÌ‚ , (only when v Â· nÌ‚ < 0, i.e. into surface)
+        dot = self.dot(normal)
+        if dot < 0.0:
+            return self - normal * dot
+        return Vector2(self.x, self.y)
+
+    def lerp(self, o: "Vector2", t: float) -> "Vector2":
+        return self + (o - self) * t
+
+    def copy(self) -> "Vector2":
+        return Vector2(self.x, self.y)
+
+
+# ---------------------------------------------------------------------------
+# Data containers
+# ---------------------------------------------------------------------------
+
+@dataclass
+class LandmarkRecord:
+    """Everything the agent remembers about a named object."""
+    pos: Vector2                    # Estimated world-frame position
+    last_seen_tick: int = 0
+    observation_count: int = 1
+
+
+@dataclass
+class GridCell:
+    """A single cell in the sparse trauma/bounty grid."""
+    hazard: float = 0.0             # Accumulated hazard intensity (0â€“1)
+    food: float = 0.0               # Accumulated food intensity   (0â€“1)
+    last_updated_tick: int = 0
+
+
+# ---------------------------------------------------------------------------
+# SpatialMemory
+# ---------------------------------------------------------------------------
+
+class SpatialMemory:
+    """
+    The agent's hippocampus: integrates sensor ticks into a coherent,
+    self-correcting internal map.
+
+    Parameters
+    ----------
+    cell_size : float
+        Side length of each trauma/bounty grid cell in world units.
+    landmark_alpha : float
+        Blending weight for landmark re-zeroing (0 = ignore landmark,
+        1 = snap to landmark immediately).  0.15 is a good starting point.
+    grid_decay : float
+        Per-tick multiplicative decay applied to cell intensities so old
+        memories fade.  1.0 = no decay.
+    stim_threshold : float
+        Minimum hazard_stim / food_stim to record a grid event.
+    """
+
+    def __init__(
+        self,
+        cell_size: float = 50.0,
+        landmark_alpha: float = 0.3,
+        grid_decay: float = 0.9995,
+        stim_threshold: float = 0.1,
+    ) -> None:
+        # --- odometry state --------------------------------------------------
+        self.internal_pos: Vector2 = Vector2(0.0, 0.0)
+        self.internal_vel: Vector2 = Vector2(0.0, 0.0)
+
+        # --- landmark map  ---------------------------------------------------
+        self._landmarks: Dict[int, LandmarkRecord] = {}
+
+        # --- sparse grid  ----------------------------------------------------
+        self._cell_size: float = cell_size
+        self._grid: Dict[Tuple[int, int], GridCell] = {}
+        self._grid_decay: float = grid_decay
+
+        # --- tuning knobs  ---------------------------------------------------
+        self._landmark_alpha: float = landmark_alpha
+        self._stim_threshold: float = stim_threshold
+
+        # --- internal tick counter  ------------------------------------------
+        self._tick: int = 0
+
+    # =========================================================================
+    # Public API â€” call once per game tick
+    # =========================================================================
+
+    def update(self, sensors: dict) -> None:
+        """
+        Ingest one tick of sensor data and update all internal state.
+
+        Expected keys in *sensors*:
+            delta            : float
+            accel            : {'x': float, 'y': float}
+            current_rotation : float  (radians, absolute compass heading)
+            sensed_objects   : list[{'type': str, 'dist': float,
+                                     'angle': float, 'id': int}]
+            collision_normals: list[{'x': float, 'y': float}]
+            hazard_stim      : float  (0â€“1)
+            food_stim        : float  (0â€“1)
+        """
+        self._tick += 1
+        delta: float = sensors.get("delta", 0.016)
+
+        # 1. Dead reckoning ---------------------------------------------------
+        self._integrate_odometry(sensors, delta)
+
+        # 2. Landmark re-zeroing ----------------------------------------------
+        self._process_landmarks(sensors)
+
+        # 3. Stimulus grid recording ------------------------------------------
+        self._record_stimuli(sensors)
+
+        # 4. Optional grid decay (cheap: iterates only populated cells) -------
+        if self._grid_decay < 1.0:
+            self._decay_grid()
+
+    # =========================================================================
+    # Planning interface
+    # =========================================================================
+
+    def get_spatial_bias(
+        self,
+        position: Optional[Vector2] = None,
+        radius: float = 150.0,
+    ) -> Vector2:
+        """
+        Return a bias vector (repulsion from hazards, attraction to food)
+        felt at *position* (defaults to current internal_pos).
+
+        The magnitude is proportional to intensity / distanceÂ² so that
+        nearby strong memories dominate.
+
+        Parameters
+        ----------
+        position : Vector2 | None
+            Query point; defaults to agent's current internal position.
+        radius : float
+            Ignore grid cells whose centre is farther than this.
+
+        Returns
+        -------
+        Vector2
+            A non-normalised influence vector the planner can add to its
+            desired heading.
+        """
+        if position is None:
+            position = self.internal_pos
+
+        bias = Vector2()
+
+        # Determine which grid cells overlap the query radius
+        cell_radius = int(math.ceil(radius / self._cell_size)) + 1
+        cx, cy = self._world_to_cell(position)
+
+        for dx in range(-cell_radius, cell_radius + 1):
+            for dy in range(-cell_radius, cell_radius + 1):
+                key = (cx + dx, cy + dy)
+                cell = self._grid.get(key)
+                if cell is None:
+                    continue
+
+                # Cell centre in world coords
+                centre = self._cell_to_world(cx + dx, cy + dy)
+                diff = centre - position
+                dist_sq = diff.length_sq()
+
+                if dist_sq < 1e-6 or dist_sq > radius * radius:
+                    continue
+
+                # Influence falls off as 1/dÂ² â€” use diff/dist_sq directly
+                # so direction and magnitude are baked in one shot
+                unit_scaled = diff / dist_sq   # direction / dist
+
+                if cell.hazard > 0.0:
+                    # Repulsion: push *away* from hazard cell
+                    bias = bias - unit_scaled * cell.hazard
+
+                if cell.food > 0.0:
+                    # Attraction: pull *toward* food cell
+                    bias = bias + unit_scaled * cell.food
+
+        return bias
+
+    # =========================================================================
+    # Read-only accessors
+    # =========================================================================
+
+    @property
+    def position(self) -> Vector2:
+        return self.internal_pos.copy()
+
+    @property
+    def velocity(self) -> Vector2:
+        return self.internal_vel.copy()
+
+    @property
+    def landmarks(self) -> Dict[int, LandmarkRecord]:
+        return self._landmarks  # caller should treat as read-only
+
+    def get_cell(self, world_pos: Vector2) -> Optional[GridCell]:
+        """Return the grid cell at *world_pos*, or None if never recorded."""
+        return self._grid.get(self._world_to_cell(world_pos))
+
+    def debug_summary(self) -> str:
+        return (
+            f"[tick={self._tick}] pos={self.internal_pos} "
+            f"vel={self.internal_vel} "
+            f"landmarks={len(self._landmarks)} "
+            f"grid_cells={len(self._grid)}"
+        )
+
+    # =========================================================================
+    # Private helpers
+    # =========================================================================
+
+    # --- 1. Odometry ---------------------------------------------------------
+
+    def _integrate_odometry(self, sensors: dict, delta: float) -> None:
+        """
+        Semi-implicit Euler integration with wall-slide correction.
+
+        We integrate acceleration â†’ velocity, then apply collision slide
+        *before* updating position so the mental model never "phases" into
+        geometry.
+        """
+        raw_accel = sensors.get("accel", {"x": 0.0, "y": 0.0})
+        accel = Vector2(raw_accel["x"], raw_accel["y"])
+
+        # v += a * dt
+        self.internal_vel = self.internal_vel + accel * delta
+
+        # Physics correction: slide velocity along each collision normal
+        collision_normals = sensors.get("collision_normals", [])
+        if collision_normals:
+            for raw_n in collision_normals:
+                normal = Vector2(raw_n["x"], raw_n["y"]).normalized()
+                if normal.length() > 0.01:  # valid normal
+                    self.internal_vel = self.internal_vel.slide(normal)
+        
+        # Extra kill residual velocity when hitting walls
+        if len(collision_normals) > 0:
+            self.internal_vel *= 0.3   # strong damping on collision frame
+            
+
+        self.internal_pos = self.internal_pos + self.internal_vel * delta
+
+    # --- 2. Landmark re-zeroing ----------------------------------------------
+
+    def _process_landmarks(self, sensors: dict) -> None:
+        """
+        For each sensed object:
+          â€¢ If new â†’ register its estimated world position.
+          â€¢ If known â†’ compute implied agent position and alpha-blend
+            internal_pos toward it (odometry drift correction).
+        """
+        rotation: float = sensors.get("current_rotation", 0.0)
+        cos_r = math.cos(rotation)
+        sin_r = math.sin(rotation)
+
+        for obj in sensors.get("sensed_objects", []):
+            obj_id: int = obj["id"]
+            dist: float = obj["dist"]
+            local_angle: float = obj["angle"]  # relative to agent facing
+
+            # Local offset from agent â†’ object (in world frame)
+            world_angle = rotation + local_angle
+            dx = dist * math.cos(world_angle)
+            dy = dist * math.sin(world_angle)
+            offset = Vector2(dx, dy)
+
+            if obj_id not in self._landmarks:
+                # First sighting: pin landmark at inferred world position
+                estimated_world_pos = self.internal_pos + offset
+                self._landmarks[obj_id] = LandmarkRecord(
+                    pos=estimated_world_pos,
+                    last_seen_tick=self._tick,
+                )
+            else:
+                record = self._landmarks[obj_id]
+                record.last_seen_tick = self._tick
+                record.observation_count += 1
+
+                # Implied agent position given stored landmark coords
+                implied_agent_pos = record.pos - offset
+
+                # Alpha-filter: nudge internal_pos toward implied truth
+                # Use a confidence-weighted alpha: more observations â†’ more trust
+                # but cap at landmark_alpha to stay conservative
+                confidence = min(
+                    1.0,
+                    record.observation_count / 10.0,  # saturates at 10 obs
+                )
+                effective_alpha = self._landmark_alpha * confidence
+
+                self.internal_pos = self.internal_pos.lerp(
+                    implied_agent_pos, effective_alpha
+                )
+
+                # Also update the stored landmark position with the *new*
+                # implied location so highly-mobile "landmarks" can track
+                stored_update_alpha = 0.05 * confidence
+                new_landmark_pos = self.internal_pos + offset
+                record.pos = record.pos.lerp(new_landmark_pos, stored_update_alpha)
+
+    # --- 3. Stimulus grid recording ------------------------------------------
+
+    def _record_stimuli(self, sensors: dict) -> None:
+        """Mark the current cell with any above-threshold stimuli."""
+        hazard: float = sensors.get("hazard_stim", 0.0)
+        food: float = sensors.get("food_stim", 0.0)
+
+        if hazard < self._stim_threshold and food < self._stim_threshold:
+            return  # nothing to record
+
+        key = self._world_to_cell(self.internal_pos)
+        cell = self._grid.get(key)
+        if cell is None:
+            cell = GridCell()
+            self._grid[key] = cell
+
+        cell.last_updated_tick = self._tick
+
+        if hazard >= self._stim_threshold:
+            # Exponential moving average so repeated exposure accumulates
+            cell.hazard = min(1.0, cell.hazard + hazard * (1.0 - cell.hazard))
+
+        if food >= self._stim_threshold:
+            cell.food = min(1.0, cell.food + food * (1.0 - cell.food))
+
+    # --- 4. Grid decay -------------------------------------------------------
+
+    def _decay_grid(self) -> None:
+        """
+        Apply multiplicative decay to all populated cells and prune those
+        that have faded to near-zero.  Runs in O(populated_cells).
+        """
+        dead: List[Tuple[int, int]] = []
+        for key, cell in self._grid.items():
+            cell.hazard *= self._grid_decay
+            cell.food *= self._grid_decay
+            if cell.hazard < 1e-4 and cell.food < 1e-4:
+                dead.append(key)
+        for key in dead:
+            del self._grid[key]
+
+    # --- Coordinate conversion helpers --------------------------------------
+
+    def _world_to_cell(self, pos: Vector2) -> Tuple[int, int]:
+        """Map a world-space position to a discrete grid key."""
+        return (
+            int(math.floor(pos.x / self._cell_size)),
+            int(math.floor(pos.y / self._cell_size)),
+        )
+
+    def _cell_to_world(self, cx: int, cy: int) -> Vector2:
+        """Return the *centre* of grid cell (cx, cy) in world space."""
+        return Vector2(
+            (cx + 0.5) * self._cell_size,
+            (cy + 0.5) * self._cell_size,
+        )
+
+
+================================================
+FILE: docs/HARDWARE.md
+================================================
+# Hardware Roadmap: The Silicon Mind
+
+## Phase 1: Prototype (Current)
+Software-based simulation using synchronous Python loops and Godot physics.
+
+## Phase 2: Embedded Logic (College Year 2-3)
+Transitioning the Body State Tracker (BST) to an FPGA (Verilog). By moving metabolic decay to hardware Look-Up Tables (LUTs), we move closer to a clockless, continuous-flow intelligence model.
+
+## Phase 3: Physical Embodiment (Year 4+)
+Replacing the Godot simulation with a physical robotic chassis, where "Pain" is real-time sensor feedback and "Energy" is actual battery voltage.
+
+
+================================================
+FILE: docs/THEORY.md
+================================================
+# Theoretical Framework
+
+## 1. Non-Linear Urgency
+In biological systems, drives are not linear. Hunger doesn't bother an organism until it reaches a critical threshold. We model this using an inverted Sigmoid function for the Goal Stack Manager (GSM):
+
+$$U(s) = \frac{100}{1 + e^{-k(s - x_0)}}$$
+
+This ensures the agent maintains "calm" behavior until a survival threshold is crossed, at which point the drive score explodes, overriding curiosity.
+
+## 2. Nociceptive Bias
+"Pain" is treated as a systemic disruptor. High levels of damage to the `Integrity` variable increase the `Stress` hormone, which creates a competitive weight against exploration, forcing the agent into `HIDE` or `REST` states.
+
+
+================================================
+FILE: simulation/Survival Sim/project.godot
+================================================
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Survival sim"
+config/tags=PackedStringArray("simulation")
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.6", "Forward Plus")
+config/icon="res://icon.svg"
+
+[global_group]
+
+landmark=""
+food=""
+hazard=""
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
+[rendering]
+
+rendering_device/driver.windows="d3d12"
+
+
+
+================================================
+FILE: simulation/Survival Sim/scenes.gd
+================================================
+extends CanvasLayer
+
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	pass # Replace with function body.
+
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta: float) -> void:
+	pass
+
+
+
+================================================
+FILE: simulation/Survival Sim/scenes.gd.uid
+================================================
+uid://scpgqnqs7dhb
+
+
+
+================================================
+FILE: simulation/Survival Sim/.editorconfig
+================================================
+root = true
+
+[*]
+charset = utf-8
+
+
+
+================================================
+FILE: simulation/Survival Sim/scenes/Agent.tscn
+================================================
+[gd_scene format=3 uid="uid://wes1oy7p0j2f"]
+
+[ext_resource type="Script" uid="uid://5k25ydtqnpby" path="res://scripts/AgentBody.gd" id="1_7e1ma"]
+[ext_resource type="Script" uid="uid://dv2r4lap25wqx" path="res://scripts/SurvivalUI.gd" id="2_5hfgq"]
+[ext_resource type="Texture2D" uid="uid://ri7hsy3tbdw6" path="res://Assests/black.png" id="2_u0ubg"]
+[ext_resource type="Script" uid="uid://bkynup0hbshao" path="res://scripts/BrainLink.gd" id="4_6cj2t"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_5hfgq"]
+font_color = Color(0, 0.7826358, 0, 1)
+
+[sub_resource type="LabelSettings" id="LabelSettings_6cj2t"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_jyhfs"]
+size = Vector2(62, 62)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_5hfgq"]
+radius = 200.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_5hfgq"]
+size = Vector2(64, 64)
+
+[node name="CharacterBody2D" type="CharacterBody2D" unique_id=989377595]
+position = Vector2(576, 324)
+collision_layer = 2
+script = ExtResource("1_7e1ma")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=478933091]
+script = ExtResource("2_5hfgq")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer" unique_id=1097718854]
+offset_right = 42.0
+offset_bottom = 112.0
+
+[node name="EnergyBar" type="ProgressBar" parent="CanvasLayer/VBoxContainer" unique_id=888689722]
+self_modulate = Color(0, 0.29411766, 0, 1)
+z_index = 5
+layout_mode = 2
+
+[node name="Energy" type="Label" parent="CanvasLayer/VBoxContainer/EnergyBar" unique_id=1383720641]
+modulate = Color(0, 0.29411766, 0, 1)
+z_index = 5
+layout_mode = 0
+offset_left = 207.0
+offset_right = 267.0
+offset_bottom = 29.0
+text = "Energy"
+label_settings = SubResource("LabelSettings_5hfgq")
+
+[node name="IntegrityBar" type="ProgressBar" parent="CanvasLayer/VBoxContainer" unique_id=2045947710]
+self_modulate = Color(0, 0, 1, 1)
+z_index = 5
+layout_mode = 2
+
+[node name="Integrity" type="Label" parent="CanvasLayer/VBoxContainer/IntegrityBar" unique_id=1681002262]
+modulate = Color(0, 0, 1, 1)
+z_index = 5
+layout_mode = 0
+offset_left = 208.0
+offset_top = 2.0
+offset_right = 274.0
+offset_bottom = 25.0
+text = "Integrity"
+label_settings = SubResource("LabelSettings_6cj2t")
+
+[node name="MotorStatus" type="Label" parent="CanvasLayer/VBoxContainer" unique_id=1370181133]
+modulate = Color(0.8509804, 0.2784314, 0, 1)
+z_index = 5
+layout_mode = 2
+
+[node name="Stress" type="Label" parent="CanvasLayer/VBoxContainer" unique_id=727207019]
+modulate = Color(0.56078434, 0, 1, 1)
+z_index = 5
+layout_mode = 2
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1930465531]
+z_index = 10
+texture = ExtResource("2_u0ubg")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=2010327584]
+shape = SubResource("RectangleShape2D_jyhfs")
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=963776658]
+zoom = Vector2(2, 2)
+
+[node name="Sensors" type="Node2D" parent="." unique_id=574170296]
+
+[node name="RayCenter" type="RayCast2D" parent="Sensors" unique_id=579218187]
+target_position = Vector2(200, 0)
+
+[node name="RayLeft" type="RayCast2D" parent="Sensors" unique_id=1448801005]
+target_position = Vector2(120, -120)
+
+[node name="RayRight" type="RayCast2D" parent="Sensors" unique_id=1570531546]
+target_position = Vector2(120, 120)
+
+[node name="ProximitySensor" type="Area2D" parent="Sensors" unique_id=713510831]
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Sensors/ProximitySensor" unique_id=1678588157]
+shape = SubResource("CircleShape2D_5hfgq")
+
+[node name="BrainLink" type="Node" parent="." unique_id=895446742]
+script = ExtResource("4_6cj2t")
+
+[node name="BodySurround" type="Area2D" parent="." unique_id=1999311289]
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BodySurround" unique_id=680950823]
+shape = SubResource("RectangleShape2D_5hfgq")
+
+
+
+================================================
+FILE: simulation/Survival Sim/scenes/fire.tscn
+================================================
+[gd_scene format=3 uid="uid://ciwrjd1ykp6oa"]
+
+[ext_resource type="Script" uid="uid://1ak6umlkkp3n" path="res://scripts/Hazard.gd" id="1_52nqi"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_jyhfs"]
+radius = 60.0
+
+[node name="StaticBody2D2" type="StaticBody2D" unique_id=316362836 groups=["hazard"]]
+collision_layer = 2
+collision_mask = 0
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=562773038]
+offset_top = -1.0
+offset_right = 39.0
+offset_bottom = 39.0
+color = Color(1, 0, 0, 1)
+
+[node name="Area2D" type="Area2D" parent="." unique_id=880846570]
+collision_layer = 2
+collision_mask = 0
+input_pickable = false
+script = ExtResource("1_52nqi")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=984171999]
+position = Vector2(19, 20)
+shape = SubResource("CircleShape2D_jyhfs")
+
+
+
+================================================
+FILE: simulation/Survival Sim/scenes/food.tscn
+================================================
+[gd_scene format=3 uid="uid://dg37qpig7lnmi"]
+
+[ext_resource type="Script" uid="uid://bbq3eierfnmpc" path="res://scripts/Food.gd" id="1_xven1"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_xven1"]
+size = Vector2(39, 40)
+
+[node name="StaticBody2D" type="StaticBody2D" unique_id=1914189619 groups=["food"]]
+collision_layer = 2
+collision_mask = 0
+script = ExtResource("1_xven1")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=518486882]
+offset_right = 39.0
+offset_bottom = 40.0
+color = Color(0, 0.9098039, 0, 1)
+
+[node name="Area2D" type="Area2D" parent="." unique_id=2106188205 groups=["food"]]
+collision_layer = 2
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=1781786706 groups=["food"]]
+position = Vector2(19.5, 20)
+shape = SubResource("RectangleShape2D_xven1")
+
+
+
+================================================
+FILE: simulation/Survival Sim/scenes/landmark.tscn
+================================================
+[gd_scene format=3 uid="uid://dnmmqqj7mhs2n"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_tbgi4"]
+size = Vector2(39, 40)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_e4np4"]
+size = Vector2(39, 40)
+
+[node name="StaticBody2D3" type="StaticBody2D" unique_id=2038669826 groups=["landmark"]]
+collision_layer = 2
+collision_mask = 0
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=2009307446]
+offset_right = 39.0
+offset_bottom = 40.0
+color = Color(0.2053146, 0.22362897, 0.21221623, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=747289254]
+visible = false
+position = Vector2(19.5, 20)
+shape = SubResource("RectangleShape2D_tbgi4")
+
+[node name="Area2D" type="Area2D" parent="." unique_id=388405401 groups=["landmark"]]
+collision_layer = 2
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=1623082195]
+position = Vector2(19.5, 20)
+shape = SubResource("RectangleShape2D_e4np4")
+
+
+
+================================================
+FILE: simulation/Survival Sim/scenes/main.tscn
+================================================
+[gd_scene format=3 uid="uid://cqow47bch5ocs"]
+
+[ext_resource type="Texture2D" uid="uid://d10cfq0sqlpa1" path="res://Assests/background.jpg" id="1_0wfyh"]
+[ext_resource type="PackedScene" uid="uid://wes1oy7p0j2f" path="res://scenes/Agent.tscn" id="1_sugp2"]
+[ext_resource type="PackedScene" uid="uid://dg37qpig7lnmi" path="res://scenes/food.tscn" id="3_tefeu"]
+[ext_resource type="PackedScene" uid="uid://ciwrjd1ykp6oa" path="res://scenes/fire.tscn" id="4_o6xl0"]
+[ext_resource type="PackedScene" uid="uid://dnmmqqj7mhs2n" path="res://scenes/landmark.tscn" id="5_tipki"]
+[ext_resource type="Script" uid="uid://bhgtp1be0go2d" path="res://scripts/WorldGenerator.gd" id="6_85g3d"]
+
+[sub_resource type="GDScript" id="GDScript_tefeu"]
+script/source = "extends Node2D
+
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	Engine.time_scale = 1.0 
+
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta: float) -> void:
+	pass
+"
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_0xm2m"]
+size = Vector2(43.500065, 687.50226)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_h2yge"]
+size = Vector2(1239.0006, 38.5)
+
+[node name="Node2D" type="Node2D" unique_id=1689833882]
+script = SubResource("GDScript_tefeu")
+
+[node name="CharacterBody2D" parent="." unique_id=989377595 instance=ExtResource("1_sugp2")]
+
+[node name="TextureRect" type="TextureRect" parent="." unique_id=2125064197]
+z_index = -10
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 1.0
+offset_right = 1153.0
+offset_bottom = 648.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("1_0wfyh")
+expand_mode = 1
+
+[node name="Walls" type="Node2D" parent="." unique_id=1068115610]
+
+[node name="wall1" type="StaticBody2D" parent="Walls" unique_id=2030895725]
+position = Vector2(-5.9604645e-08, -1)
+scale = Vector2(0.99999994, 0.99999994)
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/wall1" unique_id=825782533]
+position = Vector2(-21.99999, 344.9999)
+scale = Vector2(0.9999966, 0.9999966)
+shape = SubResource("RectangleShape2D_0xm2m")
+
+[node name="ColorRect" type="ColorRect" parent="Walls/wall1" unique_id=2027312473]
+offset_left = -44.000004
+offset_top = 0.9999999
+offset_bottom = 689.0
+color = Color(0.6666667, 0.99215686, 1, 1)
+
+[node name="wall2" type="StaticBody2D" parent="Walls" unique_id=1291158145]
+position = Vector2(1152, 2.3841858e-07)
+scale = Vector2(0.99999994, 0.99999994)
+collision_mask = 0
+
+[node name="ColorRect" type="ColorRect" parent="Walls/wall2" unique_id=1222474565]
+offset_right = 43.0
+offset_bottom = 648.0
+color = Color(0.6666667, 0.99215686, 1, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/wall2" unique_id=102778921]
+position = Vector2(21.75, 323.2498)
+scale = Vector2(0.99999726, 0.99999726)
+shape = SubResource("RectangleShape2D_0xm2m")
+
+[node name="wall3" type="StaticBody2D" parent="Walls" unique_id=930364635]
+position = Vector2(0, 649)
+collision_mask = 0
+
+[node name="ColorRect" type="ColorRect" parent="Walls/wall3" unique_id=1182246570]
+offset_top = -2.0
+offset_right = 1195.0
+offset_bottom = 39.0
+color = Color(0.6666667, 0.99215686, 1, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/wall3" unique_id=904874271]
+position = Vector2(576, 18)
+scale = Vector2(0.9999995, 0.9999995)
+shape = SubResource("RectangleShape2D_h2yge")
+
+[node name="wall4" type="StaticBody2D" parent="Walls" unique_id=516073187]
+position = Vector2(-40, -5)
+collision_mask = 0
+
+[node name="ColorRect" type="ColorRect" parent="Walls/wall4" unique_id=1370287937]
+offset_left = -4.0
+offset_top = -30.0
+offset_right = 1235.0
+offset_bottom = 5.0
+color = Color(0.6666667, 0.99215686, 1, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/wall4" unique_id=1248823546]
+position = Vector2(615.50006, -14.249989)
+scale = Vector2(0.9999994, 0.9999994)
+shape = SubResource("RectangleShape2D_h2yge")
+
+[node name="Node2D" type="Node2D" parent="." unique_id=1271571641]
+script = ExtResource("6_85g3d")
+food_scene = ExtResource("3_tefeu")
+hazard_scene = ExtResource("4_o6xl0")
+landmark_scene = ExtResource("5_tipki")
+
+
+
+================================================
+FILE: simulation/Survival Sim/scripts/AgentBody.gd
+================================================
+extends CharacterBody2D
+
+@onready var ray_c = $Sensors/RayCenter
+@onready var ray_l = $Sensors/RayLeft
+@onready var ray_r = $Sensors/RayRight
+@onready var proximity_sensor = $Sensors/ProximitySensor
+@export var speed = 400.0
+
+var current_normals = []
+var prev_vel = Vector2.ZERO # Added for acceleration
+
+
+func _physics_process(_delta):
+	# Movement logic remains same
+	var direction = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+	if direction:
+		velocity = direction * speed
+	else:
+		velocity = velocity.move_toward(Vector2.ZERO, speed)
+	
+	move_and_slide()
+	
+	current_normals.clear()
+	for i in range(get_slide_collision_count()):
+		var norm = get_slide_collision(i).get_normal()
+		if not current_normals.has(norm):
+			current_normals.append(norm)
+
+func get_sensory_data() -> Dictionary:
+	var cur_vel = get_real_velocity()
+	var delta = get_physics_process_delta_time()
+	#for debug
+	var x = global_position.x 
+	var y = global_position.y
+
+	# Prevent division by zero if delta is somehow 0
+	var accel = (cur_vel - prev_vel) / delta if delta > 0 else Vector2.ZERO
+	prev_vel = cur_vel 
+	
+	var physically_stuck = velocity.length() > 10 and cur_vel.length() < 15
+	var normals_data = []
+	for n in current_normals: 
+		normals_data.append({"x": n.x, "y": n.y})
+
+	var data = {
+		"delta" : delta,
+		"accel": {"x": accel.x, "y": accel.y},
+		"ray_c": 1.0, "ray_l": 1.0, "ray_r": 1.0,
+		"current_rotation": rotation, 
+		"is_stuck": physically_stuck,
+		"collision_normals": normals_data,
+		"sensed_objects": [],
+		"global_x": x,
+		"global_y": y
+	}
+
+	# Raycasts
+	if ray_c.is_colliding(): data["ray_c"] = ray_c.global_position.distance_to(ray_c.get_collision_point()) / 200.0
+	if ray_l.is_colliding(): data["ray_l"] = ray_l.global_position.distance_to(ray_l.get_collision_point()) / 200.0
+	if ray_r.is_colliding(): data["ray_r"] = ray_r.global_position.distance_to(ray_r.get_collision_point()) / 200.0
+
+	# Proximity
+	var detections = proximity_sensor.get_overlapping_bodies() + proximity_sensor.get_overlapping_areas()
+	for obj in detections:
+		if obj == self or (obj is StaticBody2D and obj.name == "Walls"): continue
+		
+		var target = obj
+		if not (obj.is_in_group("food") or obj.is_in_group("hazard") or obj.is_in_group("landmark")):
+			target = obj.get_parent()
+			
+		var type = "unknown"
+		if target.is_in_group("food"): type = "food"
+		elif target.is_in_group("hazard"): type = "hazard"
+		elif target.is_in_group("landmark"): type = "landmark"
+		
+		if type != "unknown":
+			var to_obj = target.global_position - global_position
+			var u_id = -1
+			if target.has_meta("unique_id"):
+				u_id = target.get_meta("unique_id")
+			elif target.get_parent() and target.get_parent().has_meta("unique_id"):
+				u_id = target.get_parent().get_meta("unique_id")
+
+			data["sensed_objects"].append({
+				"id": u_id, "type": type, "dist": to_obj.length(), 
+				"angle": Vector2.RIGHT.rotated(rotation).angle_to(to_obj)
+			})
+	return data
+
+func execute_move(motor_data: Dictionary):
+	rotation += motor_data.get("steer", 0.0) * get_process_delta_time() * 4.0 
+	velocity = Vector2.RIGHT.rotated(rotation) * (motor_data.get("thrust", 0.0) * 150.0)
+	move_and_slide()
+
+
+
+================================================
+FILE: simulation/Survival Sim/scripts/AgentBody.gd.uid
+================================================
+uid://5k25ydtqnpby
+
+
+
+================================================
+FILE: simulation/Survival Sim/scripts/BrainLink.gd
+================================================
+extends Node
+
+var socket = StreamPeerTCP.new()
+var tick_rate = 0.016
+var tick_timer = 0.0
+
+@onready var body = $"../BodySurround"
+@onready var agent = get_parent()
+@onready var ui = get_node("../CanvasLayer")
+
+func _process(delta):
+	socket.poll()
+	var state = socket.get_status()
+	
+	if state == StreamPeerTCP.STATUS_CONNECTED:
+		tick_timer += delta
+		if tick_timer >= tick_rate:
+			tick_timer = 0.0
+			_send_to_python()
+		_receive_from_python()
+	elif state != StreamPeerTCP.STATUS_CONNECTING:
+		socket.connect_to_host("127.0.0.1", 9999)
+
+func _send_to_python():
+	var packet = agent.get_sensory_data()
+	
+	var hazard_stim = 0.0
+	var food_stim = 0.0
+	
+	# Detect EVERYTHING touching the agent's physical body
+	var touch_zones = body.get_overlapping_areas()
+	touch_zones.append_array(body.get_overlapping_bodies())
+	
+	for thing in touch_zones:
+		# 1. HAZARD LOGIC
+		if thing.is_in_group("hazard") or thing.get_parent().is_in_group("hazard"):
+			if thing.has_method("get_intensity"):
+				hazard_stim = thing.get_intensity(agent.global_position)
+			elif thing.get_parent().has_method("get_intensity"):
+				hazard_stim = thing.get_parent().get_intensity(agent.global_position)
+			else:
+				hazard_stim = 0.8 # Fallback damage
+	
+		# 2. FOOD LOGIC (Checks parent and self for properties)
+		if thing.is_in_group("food") or thing.get_parent().is_in_group("food"):
+			# Check for energy_value on the object or its parent
+			if "energy_value" in thing:
+				food_stim = thing.energy_value
+			elif "energy_value" in thing.get_parent():
+				food_stim = thing.get_parent().energy_value
+			else:
+				food_stim = 20.0
+			
+			# Delete the food (and its parent if it's a sub-area)
+			if thing.get_parent().is_in_group("food") and thing.get_parent() != get_tree().root:
+				thing.get_parent().queue_free()
+			else:
+				thing.queue_free()
+	
+	packet["hazard"] = hazard_stim
+	packet["food_stimulus"] = food_stim
+	
+	socket.put_data((JSON.stringify(packet) + "\n").to_utf8_buffer())
+	
+func _receive_from_python():
+	while socket.get_available_bytes() > 0:
+		var raw = socket.get_utf8_string(socket.get_available_bytes())
+		var messages = raw.split("\n", false)
+		for msg in messages:
+			var json = JSON.new()
+			if json.parse(msg) == OK:
+				var data = json.get_data()
+				ui.update_display(data)
+				
+				# Check if agent is deceased first
+				if data.get("action") == "DECEASED" or data.get("alive") == false:
+					set_process(false) # Stop the brain link
+				else:
+					agent.execute_move(data)
+
+
+
+================================================
+FILE: simulation/Survival Sim/scripts/BrainLink.gd.uid
+================================================
+uid://bkynup0hbshao
+
+
+
+================================================
+FILE: simulation/Survival Sim/scripts/Food.gd
+================================================
+extends StaticBody2D
+@export var energy_value: float = 25.0
+
+
+
+================================================
+FILE: simulation/Survival Sim/scripts/Food.gd.uid
+================================================
+uid://bbq3eierfnmpc
+
+
+
+================================================
+FILE: simulation/Survival Sim/scripts/Hazard.gd
+================================================
+extends Area2D
+
+@export var max_damage: float = 2.0 
+@export var heat_radius: float = 80.0 # Visual + Logical radius
+
+func _ready():
+	# Update the collision shape to match our intended radius
+	if has_node("CollisionShape2D"):
+		var shape = CircleShape2D.new()
+		shape.radius = heat_radius
+		$CollisionShape2D.shape = shape
+
+func get_intensity(agent_pos: Vector2) -> float:
+	var dist = global_position.distance_to(agent_pos)
+	
+	# If agent is inside the heat_radius, calculate damage
+	if dist < heat_radius:
+		var falloff = clamp(1.0 - (dist / heat_radius), 0.0, 1.0)
+		return falloff * max_damage
+	return 0.0
+
+
+
+================================================
+FILE: simulation/Survival Sim/scripts/Hazard.gd.uid
+================================================
+uid://1ak6umlkkp3n
+
+
+
+================================================
+FILE: simulation/Survival Sim/scripts/SurvivalUI.gd
+================================================
+extends CanvasLayer
+
+
+@onready var energy_bar = $VBoxContainer/EnergyBar
+@onready var integrity_bar = $VBoxContainer/IntegrityBar
+@onready var motor_label = $VBoxContainer/MotorStatus
+@onready var stress_label = $VBoxContainer/Stress
+
+func update_display(data: Dictionary):
+	energy_bar.value = data.get("energy", 0)
+	integrity_bar.value = data.get("integrity", 0)
+	
+	# Display the raw motor vectors
+	var t = snapped(data.get("thrust", 0.0), 0.01)
+	var s = snapped(data.get("steer", 0.0), 0.01)
+	motor_label.text = "THRUST: %s | STEER: %s" % [str(t), str(s)]
+	
+	stress_label.text = "STRESS: " + str(snapped(data.get("stress", 0), 0.01))
+	
+	# Visual feedback for critical states
+	if data.get("alive") == false:
+		motor_label.text = "STATUS: DECEASED"
+		motor_label.add_theme_color_override("font_color", Color.RED)
+
+
+
+================================================
+FILE: simulation/Survival Sim/scripts/SurvivalUI.gd.uid
+================================================
+uid://dv2r4lap25wqx
+
+
+
+================================================
+FILE: simulation/Survival Sim/scripts/WorldGenerator.gd
+================================================
+extends Node2D
+
+@export var food_scene: PackedScene
+@export var hazard_scene: PackedScene
+@export var landmark_scene: PackedScene
+
+@export var map_size = Vector2(1152, 648)
+@export var margin = 100
+@export var min_dist_between_objects = 150.0 
+
+var spawned_positions = []
+var next_id = 1 
+
+func _ready():
+	randomize()
+	spawned_positions.clear()
+	
+	spawn_group(landmark_scene, 8)
+	#spawn_group(hazard_scene, 6)
+	spawn_group(food_scene, 25)
+
+func spawn_group(scene: PackedScene, count: int):
+	if not scene: return
+	
+	for i in range(count):
+		var pos = get_valid_position()
+		if pos != Vector2.ZERO:
+			var inst = scene.instantiate()
+			inst.position = pos
+			inst.set_meta("unique_id", next_id)
+			next_id += 1
+			
+			add_child(inst)
+			spawned_positions.append(pos)
+
+func get_valid_position() -> Vector2:
+	var attempts = 0
+	while attempts < 20:
+		attempts += 1
+		var potential_pos = Vector2(
+			randf_range(margin, map_size.x - margin),
+			randf_range(margin, map_size.y - margin)
+		)
+		
+		var is_safe = true
+		for existing_pos in spawned_positions:
+			if potential_pos.distance_to(existing_pos) < min_dist_between_objects:
+				is_safe = false
+				break
+		
+		if is_safe:
+			return potential_pos
+			
+	return Vector2.ZERO
+
+
+
+================================================
+FILE: simulation/Survival Sim/scripts/WorldGenerator.gd.uid
+================================================
+uid://bhgtp1be0go2d
+
+
+
+================================================
+FILE: tests/test_drives.py
+================================================
+[Empty file]
+

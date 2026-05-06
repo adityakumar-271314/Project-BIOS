@@ -6,15 +6,15 @@ extends Node2D
 
 @export var map_size = Vector2(1152, 648)
 @export var margin = 100
-@export var min_dist_between_objects = 150.0 # Increase to make map sparser
+@export var min_dist_between_objects = 150.0 
 
 var spawned_positions = []
+var next_id = 1 
 
 func _ready():
 	randomize()
 	spawned_positions.clear()
 	
-	# Spawn order: Landmarks first, then Hazards, then Food
 	spawn_group(landmark_scene, 8)
 	spawn_group(hazard_scene, 6)
 	spawn_group(food_scene, 25)
@@ -27,6 +27,9 @@ func spawn_group(scene: PackedScene, count: int):
 		if pos != Vector2.ZERO:
 			var inst = scene.instantiate()
 			inst.position = pos
+			inst.set_meta("unique_id", next_id)
+			next_id += 1
+			
 			add_child(inst)
 			spawned_positions.append(pos)
 
@@ -48,4 +51,4 @@ func get_valid_position() -> Vector2:
 		if is_safe:
 			return potential_pos
 			
-	return Vector2.ZERO # Failed to find a spot after 20 tries
+	return Vector2.ZERO

@@ -57,11 +57,11 @@ func _send_to_python():
 			else:
 				thing.queue_free()
 	
-	packet["hazard"] = hazard_stim
-	packet["food_stimulus"] = food_stim
+	packet["hazard_stim"] = hazard_stim
+	packet["food_stim"] = food_stim
 	
 	socket.put_data((JSON.stringify(packet) + "\n").to_utf8_buffer())
-
+	
 func _receive_from_python():
 	while socket.get_available_bytes() > 0:
 		var raw = socket.get_utf8_string(socket.get_available_bytes())
