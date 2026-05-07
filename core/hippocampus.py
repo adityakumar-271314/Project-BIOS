@@ -11,69 +11,9 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
-
-# ---------------------------------------------------------------------------
-# Tiny Vector2 — avoids numpy dependency while keeping math cleanor
-# ---------------------------------------------------------------------------
-
-
-class Vector2:
-    """Lightweight 2-D vector with the operations we actually need."""
-
-    __slots__ = ("x", "y")
-
-    def __init__(self, x: float = 0.0, y: float = 0.0) -> None:
-        self.x = x
-        self.y = y
-
-    # --- arithmetic ----------------------------------------------------------
-
-    def __add__(self, o: "Vector2") -> "Vector2":
-        return Vector2(self.x + o.x, self.y + o.y)
-
-    def __sub__(self, o: "Vector2") -> "Vector2":
-        return Vector2(self.x - o.x, self.y - o.y)
-
-    def __mul__(self, scalar: float) -> "Vector2":
-        return Vector2(self.x * scalar, self.y * scalar)
-
-    def __rmul__(self, scalar: float) -> "Vector2":
-        return self.__mul__(scalar)
-
-    def __truediv__(self, scalar: float) -> "Vector2":
-        return Vector2(self.x / scalar, self.y / scalar)
-
-    def __repr__(self) -> str:
-        return f"Vector2({self.x:.3f}, {self.y:.3f})"
-
-    # --- geometry ------------------------------------------------------------
-
-    def length(self) -> float:
-        return math.sqrt(self.x * self.x + self.y * self.y)
-
-    def length_sq(self) -> float:
-        return self.x * self.x + self.y * self.y
-
-    def normalized(self) -> "Vector2":
-        mag = self.length()
-        return Vector2(self.x / mag, self.y / mag) if mag > 1e-9 else Vector2()
-
-    def dot(self, o: "Vector2") -> float:
-        return self.x * o.x + self.y * o.y
-
-    def slide(self, normal: "Vector2") -> "Vector2":
-        """Remove the component of *self* that points into *normal*."""
-        # v_slide = v - (v · n̂) * n̂ , (only when v · n̂ < 0, i.e. into surface)
-        dot = self.dot(normal)
-        if dot < 0.0:
-            return self - normal * dot
-        return Vector2(self.x, self.y)
-
-    def lerp(self, o: "Vector2", t: float) -> "Vector2":
-        return self + (o - self) * t
-
-    def copy(self) -> "Vector2":
-        return Vector2(self.x, self.y)
+from .data_models import SensorPacket
+from .constants import MIN_NORMAL_LENGTH
+from .vector import Vector2
 
 
 # ---------------------------------------------------------------------------
@@ -125,11 +65,12 @@ class SpatialMemory:
 
     def __init__(
         self,
-        cell_size: float = 50.0,
-        landmark_alpha: float = 0.3,
-        grid_decay: float = 0.9995,
-        stim_threshold: float = 0.1,
+        config
     ) -> None:
+        
+        # --- Config mapping ---
+        self.cfg = config
+
         # --- odometry state --------------------------------------------------
         self.internal_pos: Vector2 = Vector2(0.0, 0.0)
         self.internal_vel: Vector2 = Vector2(0.0, 0.0)
@@ -138,13 +79,13 @@ class SpatialMemory:
         self._landmarks: Dict[int, LandmarkRecord] = {}
 
         # --- sparse grid  ----------------------------------------------------
-        self._cell_size: float = cell_size
+        self._cell_size: float = self.cfg.cell_size
         self._grid: Dict[Tuple[int, int], GridCell] = {}
-        self._grid_decay: float = grid_decay
+        self._grid_decay: float = self.cfg.grid_decay
 
         # --- tuning knobs  ---------------------------------------------------
-        self._landmark_alpha: float = landmark_alpha
-        self._stim_threshold: float = stim_threshold
+        self._landmark_alpha: float = self.cfg.landmark_alpha
+        self._stim_threshold: float = self.cfg.stim_threshold
 
         # --- internal tick counter  ------------------------------------------
         self._tick: int = 0
@@ -153,7 +94,7 @@ class SpatialMemory:
     # Public API — call once per game tick
     # =========================================================================
 
-    def update(self, sensors: dict) -> None:
+    def update(self, sensors: SensorPacket) -> None:
         """
         Ingest one tick of sensor data and update all internal state.
 
@@ -168,7 +109,7 @@ class SpatialMemory:
             food_stim        : float  (0–1)
         """
         self._tick += 1
-        delta: float = sensors.get("delta", 0.016)
+        delta: float = sensors.delta
 
         # 1. Dead reckoning ---------------------------------------------------
         self._integrate_odometry(sensors, delta)
@@ -190,7 +131,7 @@ class SpatialMemory:
     def get_spatial_bias(
         self,
         position: Optional[Vector2] = None,
-        radius: float = 150.0,
+        radius: Optional[float] = None,
     ) -> Vector2:
         """
         Return a bias vector (repulsion from hazards, attraction to food)
@@ -214,7 +155,10 @@ class SpatialMemory:
         """
         if position is None:
             position = self.internal_pos
-
+            
+        if radius is None:
+            radius = self.cfg.bias_radius
+        assert radius is not None
         bias = Vector2()
 
         # Determine which grid cells overlap the query radius
@@ -284,7 +228,10 @@ class SpatialMemory:
 
     # --- 1. Odometry ---------------------------------------------------------
 
-    def _integrate_odometry(self, sensors: dict, delta: float) -> None:
+    def _integrate_odometry(self, 
+                            sensors: SensorPacket, 
+                            delta: float
+                        ) -> None:
         """
         Semi-implicit Euler integration with wall-slide correction.
 
@@ -292,43 +239,45 @@ class SpatialMemory:
         *before* updating position so the mental model never "phases" into
         geometry.
         """
-        raw_accel = sensors.get("accel", {"x": 0.0, "y": 0.0})
-        accel = Vector2(raw_accel["x"], raw_accel["y"])
+        accel = Vector2(
+            sensors.accel.x,
+            sensors.accel.y
+        )
 
         # v += a * dt
         self.internal_vel = self.internal_vel + accel * delta
 
         # Physics correction: slide velocity along each collision normal
-        collision_normals = sensors.get("collision_normals", [])
+        collision_normals = sensors.collision_normals
         if collision_normals:
             for raw_n in collision_normals:
-                normal = Vector2(raw_n["x"], raw_n["y"]).normalized()
-                if normal.length() > 0.01:  # valid normal
+                normal = Vector2(raw_n.x, raw_n.y).normalized()
+                if normal.length() > MIN_NORMAL_LENGTH:  # valid normal
                     self.internal_vel = self.internal_vel.slide(normal)
 
         # Extra kill residual velocity when hitting walls
         if len(collision_normals) > 0:
-            self.internal_vel *= 0.3  # strong damping on collision frame
+            self.internal_vel *= self.cfg.collision_velocity_damping  # strong damping on collision frame
 
         self.internal_pos = self.internal_pos + self.internal_vel * delta
 
     # --- 2. Landmark re-zeroing ----------------------------------------------
 
-    def _process_landmarks(self, sensors: dict) -> None:
+    def _process_landmarks(self, sensors: SensorPacket) -> None:
         """
         For each sensed object:
           • If new → register its estimated world position.
           • If known → compute implied agent position and alpha-blend
             internal_pos toward it (odometry drift correction).
         """
-        rotation: float = sensors.get("current_rotation", 0.0)
+        rotation: float = sensors.current_rotation
         cos_r = math.cos(rotation)
         sin_r = math.sin(rotation)
 
-        for obj in sensors.get("sensed_objects", []):
-            obj_id: int = obj["id"]
-            dist: float = obj["dist"]
-            local_angle: float = obj["angle"]  # relative to agent facing
+        for obj in sensors.sensed_objects:
+            obj_id: int = obj.id
+            dist: float = obj.dist
+            local_angle: float = obj.angle  # relative to agent facing
 
             # Local offset from agent → object (in world frame)
             world_angle = rotation + local_angle
@@ -356,7 +305,7 @@ class SpatialMemory:
                 # but cap at landmark_alpha to stay conservative
                 confidence = min(
                     1.0,
-                    record.observation_count / 10.0,  # saturates at 10 obs
+                    record.observation_count / self.cfg.landmark_confidence_divisor,  # saturates at setted 10 obs
                 )
                 effective_alpha = self._landmark_alpha * confidence
 
@@ -366,16 +315,16 @@ class SpatialMemory:
 
                 # Also update the stored landmark position with the *new*
                 # implied location so highly-mobile "landmarks" can track
-                stored_update_alpha = 0.05 * confidence
+                stored_update_alpha = self.cfg.landmark_alpha * confidence
                 new_landmark_pos = self.internal_pos + offset
                 record.pos = record.pos.lerp(new_landmark_pos, stored_update_alpha)
 
     # --- 3. Stimulus grid recording ------------------------------------------
 
-    def _record_stimuli(self, sensors: dict) -> None:
+    def _record_stimuli(self, sensors: SensorPacket) -> None:
         """Mark the current cell with any above-threshold stimuli."""
-        hazard: float = sensors.get("hazard_stim", 0.0)
-        food: float = sensors.get("food_stim", 0.0)
+        hazard: float = sensors.hazard_stim
+        food: float = sensors.food_stim
 
         if hazard < self._stim_threshold and food < self._stim_threshold:
             return  # nothing to record
@@ -406,7 +355,7 @@ class SpatialMemory:
         for key, cell in self._grid.items():
             cell.hazard *= self._grid_decay
             cell.food *= self._grid_decay
-            if cell.hazard < 1e-4 and cell.food < 1e-4:
+            if cell.hazard < self.cfg.grid_prune_threshold and cell.food < self.cfg.grid_prune_threshold:
                 dead.append(key)
         for key in dead:
             del self._grid[key]

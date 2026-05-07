@@ -1,0 +1,65 @@
+{
+  "body": {
+    "velocity_scale": 120.0,
+    "angular_velocity_scale": 4.0,
+    "motion_cost_thrust_coeff": 0.06,
+    "motion_cost_steer_coeff": 0.04,
+    "existence_decay_k": 0.05,
+    "existence_decay_max_energy": 100.0,
+    "stress_tax_coeff": 0.05,
+    "total_cost_divisor": 10.0,
+    "integrity_regen_rate": 0.05,
+    "energy_regen_threshold": 50.0,
+    "starvation_integrity_loss": 0.2,
+    "reserve_transfer_cap": 5.0,
+    "reserve_integrity_penalty_threshold": 50.0,
+    "reserve_integrity_penalty_coeff": 0.01
+  },
+  "emotions": {
+    "fear_increase_rate": 0.3,
+    "fear_decay_rate": 0.02,
+    "hazard_trigger_threshold": 0.1,
+    "stress_lerp_rate": 0.05,
+    "wall_stress_threshold": 0.6
+  },
+  "brain": {
+    "food_distance_scale": 100.0,
+    "food_force_multiplier": 0.8,
+    "hazard_force_multiplier": 4.5,
+    "memory_steer_multiplier": 2.0,
+    "memory_steer_threshold": 0.1,
+    "wall_force_multiplier": 3.0,
+    "wall_threshold": 0.7,
+    "wander_threshold": 0.1,
+    "steer_smoothing_current": 0.4,
+    "steer_smoothing_previous": 0.6,
+    "thrust_base": 0.7,
+    "thrust_fear_coeff": 0.4,
+    "thrust_stress_coeff": 0.3,
+    "thrust_min": 0.2,
+    "thrust_max": 1.1,
+    "drift_interval_min": 60,
+    "drift_interval_max": 150,
+    "drift_angle_min": -0.5,
+    "drift_angle_max": 0.5,
+    "random_seed": 999
+  },
+  "memory": {
+    "cell_size": 50.0,
+    "landmark_alpha": 0.3,
+    "grid_decay": 0.9995,
+    "grid_prune_threshold": 0.0001,
+    "stim_threshold": 0.1,
+    "collision_velocity_damping": 0.3,
+    "landmark_confidence_divisor": 10.0,
+    "landmark_update_alpha": 0.05,
+    "bias_radius": 150.0
+  },
+  "bridge": {
+    "host": "127.0.0.1",
+    "port": 9999,
+    "fallback_delta": 0.016,
+    "default_ray_value": 1.0,
+    "debug_mode": false
+  }
+}

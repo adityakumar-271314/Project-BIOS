@@ -1,0 +1,30 @@
+import math
+
+# === MATHEMATICAL CONSTANTS ===
+PI = math.pi
+EPSILON = 1e-9
+
+# === NUMERICAL SAFETY ===
+MIN_NORMAL_LENGTH = 0.01
+MIN_DIST_SQ = 1e-6
+
+# === DEFAULTS ===
+DEFAULT_DELTA = 0.016
+
+# === DEBUG ===
+DRIFT_WARNING_THRESHOLD = 50.0
+
+# === COORDINATE SYSTEM ===
+# Godot <-> Internal transform (spawn centered)
+SPAWN_OFFSET_X = 576.0
+SPAWN_OFFSET_Y = 324.0
+
+# === MEMORY GRID ===
+GRID_PRUNE_THRESHOLD = 1e-4
+
+# === INTERNAL NORMALIZATION ===
+MAX_ENERGY = 100.0
+MAX_INTEGRITY = 100.0
+
+# === ANGLE NORMALIZATION ===
+# used via atan2(sin, cos)
