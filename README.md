@@ -9,7 +9,7 @@ stress, and environmental stimuli instead of scripted behavior trees.
 
 ### 1. Clone the Repository
 ```bash
-git clone [https://github.com/adityakumar-271314/Project-BIOS.git](https://github.com/adityakumar-271314/Project-BIOS.git)
+git clone https://github.com/adityakumar-271314/Project-BIOS.git
 
 cd Project-BIOS
 ```
