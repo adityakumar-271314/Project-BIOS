@@ -2,14 +2,9 @@ import math
 import socket
 import json
 from core.agent import Agent
-from core.constants import (
-    SPAWN_OFFSET_X, 
-    SPAWN_OFFSET_Y, 
-    DRIFT_WARNING_THRESHOLD
-)
-from core.data_models import (
-    SensorPacket,
-)
+from core.config_loader import load_config
+from core.constants import SPAWN_OFFSET_X, SPAWN_OFFSET_Y, DRIFT_WARNING_THRESHOLD
+from core.data_models import SensorPacket
 from core.telemetry import (
     TelemetryRecorder,
     TickTelemetry,
@@ -18,6 +13,7 @@ from core.replay import (
     ReplayRecorder,
     ReplayFrame,
 )
+
 
 def run_brain_server():
     host = "127.0.0.1"
@@ -31,10 +27,18 @@ def run_brain_server():
 
     conn, addr = server.accept()
     client_file = conn.makefile("rw", encoding="utf-8")
+    cfg = load_config()
+    init_packet = {
+    "type": "INIT",
+    "world_seed": cfg.simulation.world_seed,
+}
+    client_file.write(json.dumps(init_packet) + "\n")
+    client_file.flush()
     agent = Agent()
     telemetry = TelemetryRecorder()
     replay = ReplayRecorder()
-    DEBUG = False  # Set to True to enable detailed debug output each tick
+    cfg = load_config()
+    DEBUG = agent.config.bridge.debug_mode # Set to True to enable detailed debug output each tick\
     try:
         while True:
             line = client_file.readline()
@@ -49,7 +53,7 @@ def run_brain_server():
                 print(f"BRIDGE ERROR: {e}")
                 # Complete fallback dictionary to prevent KeyError/NameError
                 sensors = SensorPacket(is_real_data=False)
-                
+
             motor_output = agent.tick(
                 env_damage=sensors.hazard_stim,
                 food=sensors.food_stim,
@@ -60,23 +64,17 @@ def run_brain_server():
             telemetry.record(
                 TickTelemetry(
                     tick=agent.tick_count,
-
                     energy=agent.bst.energy,
                     integrity=agent.bst.integrity,
-
                     stress=agent.ehe.stress,
                     fear=agent.ehe.fear,
                     drive=agent.ehe.drive,
-
                     thrust=motor_output.thrust,
                     steer=motor_output.steer,
-
                     pos_x=agent.memory.internal_pos.x,
                     pos_y=agent.memory.internal_pos.y,
-
                     velocity_x=agent.memory.internal_vel.x,
                     velocity_y=agent.memory.internal_vel.y,
-
                     landmark_count=len(agent.memory.landmarks),
                     grid_cells=len(agent.memory._grid),
                 )
@@ -85,9 +83,7 @@ def run_brain_server():
             replay.record(
                 ReplayFrame(
                     tick=agent.tick_count,
-
                     sensor_packet=sensors.to_dict(),
-
                     motor_output=motor_output.to_dict(),
                 )
             )

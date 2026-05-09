@@ -25,9 +25,7 @@ class ReplayRecorder:
 
     def record(self, frame: ReplayFrame):
 
-        self.file.write(
-            json.dumps(frame.to_dict()) + "\n"
-        )
+        self.file.write(json.dumps(frame.to_dict()) + "\n")
 
     def close(self):
 

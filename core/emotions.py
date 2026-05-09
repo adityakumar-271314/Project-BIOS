@@ -1,4 +1,6 @@
 from .constants import MAX_ENERGY, MAX_INTEGRITY
+
+
 class EmotionHormoneEngine:
     def __init__(self, config):
         self.cfg = config

@@ -1,2 +1,1 @@
-# BIOS Simulation Requirements
-# Currently utilizing Python Standard Library
+pytest>=8.0.0

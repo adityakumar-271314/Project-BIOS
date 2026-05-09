@@ -1,5 +1,10 @@
-from dataclasses import dataclass, field
-from typing import Dict, Any
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class RuntimeConfig:
+    world_seed: int
+
 
 @dataclass(frozen=True)
 class BodyConfig:
@@ -18,6 +23,7 @@ class BodyConfig:
     reserve_integrity_penalty_threshold: float
     reserve_integrity_penalty_coeff: float
 
+
 @dataclass(frozen=True)
 class EmotionConfig:
     fear_increase_rate: float
@@ -25,6 +31,7 @@ class EmotionConfig:
     hazard_trigger_threshold: float
     stress_lerp_rate: float
     wall_stress_threshold: float
+
 
 @dataclass(frozen=True)
 class BrainConfig:
@@ -49,6 +56,7 @@ class BrainConfig:
     drift_angle_max: float
     random_seed: int
 
+
 @dataclass(frozen=True)
 class MemoryConfig:
     cell_size: float
@@ -61,6 +69,7 @@ class MemoryConfig:
     landmark_update_alpha: float
     bias_radius: float
 
+
 @dataclass(frozen=True)
 class BridgeConfig:
     host: str
@@ -69,8 +78,10 @@ class BridgeConfig:
     default_ray_value: float
     debug_mode: bool
 
+
 @dataclass(frozen=True)
 class SimulationConfig:
+    simulation: RuntimeConfig
     body: BodyConfig
     emotions: EmotionConfig
     brain: BrainConfig

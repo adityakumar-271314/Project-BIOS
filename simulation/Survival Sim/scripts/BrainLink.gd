@@ -1,22 +1,22 @@
 extends Node
 
 var socket = StreamPeerTCP.new()
-var tick_rate = 0.016
-var tick_timer = 0.0
 
 @onready var body = $"../BodySurround"
 @onready var agent = get_parent()
 @onready var ui = get_node("../CanvasLayer")
 
-func _process(delta):
+var waiting_for_brain = false
+
+func _physics_process(delta: float) -> void:
 	socket.poll()
 	var state = socket.get_status()
 	
 	if state == StreamPeerTCP.STATUS_CONNECTED:
-		tick_timer += delta
-		if tick_timer >= tick_rate:
-			tick_timer = 0.0
+		if not waiting_for_brain:
 			_send_to_python()
+			waiting_for_brain = true 
+		
 		_receive_from_python()
 	elif state != StreamPeerTCP.STATUS_CONNECTING:
 		socket.connect_to_host("127.0.0.1", 9999)
@@ -28,7 +28,8 @@ func _send_to_python():
 	var food_stim = 0.0
 	
 	# Detect EVERYTHING touching the agent's physical body
-	var touch_zones = body.get_overlapping_areas()
+	var touch_zones: Array = [] # Explicitly untyped
+	touch_zones.assign(body.get_overlapping_areas()) 
 	touch_zones.append_array(body.get_overlapping_bodies())
 	
 	for thing in touch_zones:
@@ -70,6 +71,13 @@ func _receive_from_python():
 			var json = JSON.new()
 			if json.parse(msg) == OK:
 				var data = json.get_data()
+				if data.get("type") == "INIT":
+					print(data)
+					var world = get_node("../../WorldGenerator")
+					var seed_val = data.get("world_seed", 42) 
+					world.initialize_world(seed_val)
+					continue
+				waiting_for_brain = false # We got our answer, allowed to send again
 				ui.update_display(data)
 				
 				# Check if agent is deceased first

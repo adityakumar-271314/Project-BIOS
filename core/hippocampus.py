@@ -15,7 +15,6 @@ from .data_models import SensorPacket
 from .constants import MIN_NORMAL_LENGTH
 from .vector import Vector2
 
-
 # ---------------------------------------------------------------------------
 # Data containers
 # ---------------------------------------------------------------------------
@@ -63,11 +62,8 @@ class SpatialMemory:
         Minimum hazard_stim / food_stim to record a grid event.
     """
 
-    def __init__(
-        self,
-        config
-    ) -> None:
-        
+    def __init__(self, config) -> None:
+
         # --- Config mapping ---
         self.cfg = config
 
@@ -155,7 +151,7 @@ class SpatialMemory:
         """
         if position is None:
             position = self.internal_pos
-            
+
         if radius is None:
             radius = self.cfg.bias_radius
         assert radius is not None
@@ -228,10 +224,7 @@ class SpatialMemory:
 
     # --- 1. Odometry ---------------------------------------------------------
 
-    def _integrate_odometry(self, 
-                            sensors: SensorPacket, 
-                            delta: float
-                        ) -> None:
+    def _integrate_odometry(self, sensors: SensorPacket, delta: float) -> None:
         """
         Semi-implicit Euler integration with wall-slide correction.
 
@@ -239,10 +232,7 @@ class SpatialMemory:
         *before* updating position so the mental model never "phases" into
         geometry.
         """
-        accel = Vector2(
-            sensors.accel.x,
-            sensors.accel.y
-        )
+        accel = Vector2(sensors.accel.x, sensors.accel.y)
 
         # v += a * dt
         self.internal_vel = self.internal_vel + accel * delta
@@ -257,7 +247,9 @@ class SpatialMemory:
 
         # Extra kill residual velocity when hitting walls
         if len(collision_normals) > 0:
-            self.internal_vel *= self.cfg.collision_velocity_damping  # strong damping on collision frame
+            self.internal_vel *= (
+                self.cfg.collision_velocity_damping
+            )  # strong damping on collision frame
 
         self.internal_pos = self.internal_pos + self.internal_vel * delta
 
@@ -305,7 +297,8 @@ class SpatialMemory:
                 # but cap at landmark_alpha to stay conservative
                 confidence = min(
                     1.0,
-                    record.observation_count / self.cfg.landmark_confidence_divisor,  # saturates at setted 10 obs
+                    record.observation_count
+                    / self.cfg.landmark_confidence_divisor,  # saturates at setted 10 obs
                 )
                 effective_alpha = self._landmark_alpha * confidence
 
@@ -355,7 +348,10 @@ class SpatialMemory:
         for key, cell in self._grid.items():
             cell.hazard *= self._grid_decay
             cell.food *= self._grid_decay
-            if cell.hazard < self.cfg.grid_prune_threshold and cell.food < self.cfg.grid_prune_threshold:
+            if (
+                cell.hazard < self.cfg.grid_prune_threshold
+                and cell.food < self.cfg.grid_prune_threshold
+            ):
                 dead.append(key)
         for key in dead:
             del self._grid[key]

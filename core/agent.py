@@ -4,6 +4,7 @@ from .brain import GoalStackManager
 from .hippocampus import SpatialMemory
 from .config_loader import load_config
 
+
 class Agent:
     def __init__(self, config_path="config.json"):
 
@@ -15,13 +16,15 @@ class Agent:
         self.tick_count = 0
 
     def tick(self, env_damage, food, sensor_data, delta=None):
-        
+
         self.tick_count += 1
         dt = delta if delta is not None else sensor_data.delta
         self.memory.update(sensor_data)
-        spatial_bias = self.memory.get_spatial_bias(radius=self.config.memory.bias_radius)
-        motor_output = self.gsm.evaluate_priorities(self.ehe, sensor_data, spatial_bias)
         self.ehe.update(self.bst, sensor_data)
+        spatial_bias = self.memory.get_spatial_bias(
+            radius=self.config.memory.bias_radius
+        )
+        motor_output = self.gsm.evaluate_priorities(self.ehe, sensor_data, spatial_bias)
         self.bst.update(
             stress=self.ehe.stress,
             external_damage=env_damage,

@@ -1,11 +1,30 @@
-# Theoretical Framework
+# Design Notes
 
-## 1. Non-Linear Urgency
-In biological systems, drives are not linear. Hunger doesn't bother an organism until it reaches a critical threshold. We model this using an inverted Sigmoid function for the Goal Stack Manager (GSM):
+## Drive Scaling
+The simulation uses normalized internal variables such as energy, integrity,
+stress, and fear to influence movement behavior.
 
-$$U(s) = \frac{100}{1 + e^{-k(s - x_0)}}$$
+The current implementation increases urgency as energy decreases:
 
-This ensures the agent maintains "calm" behavior until a survival threshold is crossed, at which point the drive score explodes, overriding curiosity.
+U = (MAX_ENERGY - energy) / MAX_ENERGY
 
-## 2. Nociceptive Bias
-"Pain" is treated as a systemic disruptor. High levels of damage to the `Integrity` variable increase the `Stress` hormone, which creates a competitive weight against exploration, forcing the agent into `HIDE` or `REST` states.
+This value influences food-seeking behavior.
+
+## Stress Response
+Stress is derived from:
+
+- Integrity loss
+- Proximity to walls
+- Environmental hazards
+
+Stress and fear modify steering and thrust outputs.
+
+## Spatial Memory
+The SpatialMemory system maintains:
+
+- Dead-reckoning odometry
+- Landmark correction
+- Sparse hazard/food memory grids
+
+This allows the agent to maintain a rough internal map without direct access
+to world coordinates.

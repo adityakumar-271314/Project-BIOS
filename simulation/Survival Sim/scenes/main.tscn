@@ -109,7 +109,7 @@ position = Vector2(615.50006, -14.249989)
 scale = Vector2(0.9999994, 0.9999994)
 shape = SubResource("RectangleShape2D_h2yge")
 
-[node name="Node2D" type="Node2D" parent="." unique_id=1271571641]
+[node name="WorldGenerator" type="Node2D" parent="." unique_id=1271571641]
 script = ExtResource("6_85g3d")
 food_scene = ExtResource("3_tefeu")
 hazard_scene = ExtResource("4_o6xl0")

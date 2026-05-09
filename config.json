@@ -1,4 +1,7 @@
 {
+  "simulation": {
+    "world_seed": 999
+  },
   "body": {
     "velocity_scale": 120.0,
     "angular_velocity_scale": 4.0,
@@ -60,6 +63,6 @@
     "port": 9999,
     "fallback_delta": 0.016,
     "default_ray_value": 1.0,
-    "debug_mode": false
+    "debug_mode": true
   }
 }

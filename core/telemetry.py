@@ -1,7 +1,6 @@
 from dataclasses import dataclass, asdict
 from typing import Dict, Any
 import json
-import time
 
 
 @dataclass(slots=True)
@@ -41,9 +40,7 @@ class TelemetryRecorder:
 
     def record(self, data: TickTelemetry):
 
-        self.file.write(
-            json.dumps(data.to_dict()) + "\n"
-        )
+        self.file.write(json.dumps(data.to_dict()) + "\n")
 
     def close(self):
 
