@@ -1,3 +1,14 @@
+"""
+Module: core.agent
+Responsibility: High-level orchestration of the BIOS entity.
+Workflow: 
+    1. Receives raw sensor packets from bridge.py.
+    2. Routes data to Hippocampus (Memory) and Body (Physiology).
+    3. Requests a decision from the Brain (Logic).
+    4. Returns actuator commands (Thrust/Steer) back to the bridge.
+Dependencies: core.brain, core.hippocampus, core.body, core.telemetry
+"""
+
 from .body import BodyStateTracker
 from .emotions import EmotionHormoneEngine
 from .brain import GoalStackManager

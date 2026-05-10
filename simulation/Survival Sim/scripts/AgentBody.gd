@@ -9,16 +9,14 @@ extends CharacterBody2D
 var current_normals = []
 var prev_vel = Vector2.ZERO 
 
-# REMOVED _physics_process entirely to prevent double-physics steps.
-# We will handle collision gathering inside execute_move or get_sensory_data.
 
 func get_sensory_data() -> Dictionary:
 	var cur_vel = get_real_velocity()
-	var delta = get_physics_process_delta_time()
+	
 	
 	var x = global_position.x 
 	var y = global_position.y
-
+	var delta = get_physics_process_delta_time()
 	# Calculate acceleration using physics delta
 	var accel = (cur_vel - prev_vel) / delta if delta > 0 else Vector2.ZERO
 	prev_vel = cur_vel 
@@ -73,12 +71,9 @@ func get_sensory_data() -> Dictionary:
 	return data
 
 func execute_move(motor_data: Dictionary):
-	# Use a hard-coded constant for perfect odometry
-	var const_delta = 0.01666667 # Equivalent to 60FPS
-	
-	rotation += motor_data.get("steer", 0.0) * const_delta * 4.0 
+	var delta = get_physics_process_delta_time()
+	rotation += motor_data.get("steer", 0.0) * delta * 4.0
 	velocity = Vector2.RIGHT.rotated(rotation) * (motor_data.get("thrust", 0.0) * 150.0)
-	
 	move_and_slide()
 	
 	# Update collision normals IMMEDIATELY after moving

@@ -1,3 +1,15 @@
+"""
+Module: bridge
+Responsibility: The TCP Gateway between the Python logic and Godot simulation.
+Workflow: 
+    Handles the JSON-based handshake, decodes Godot sensor data into 
+    Python objects, and encodes Python decisions into Godot-executable packets.
+Dependencies: socket, json, core.agent
+"""
+
+
+
+
 import math
 import socket
 import json
@@ -5,6 +17,7 @@ from core.agent import Agent
 from core.config_loader import load_config
 from core.constants import SPAWN_OFFSET_X, SPAWN_OFFSET_Y, DRIFT_WARNING_THRESHOLD
 from core.data_models import SensorPacket
+from tools.visualizer import run_visualizer
 from core.telemetry import (
     TelemetryRecorder,
     TickTelemetry,
@@ -38,6 +51,7 @@ def run_brain_server():
     telemetry = TelemetryRecorder()
     replay = ReplayRecorder()
     cfg = load_config()
+    path_log = []
     DEBUG = agent.config.bridge.debug_mode # Set to True to enable detailed debug output each tick\
     try:
         while True:
@@ -79,7 +93,7 @@ def run_brain_server():
                     grid_cells=len(agent.memory._grid),
                 )
             )
-
+            path_log.append(agent.memory.internal_pos.copy())
             replay.record(
                 ReplayFrame(
                     tick=agent.tick_count,
@@ -145,6 +159,7 @@ def run_brain_server():
         replay.close()
         conn.close()
         server.close()
+        run_visualizer(agent.memory, path=path_log)
 
 
 if __name__ == "__main__":

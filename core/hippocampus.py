@@ -1,16 +1,22 @@
 """
-Project BIOS — SpatialMemory (Hippocampus)
-==========================================
-Dead-reckoning odometry + landmark re-zeroing + sparse trauma/bounty grid +
-planning bias vector.  No GPS; all coordinates are in the agent's own
-internal frame (origin = spawn point).
+Module: core.hippocampus
+Responsibility: Spatial awareness, Dead Reckoning, and Landmark Mapping.
+Features: 
+    - Integrates velocity/acceleration to estimate position.
+    - Corrects drift using detected Landmark objects.
+    - Manages a 'Stimulus Grid' (Sparse Matrix) that tracks hazard and bounty 
+      locations with temporal decay (forgetting).
+Dependencies: core.vector, core.data_models
 """
+
 
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
+
+from matplotlib.pylab import record
 from .data_models import SensorPacket
 from .constants import MIN_NORMAL_LENGTH
 from .vector import Vector2
@@ -247,9 +253,10 @@ class SpatialMemory:
 
         # Extra kill residual velocity when hitting walls
         if len(collision_normals) > 0:
-            self.internal_vel *= (
-                self.cfg.collision_velocity_damping
-            )  # strong damping on collision frame
+            pass
+            # self.internal_vel *= (
+            #     self.cfg.collision_velocity_damping
+            # )  # strong damping on collision frame
 
         self.internal_pos = self.internal_pos + self.internal_vel * delta
 
@@ -267,50 +274,55 @@ class SpatialMemory:
         sin_r = math.sin(rotation)
 
         for obj in sensors.sensed_objects:
-            obj_id: int = obj.id
-            dist: float = obj.dist
-            local_angle: float = obj.angle  # relative to agent facing
+            if obj.type == "landmark":
+                obj_id: int = obj.id
+                dist: float = obj.dist
+                local_angle: float = obj.angle  # relative to agent facing
 
-            # Local offset from agent → object (in world frame)
-            world_angle = rotation + local_angle
-            dx = dist * math.cos(world_angle)
-            dy = dist * math.sin(world_angle)
-            offset = Vector2(dx, dy)
+                # Local offset from agent → object (in world frame)
+                world_angle = rotation + local_angle
+                dx = dist * math.cos(world_angle)
+                dy = dist * math.sin(world_angle)
+                offset = Vector2(dx, dy)
 
-            if obj_id not in self._landmarks:
-                # First sighting: pin landmark at inferred world position
-                estimated_world_pos = self.internal_pos + offset
-                self._landmarks[obj_id] = LandmarkRecord(
-                    pos=estimated_world_pos,
-                    last_seen_tick=self._tick,
-                )
-            else:
-                record = self._landmarks[obj_id]
-                record.last_seen_tick = self._tick
-                record.observation_count += 1
+                if obj_id not in self._landmarks:
+                    # First sighting: pin landmark at inferred world position
+                    estimated_world_pos = self.internal_pos + offset
+                    self._landmarks[obj_id] = LandmarkRecord(
+                        pos=estimated_world_pos,
+                        last_seen_tick=self._tick,
+                    )
+                else:
+                    record = self._landmarks[obj_id]
+                    record.last_seen_tick = self._tick
+                    record.observation_count += 1
 
-                # Implied agent position given stored landmark coords
-                implied_agent_pos = record.pos - offset
+                    # Implied agent position given stored landmark coords
+                    implied_agent_pos = record.pos - offset
 
-                # Alpha-filter: nudge internal_pos toward implied truth
-                # Use a confidence-weighted alpha: more observations → more trust
-                # but cap at landmark_alpha to stay conservative
-                confidence = min(
-                    1.0,
-                    record.observation_count
-                    / self.cfg.landmark_confidence_divisor,  # saturates at setted 10 obs
-                )
-                effective_alpha = self._landmark_alpha * confidence
+                    # Alpha-filter: nudge internal_pos toward implied truth
+                    # Use a confidence-weighted alpha: more observations → more trust
+                    # but cap at landmark_alpha to stay conservative
+                    confidence = min(
+                        1.0,
+                        record.observation_count
+                        / self.cfg.landmark_confidence_divisor,  # saturates at setted 10 obs
+                    )
+                    effective_alpha = self._landmark_alpha * confidence
 
-                self.internal_pos = self.internal_pos.lerp(
-                    implied_agent_pos, effective_alpha
-                )
+                    self.internal_pos = self.internal_pos.lerp(
+                        implied_agent_pos, effective_alpha
+                    )
 
-                # Also update the stored landmark position with the *new*
-                # implied location so highly-mobile "landmarks" can track
-                stored_update_alpha = self.cfg.landmark_alpha * confidence
-                new_landmark_pos = self.internal_pos + offset
-                record.pos = record.pos.lerp(new_landmark_pos, stored_update_alpha)
+                    # Also update the stored landmark position with the *new*
+                    # implied location so highly-mobile "landmarks" can track
+                    if record.observation_count < self.cfg.landmark_confidence_divisor:
+                        stored_update_alpha = self.cfg.landmark_update_alpha * confidence
+                        new_landmark_pos = self.internal_pos + offset
+                        record.pos = record.pos.lerp(
+                            new_landmark_pos,
+                            stored_update_alpha,
+                        )
 
     # --- 3. Stimulus grid recording ------------------------------------------
 
@@ -371,3 +383,11 @@ class SpatialMemory:
             (cx + 0.5) * self._cell_size,
             (cy + 0.5) * self._cell_size,
         )
+    
+    def get_map_data(self):
+        return {
+            "grid": self._grid,
+            "landmarks": self._landmarks,
+            "position": self.internal_pos,
+            "cell_size": self._cell_size
+    }

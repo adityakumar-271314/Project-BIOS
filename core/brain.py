@@ -1,3 +1,14 @@
+"""
+Module: core.brain
+Responsibility: The 'GoalStackManager' and decision-making engine.
+Logic: 
+    Uses weighted vector sums (Hunger Drive, Fear, Wall Repulsion) to calculate 
+    movement vectors. Implements 'Anti-Shiver' smoothing to stabilize steering.
+Future Work: Integration of 'Spatial Bias' from Hippocampus to enable memory-led navigation.
+Dependencies: core.vector, core.constants, core.emotions
+"""
+
+
 import random
 from .data_models import MotorOutput, SensorPacket
 from .vector import Vector2

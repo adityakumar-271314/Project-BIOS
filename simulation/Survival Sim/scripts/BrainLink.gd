@@ -72,7 +72,6 @@ func _receive_from_python():
 			if json.parse(msg) == OK:
 				var data = json.get_data()
 				if data.get("type") == "INIT":
-					print(data)
 					var world = get_node("../../WorldGenerator")
 					var seed_val = data.get("world_seed", 42) 
 					world.initialize_world(seed_val)

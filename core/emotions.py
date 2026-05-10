@@ -1,3 +1,14 @@
+"""
+Module: core.emotions
+Responsibility: The 'Hormone Engine'—translating physiological states into drives.
+Logic: 
+    Maps raw metrics (Low Energy, High Heat, Distance to Hazard) into 
+    abstract floats (Drive, Stress, Fear) that weight the Brain's decision-making.
+Dependencies: core.constants
+"""
+
+
+
 from .constants import MAX_ENERGY, MAX_INTEGRITY
 
 

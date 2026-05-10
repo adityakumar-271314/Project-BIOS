@@ -1,6 +1,8 @@
 from __future__ import annotations
 import math
 
+from matplotlib.pylab import normal
+
 
 class Vector2:
     __slots__ = ("x", "y")
@@ -50,12 +52,7 @@ class Vector2:
         return self.x * o.x + self.y * o.y
 
     def slide(self, normal: "Vector2") -> "Vector2":
-        dot = self.dot(normal)
-
-        if dot < 0.0:
-            return self - normal * dot
-
-        return Vector2(self.x, self.y)
+        return self - normal * self.dot(normal)
 
     def lerp(self, o: "Vector2", t: float) -> "Vector2":
         return self + (o - self) * t

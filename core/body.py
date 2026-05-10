@@ -1,3 +1,14 @@
+"""
+Module: core.body
+Responsibility: Physiological simulation and homeostatic maintenance.
+Simulates: 
+    - Energy consumption (Metabolic rate + Movement cost).
+    - Integrity (Health) loss during starvation or hazard contact.
+    - Status signaling (Hunger, Injury) sent to the Emotion Engine.
+Dependencies: core.constants, core.data_models
+"""
+
+
 import math
 from .constants import MAX_ENERGY, MAX_INTEGRITY
 
