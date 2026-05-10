@@ -59,6 +59,8 @@ The simulation visualizes the following real-time data:
 
 - Spatial memory behavior
 
+- Visualization of agents memory
+
 ## Running Tests
 Run all tests:
 
