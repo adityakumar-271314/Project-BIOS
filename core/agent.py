@@ -9,9 +9,12 @@ Workflow:
 Dependencies: core.brain, core.hippocampus, core.body, core.telemetry
 """
 
+
+
+from logging import config
 from .body import BodyStateTracker
 from .emotions import EmotionHormoneEngine
-from .brain import GoalStackManager
+from core.brain.brain import Brain
 from .hippocampus import SpatialMemory
 from .config_loader import load_config
 
@@ -22,7 +25,10 @@ class Agent:
         self.config = load_config(config_path)
         self.bst = BodyStateTracker(self.config.body)
         self.ehe = EmotionHormoneEngine(self.config.emotions)
-        self.gsm = GoalStackManager(self.config.brain)
+        self.brain = Brain(
+            brain_cfg=self.config.brain,
+            skill_cfg=self.config.skills,
+        )
         self.memory = SpatialMemory(self.config.memory)
         self.tick_count = 0
 
@@ -35,7 +41,7 @@ class Agent:
         spatial_bias = self.memory.get_spatial_bias(
             radius=self.config.memory.bias_radius
         )
-        motor_output = self.gsm.evaluate_priorities(self.ehe, sensor_data, spatial_bias)
+        motor_output = self.brain.evaluate_priorities(self.ehe, sensor_data, spatial_bias)
         self.bst.update(
             stress=self.ehe.stress,
             external_damage=env_damage,

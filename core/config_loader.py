@@ -7,6 +7,10 @@ from .config_classes import (
     BrainConfig,
     MemoryConfig,
     BridgeConfig,
+    SkillsConfig,
+    WanderProfile,
+    SeekFoodProfile,
+    AvoidHazardProfile,
 )
 
 
@@ -14,12 +18,33 @@ def load_config(path: str = "config.json") -> SimulationConfig:
     with open(path, "r") as f:
         data = json.load(f)
 
-    # Map the nested dictionaries to their respective dataclasses
+    brain_data = data["brain"]
+    skill_data = data["skills"]
+
+    skills = SkillsConfig(
+        wander=WanderProfile(
+            **skill_data["wander"]
+        ),
+
+        seek_food=SeekFoodProfile(
+            **skill_data["seek_food"]
+        ),
+
+        avoid_hazard=AvoidHazardProfile(
+            **skill_data["avoid_hazard"]
+        ),
+    )
+
+    brain_cfg = BrainConfig(
+        **brain_data
+    )
+
     return SimulationConfig(
         simulation=RuntimeConfig(**data["simulation"]),
         body=BodyConfig(**data["body"]),
         emotions=EmotionConfig(**data["emotions"]),
-        brain=BrainConfig(**data["brain"]),
+        brain=brain_cfg,
+        skills=skills,
         memory=MemoryConfig(**data["memory"]),
-        bridge=BridgeConfig(**data["bridge"]),   
+        bridge=BridgeConfig(**data["bridge"]),
     )

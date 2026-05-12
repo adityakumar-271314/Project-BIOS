@@ -33,6 +33,34 @@ class EmotionConfig:
     wall_stress_threshold: float
 
 
+
+@dataclass(frozen=True)
+class WanderProfile:
+    persistence: int
+    thrust_multiplier: float
+    priority: float
+
+
+@dataclass(frozen=True)
+class SeekFoodProfile:
+    persistence: int
+    thrust_multiplier: float
+    food_weight: float
+    hazard_weight: float
+
+
+@dataclass(frozen=True)
+class AvoidHazardProfile:
+    persistence: int
+    thrust_multiplier: float
+    hazard_weight: float
+
+
+@dataclass(frozen=True)
+class SkillsConfig:
+    wander: WanderProfile
+    seek_food: SeekFoodProfile
+    avoid_hazard: AvoidHazardProfile
 @dataclass(frozen=True)
 class BrainConfig:
     food_distance_scale: float
@@ -54,8 +82,9 @@ class BrainConfig:
     drift_interval_max: int
     drift_angle_min: float
     drift_angle_max: float
+    fear_threshold: float
+    drive_threshold: float
     random_seed: int
-
 
 @dataclass(frozen=True)
 class MemoryConfig:
@@ -76,7 +105,8 @@ class BridgeConfig:
     port: int
     fallback_delta: float
     default_ray_value: float
-    debug_mode: bool
+
+
 
 
 @dataclass(frozen=True)
@@ -85,5 +115,6 @@ class SimulationConfig:
     body: BodyConfig
     emotions: EmotionConfig
     brain: BrainConfig
+    skills: SkillsConfig
     memory: MemoryConfig
     bridge: BridgeConfig

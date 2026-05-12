@@ -52,7 +52,7 @@ def run_brain_server():
     replay = ReplayRecorder()
     cfg = load_config()
     path_log = []
-    DEBUG = agent.config.bridge.debug_mode # Set to True to enable detailed debug output each tick\
+    DEBUG = False # Set to True to enable detailed debug output each tick\
     try:
         while True:
             line = client_file.readline()

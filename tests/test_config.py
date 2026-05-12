@@ -12,3 +12,21 @@ def test_world_seed_exists():
     cfg = load_config()
 
     assert cfg.simulation.world_seed == 999
+
+def test_skill_profile_loads_correctly():
+    cfg = load_config()
+
+    assert (
+        cfg.skills.seek_food.food_weight
+        == 1.40
+    )
+
+    assert (
+        cfg.skills.avoid_hazard.hazard_weight
+        == 2.20
+    )
+
+    assert (
+        cfg.skills.wander.persistence
+        == 45
+    )
