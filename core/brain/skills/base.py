@@ -1,19 +1,15 @@
-# core/brain/skills/base.py
+"""
+BaseSkill — Shared Locomotion Logic.
 
+Contains common steering force calculations (walls, drift, smoothing,
+thrust modulation) inherited by all concrete skills.
+"""
 import random
 
 from ...data_models import MotorOutput
 
 
 class BaseSkill:
-    """
-    Shared locomotion infrastructure.
-
-    Individual skills only define:
-        - force weighting
-        - behavioral emphasis
-    """
-
     
     def __init__(self, brain_cfg, skill_cfg):
 

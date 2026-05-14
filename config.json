@@ -76,7 +76,17 @@
     "collision_velocity_damping": 0.3,
     "landmark_confidence_divisor": 10.0,
     "landmark_update_alpha": 0.05,
-    "bias_radius": 150.0
+    "bias_radius": 150.0,
+    "episodic_cooldown_ticks": 100,
+    "episodic_significance_threshold": 1.8,
+    "episodic_min_samples": 10,
+    "episodic_damage_threshold": 5.0,
+    "episodic_food_recovery_threshold": 10.0,
+    "episodic_danger_fear_threshold": 0.8,
+    "episodic_starvation_drive_threshold": 0.85,
+    "min_std": 0.05,
+    "near_death_integrity": 10.0,
+    "critical_energy": 5.0
   },
   "bridge": {
     "host": "127.0.0.1",

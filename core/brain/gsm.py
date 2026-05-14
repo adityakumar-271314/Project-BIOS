@@ -1,3 +1,12 @@
+"""
+GoalStackManager (GSM) — Persistent Goal Arbitration.
+
+Evaluates emotional and sensory state to select and maintain the current
+behavioral goal (wander, seek_food, avoid_hazard) with persistence and
+interruption logic.
+"""
+
+
 from dataclasses import dataclass
 
 
@@ -9,15 +18,6 @@ class Goal:
 
 
 class GoalStackManager:
-    """
-    Minimal Persistent Goal Selection Layer.
-
-    Responsibilities:
-        - Evaluate physiological/emotional pressures.
-        - Maintain an active goal across frames.
-        - Allow urgent goals to interrupt lower-priority goals.
-        - Provide future compatibility for full stack behavior.
-    """
 
     def __init__(self, brain_cfg, skill_cfg):
 

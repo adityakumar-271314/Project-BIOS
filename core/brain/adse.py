@@ -1,3 +1,11 @@
+"""
+Action Dispatcher & Skill Executor (ADSE).
+
+Routes the selected goal to the appropriate Skill implementation and
+returns concrete motor commands.
+"""
+
+
 
 from .skills.wander import WanderSkill
 from .skills.seek_food import SeekFoodSkill
@@ -5,15 +13,6 @@ from .skills.avoid_hazard import AvoidHazardSkill
 
 
 class ActionDispatcher:
-    """
-    Action Dispatcher & Skill Executor.
-
-    Responsibilities:
-        - Translate goals into executable skills.
-        - Run/update active skills.
-        - Return MotorOutput.
-    """
-
     
     def __init__(self, brain_cfg, skill_cfg):
 

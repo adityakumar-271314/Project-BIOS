@@ -1,10 +1,13 @@
 """
-Module: core.emotions
-Responsibility: The 'Hormone Engine'—translating physiological states into drives.
-Logic: 
-    Maps raw metrics (Low Energy, High Heat, Distance to Hazard) into 
-    abstract floats (Drive, Stress, Fear) that weight the Brain's decision-making.
-Dependencies: core.constants
+EmotionHormoneEngine — Affective and Motivational System.
+
+Translates physiological states (energy, integrity) and environmental
+stimuli (hazards, walls) into internal drives:
+- drive (hunger)
+- fear (threat response)
+- stress (general arousal/damage)
+
+These signals modulate both goal selection and motor behavior.
 """
 
 

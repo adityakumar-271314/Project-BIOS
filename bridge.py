@@ -1,13 +1,20 @@
 """
-Module: bridge
-Responsibility: The TCP Gateway between the Python logic and Godot simulation.
-Workflow: 
-    Handles the JSON-based handshake, decodes Godot sensor data into 
-    Python objects, and encodes Python decisions into Godot-executable packets.
-Dependencies: socket, json, core.agent
+TCP Bridge between Godot Simulation and Python Cognition Engine.
+
+This module acts as the communication gateway:
+- Starts a TCP server on 127.0.0.1:9999
+- Performs initial handshake with world seed
+- Receives sensor data from Godot each physics tick
+- Forwards processed data to the Agent
+- Sends motor commands (thrust, steer) back to Godot
+- Records telemetry and replay data
+- Launches the spatial memory visualizer when the agent dies or connection closes
+
+Key responsibilities:
+    - JSON serialization/deserialization
+    - Robust error handling and fallback SensorPacket
+    - Lifecycle management of Agent, TelemetryRecorder, and ReplayRecorder
 """
-
-
 
 
 import math
@@ -85,15 +92,15 @@ def run_brain_server():
                     drive=agent.ehe.drive,
                     thrust=motor_output.thrust,
                     steer=motor_output.steer,
-                    pos_x=agent.memory.internal_pos.x,
-                    pos_y=agent.memory.internal_pos.y,
-                    velocity_x=agent.memory.internal_vel.x,
-                    velocity_y=agent.memory.internal_vel.y,
-                    landmark_count=len(agent.memory.landmarks),
-                    grid_cells=len(agent.memory._grid),
+                    pos_x=agent.memory.semantic.internal_pos.x,
+                    pos_y=agent.memory.semantic.internal_pos.y,
+                    velocity_x=agent.memory.semantic.internal_vel.x,
+                    velocity_y=agent.memory.semantic.internal_vel.y,
+                    landmark_count=len(agent.memory.semantic.landmarks),
+                    grid_cells=len(agent.memory.semantic._grid),
                 )
             )
-            path_log.append(agent.memory.internal_pos.copy())
+            path_log.append(agent.memory.semantic.internal_pos.copy())
             replay.record(
                 ReplayFrame(
                     tick=agent.tick_count,
@@ -115,6 +122,8 @@ def run_brain_server():
                 "integrity": agent.bst.integrity,
                 "stress": agent.ehe.stress,
                 "alive": agent.bst.is_alive,
+                "episodic_memories": agent.memory.episodic.get_debug_memories()
+,
             }
 
             client_file.write(json.dumps(response) + "\n")
@@ -126,7 +135,7 @@ def run_brain_server():
                 real_pos_y = sensors.real_pos_y
 
                 # 1. Get the raw mental coordinates
-                internal = agent.memory.internal_pos
+                internal = agent.memory.semantic.internal_pos
 
                 # 2. Transform Mental -> Godot Space
                 # We add the spawn offset and invert the Y axis
@@ -145,7 +154,7 @@ def run_brain_server():
                 )
                 print(f"DRIFT ERROR:     {drift_distance:.2f} pixels")
                 print(
-                    f"MEMORY STATS:    Cells: {len(agent.memory._grid)} | Landmarks: {len(agent.memory._landmarks)}"
+                    f"MEMORY STATS:    Cells: {len(agent.memory.semantic._grid)} | Landmarks: {len(agent.memory.semantic._landmarks)}"
                 )
 
                 if drift_distance > DRIFT_WARNING_THRESHOLD:
@@ -159,7 +168,7 @@ def run_brain_server():
         replay.close()
         conn.close()
         server.close()
-        run_visualizer(agent.memory, path=path_log)
+        run_visualizer(agent.memory.semantic, path=path_log)
 
 
 if __name__ == "__main__":

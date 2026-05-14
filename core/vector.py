@@ -1,7 +1,15 @@
+"""
+2D Vector Mathematics Utility.
+
+Lightweight Vector2 class with common operations used throughout the
+spatial memory and steering systems.
+"""
+
+
+
 from __future__ import annotations
 import math
 
-from matplotlib.pylab import normal
 
 
 class Vector2:

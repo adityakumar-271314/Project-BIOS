@@ -1,21 +1,26 @@
 """
-Module: core.agent
-Responsibility: High-level orchestration of the BIOS entity.
-Workflow: 
-    1. Receives raw sensor packets from bridge.py.
-    2. Routes data to Hippocampus (Memory) and Body (Physiology).
-    3. Requests a decision from the Brain (Logic).
-    4. Returns actuator commands (Thrust/Steer) back to the bridge.
-Dependencies: core.brain, core.hippocampus, core.body, core.telemetry
+Core Agent Orchestrator.
+
+High-level coordinator that binds together the major subsystems of the BIOS agent:
+
+- BodyStateTracker (physiology & energy)
+- EmotionHormoneEngine (internal drives)
+- SpatialMemory (hippocampus)
+- Brain (goal selection + skill execution)
+
+One `tick()` call represents one simulation step. It follows this flow:
+1. Update spatial memory with latest sensor data
+2. Update emotional/hormonal state
+3. Request motor decision from the Brain
+4. Update body physiology (energy, integrity, motion cost)
 """
 
 
+from core.memory.memory_system import MemorySystem
 
-from logging import config
 from .body import BodyStateTracker
 from .emotions import EmotionHormoneEngine
 from core.brain.brain import Brain
-from .hippocampus import SpatialMemory
 from .config_loader import load_config
 
 
@@ -29,16 +34,20 @@ class Agent:
             brain_cfg=self.config.brain,
             skill_cfg=self.config.skills,
         )
-        self.memory = SpatialMemory(self.config.memory)
+        self.memory = MemorySystem(self.config.memory)
         self.tick_count = 0
 
     def tick(self, env_damage, food, sensor_data, delta=None):
 
         self.tick_count += 1
         dt = delta if delta is not None else sensor_data.delta
-        self.memory.update(sensor_data)
+        self.memory.update(
+            sensors=sensor_data,
+            body=self.bst,
+            emotions=self.ehe,
+        )
         self.ehe.update(self.bst, sensor_data)
-        spatial_bias = self.memory.get_spatial_bias(
+        spatial_bias = self.memory.semantic.get_spatial_bias(
             radius=self.config.memory.bias_radius
         )
         motor_output = self.brain.evaluate_priorities(self.ehe, sensor_data, spatial_bias)

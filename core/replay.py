@@ -1,3 +1,11 @@
+"""
+Replay Recording System.
+
+Saves complete tick-by-tick sensor input and motor output for deterministic
+replay, debugging, and analysis.
+"""
+
+
 from dataclasses import dataclass, asdict
 from typing import Dict, Any
 import json

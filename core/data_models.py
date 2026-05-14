@@ -1,3 +1,14 @@
+"""
+Data Models for Sensor Input and Motor Output.
+
+Defines:
+- SensorPacket: All sensory information sent from Godot to Python
+- SensedObject: Individual detected entities (food, hazard, landmark)
+- MotorOutput: Agent's actuator commands (thrust, steer)
+"""
+
+
+
 from dataclasses import dataclass, field, asdict
 from typing import List
 from .vector import Vector2

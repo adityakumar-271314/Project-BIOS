@@ -1,3 +1,12 @@
+"""
+Configuration Data Classes.
+
+Contains frozen dataclasses that define the complete configuration schema
+for Project BIOS. Used by config_loader.py to provide type-safe,
+immutable configuration objects to all subsystems.
+"""
+
+
 from dataclasses import dataclass
 
 
@@ -97,6 +106,16 @@ class MemoryConfig:
     landmark_confidence_divisor: float
     landmark_update_alpha: float
     bias_radius: float
+    episodic_cooldown_ticks: int
+    episodic_significance_threshold: float
+    episodic_min_samples: int
+    episodic_damage_threshold: float
+    episodic_food_recovery_threshold: float
+    episodic_danger_fear_threshold: float
+    episodic_starvation_drive_threshold: float
+    min_std: float
+    near_death_integrity: float
+    critical_energy: float
 
 
 @dataclass(frozen=True)

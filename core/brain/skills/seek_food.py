@@ -1,3 +1,11 @@
+"""
+food attraction Skill.
+
+Implements goal-specific behavior by combining relevant steering forces with profile-defined
+weights and thrust modifiers.
+"""
+
+
 from .base import BaseSkill
 
 

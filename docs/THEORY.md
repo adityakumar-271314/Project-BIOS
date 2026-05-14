@@ -20,7 +20,7 @@ Stress is derived from:
 Stress and fear modify steering and thrust outputs.
 
 ## Spatial Memory
-The SpatialMemory system maintains:
+The SemanticMemory system maintains:
 
 - Dead-reckoning odometry
 - Landmark correction

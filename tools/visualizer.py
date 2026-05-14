@@ -1,14 +1,14 @@
 """
 tools/visualizer.py
 
-Post-mortem (or live) visualizer for core.hippocampus.SpatialMemory.
+Post-mortem (or live) visualizer for core.memory.semantic.SemanticMemory.
 
-Reads directly from a SpatialMemory instance — no JSON export needed.
+Reads directly from a SemanticMemory instance — no JSON export needed.
 Coordinate system matches Godot: +X right, +Y DOWN (we flip Y for screen).
 
 Usage
 -----
-    from core.hippocampus import SpatialMemory
+    from core.hippocampus import SemanticMemory
     from tools.visualizer import run_visualizer
 
     # After agent session ends (or any time):
@@ -46,7 +46,7 @@ except ImportError:
         "Install it with:  pip install pygame"
     )
 
-from core.hippocampus import SpatialMemory
+from core.memory.semantic import SemanticMemory
 from core.vector import Vector2
 
 # ---------------------------------------------------------------------------
@@ -95,7 +95,7 @@ class _Visualizer:
     HEIGHT = 800
     FONT_PATH = None  # uses pygame default
 
-    def __init__(self, memory: SpatialMemory, path: Optional[List[Vector2]] = None):
+    def __init__(self, memory: SemanticMemory, path: Optional[List[Vector2]] = None):
         self.memory = memory
         self.path: List[Vector2] = path or []
 
@@ -320,7 +320,7 @@ class _Visualizer:
 
     def run(self) -> None:
         pygame.init()
-        pygame.display.set_caption("BIOS — SpatialMemory Visualizer")
+        pygame.display.set_caption("BIOS — SemanticMemory Visualizer")
         surf = pygame.display.set_mode((self.WIDTH, self.HEIGHT), pygame.RESIZABLE)
         clock = pygame.time.Clock()
 
@@ -424,7 +424,7 @@ class _Visualizer:
 # ---------------------------------------------------------------------------
 
 def run_visualizer(
-    memory: SpatialMemory,
+    memory: SemanticMemory,
     path: Optional[List[Vector2]] = None,
 ) -> None:
     """
@@ -432,7 +432,7 @@ def run_visualizer(
 
     Parameters
     ----------
-    memory : SpatialMemory
+    memory : SemanticMemory
         The hippocampus instance to inspect.  Can be called while the
         agent is still alive (reads current state) or post-mortem.
     path : list[Vector2] | None
@@ -450,7 +450,7 @@ def run_visualizer(
 
 if __name__ == "__main__":
 
-    # Build a minimal fake config so SpatialMemory can be constructed
+    # Build a minimal fake config so SemanticMemory can be constructed
     class _Cfg:
         cell_size                  = 16.0
         landmark_alpha             = 0.15
@@ -461,9 +461,9 @@ if __name__ == "__main__":
         collision_velocity_damping = 0.3
         grid_prune_threshold       = 0.005
 
-    from core.hippocampus import SpatialMemory, GridCell, LandmarkRecord
+    from core.memory.semantic import SemanticMemory, GridCell, LandmarkRecord
 
-    mem = SpatialMemory(_Cfg())
+    mem = SemanticMemory(_Cfg())
 
     import random, math as _math
     rng = random.Random(7)

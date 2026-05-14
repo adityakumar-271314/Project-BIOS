@@ -1,11 +1,11 @@
-from core.hippocampus import SpatialMemory
+from core.memory.semantic import SemanticMemory
 from core.config_loader import load_config
 from core.data_models import SensorPacket
 from core.vector import Vector2
 
 
 def test_odometry_updates_position():
-    mem = SpatialMemory(load_config().memory)
+    mem = SemanticMemory(load_config().memory)
 
     sensors = SensorPacket(
         accel=Vector2(10, 0),
@@ -18,7 +18,7 @@ def test_odometry_updates_position():
 
 
 def test_hazard_memory_recorded():
-    mem = SpatialMemory(load_config().memory)
+    mem = SemanticMemory(load_config().memory)
 
     sensors = SensorPacket(
         hazard_stim=1.0,
@@ -32,7 +32,7 @@ def test_hazard_memory_recorded():
 def test_landmark_registration():
     from core.data_models import SensedObject
 
-    mem = SpatialMemory(load_config().memory)
+    mem = SemanticMemory(load_config().memory)
 
     sensors = SensorPacket(
         sensed_objects=[

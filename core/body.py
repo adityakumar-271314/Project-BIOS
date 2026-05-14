@@ -1,11 +1,14 @@
 """
-Module: core.body
-Responsibility: Physiological simulation and homeostatic maintenance.
-Simulates: 
-    - Energy consumption (Metabolic rate + Movement cost).
-    - Integrity (Health) loss during starvation or hazard contact.
-    - Status signaling (Hunger, Injury) sent to the Emotion Engine.
-Dependencies: core.constants, core.data_models
+BodyStateTracker — Physiological and Homeostatic Model.
+
+Simulates the agent's physical state including:
+- Energy (metabolic + movement consumption)
+- Integrity (health)
+- Energy reserves from consumed food
+- Motion costs based on thrust and steering
+- Starvation and stress penalties
+
+This module implements the "body" side of the mind-body loop.
 """
 
 

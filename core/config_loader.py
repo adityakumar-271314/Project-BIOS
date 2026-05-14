@@ -1,3 +1,13 @@
+"""
+Configuration Loader.
+
+Responsible for reading config.json and converting it into structured
+SimulationConfig dataclass instances with proper nesting of skill profiles
+and subsystem configurations.
+"""
+
+
+
 import json
 from .config_classes import (
     RuntimeConfig,

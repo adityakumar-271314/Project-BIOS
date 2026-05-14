@@ -1,18 +1,19 @@
+"""
+Brain Facade.
+
+Provides a clean high-level interface to the cognitive architecture.
+Currently delegates to:
+- GoalStackManager (GSM) for goal selection
+- ActionDispatcher (ADSE) for skill execution
+"""
+
+
+
 from .gsm import GoalStackManager
 from .adse import ActionDispatcher
 
 
 class Brain:
-    """
-    Transitional facade preserving the old brain interface.
-
-    External systems can continue calling:
-        brain.evaluate_priorities(...)
-
-    Internally the architecture is now split into:
-        - Goal selection (GSM)
-        - Action execution (ADSE)
-    """
 
     def __init__(self, brain_cfg, skill_cfg):
 

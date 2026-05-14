@@ -1,14 +1,14 @@
 """
-Module: core.hippocampus
-Responsibility: Spatial awareness, Dead Reckoning, and Landmark Mapping.
-Features: 
-    - Integrates velocity/acceleration to estimate position.
-    - Corrects drift using detected Landmark objects.
-    - Manages a 'Stimulus Grid' (Sparse Matrix) that tracks hazard and bounty 
-      locations with temporal decay (forgetting).
-Dependencies: core.vector, core.data_models
-"""
+SpatialMemory — The Agent's Hippocampus.
 
+Implements:
+- Dead reckoning odometry (position + velocity integration)
+- Landmark-based drift correction with confidence weighting
+- Sparse decaying grid for hazard and food memory (place-cell like)
+- Spatial bias vector generation for planning
+
+This is the core spatial cognition module.
+"""
 
 from __future__ import annotations
 
@@ -17,9 +17,9 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from matplotlib.pylab import record
-from .data_models import SensorPacket
-from .constants import MIN_NORMAL_LENGTH
-from .vector import Vector2
+from ..data_models import SensorPacket
+from ..constants import MIN_NORMAL_LENGTH
+from ..vector import Vector2
 
 # ---------------------------------------------------------------------------
 # Data containers
@@ -49,7 +49,7 @@ class GridCell:
 # ---------------------------------------------------------------------------
 
 
-class SpatialMemory:
+class SemanticMemory:
     """
     The agent's hippocampus: integrates sensor ticks into a coherent,
     self-correcting internal map.
