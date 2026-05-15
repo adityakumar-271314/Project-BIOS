@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import math
 from typing import Dict, Optional
-
+from .schemas import EpisodicEvent
 
 class RunningStats:
     """
@@ -60,7 +60,7 @@ class EpisodicMemory:
         self._was_near_death = False
 
         # Stored episodic memories
-        self.events = []
+        self.events: list[EpisodicEvent] = []
 
         # Internal tick counter
         self._tick = 0
@@ -146,34 +146,52 @@ class EpisodicMemory:
 
         if is_near_death and not self._was_near_death:
 
-            event = {
-                "tick": self._tick,
-                "event_type": "near_death",
-                "significance": 10.0,
-                "position": {
-                    "x": semantic_memory.position.x,
-                    "y": semantic_memory.position.y,
-                },
-                "state": current,
-                "deltas": deltas,
-            }
+            event = EpisodicEvent(
+                        tick=self._tick,
+                        event_type="near_death",
+                        significance=10.0,
+
+                        pos_x=semantic_memory.position.x,
+                        pos_y=semantic_memory.position.y,
+
+                        energy=current["energy"],
+                        integrity=current["integrity"],
+                        stress=current["stress"],
+                        fear=current["fear"],
+                        drive=current["drive"],
+
+                        energy_delta=deltas["energy_delta"],
+                        integrity_delta=deltas["integrity_delta"],
+                        stress_delta=deltas["stress_delta"],
+                        fear_delta=deltas["fear_delta"],
+                        drive_delta=deltas["drive_delta"],
+                    )
 
             self.encode(event)
             self._last_event_tick = self._tick
 
         elif is_critical_starving and not self._was_critical_starving:
 
-            event = {
-                "tick": self._tick,
-                "event_type": "critical_starvation",
-                "significance": 8.0,
-                "position": {
-                    "x": semantic_memory.position.x,
-                    "y": semantic_memory.position.y,
-                },
-                "state": current,
-                "deltas": deltas,
-            }
+            event = EpisodicEvent(
+                        tick=self._tick,
+                        event_type="critical_starvation",
+                        significance=8.0,
+
+                        pos_x=semantic_memory.position.x,
+                        pos_y=semantic_memory.position.y,
+
+                        energy=current["energy"],
+                        integrity=current["integrity"],
+                        stress=current["stress"],
+                        fear=current["fear"],
+                        drive=current["drive"],
+
+                        energy_delta=deltas["energy_delta"],
+                        integrity_delta=deltas["integrity_delta"],
+                        stress_delta=deltas["stress_delta"],
+                        fear_delta=deltas["fear_delta"],
+                        drive_delta=deltas["drive_delta"],
+                    )
 
             self.encode(event)
             self._last_event_tick = self._tick
@@ -190,18 +208,32 @@ class EpisodicMemory:
 
             if significance >= threshold:
 
-                event = {
-                    "tick": self._tick,
-                    "event_type": self._categorize_event(deltas, emotions, sensors),
-                    "significance": round(significance, 3),
-                    "position": {
-                        "x": semantic_memory.position.x,
-                        "y": semantic_memory.position.y,
-                    },
-                    "state": current,
-                    "deltas": deltas,
-                }
+                event = EpisodicEvent(
+                            tick=self._tick,
+                            event_type=self._categorize_event(
+                                deltas,
+                                emotions,
+                                sensors,
+                            ),
+                            significance=round(significance, 3),
 
+                            pos_x=semantic_memory.position.x,
+                            pos_y=semantic_memory.position.y,
+
+                            energy=current["energy"],
+                            integrity=current["integrity"],
+
+                            stress=current["stress"],
+                            fear=current["fear"],
+                            drive=current["drive"],
+
+                            energy_delta=deltas["energy_delta"],
+                            integrity_delta=deltas["integrity_delta"],
+
+                            stress_delta=deltas["stress_delta"],
+                            fear_delta=deltas["fear_delta"],
+                            drive_delta=deltas["drive_delta"],
+                        )
                 self.encode(event)
                 self._last_event_tick = self._tick
 
@@ -268,14 +300,14 @@ class EpisodicMemory:
 
         return "high_significance"
 
-    def encode(self, event: dict) -> None:
+    def encode(self, event: EpisodicEvent) -> None:
         # Store episodic memory.
 
         self.events.append(event)
         print(
             f"[EPISODE] "
-            f"type={event['event_type']} "
-            f"sig={event['significance']:.2f}"
+            f"type={event.event_type} "
+            f"sig={event.significance:.2f}"
         )
 
     def debug_summary(self) -> str:
@@ -283,8 +315,30 @@ class EpisodicMemory:
             f"[tick={self._tick}] "
             f"episodic_events={len(self.events)}"
         )
-    def get_debug_memories(self):
+    def get_debug_memories(self) -> list[dict]:
 
-        return self.events[-100:]
-    
-# TODO: Replace raw event dicts with EpisodicEvent dataclass and simply configs.
+        return [
+            event.to_dict()
+            for event in self.events[-100:]
+        ]
+    def export_state(self) -> dict:
+
+        return {
+            "tick": self._tick,
+            "events": [
+            event.to_dict()
+            for event in self.events
+        ],
+    }
+
+    def import_state(self, data: dict) -> None:
+
+        self._tick = data.get("tick", 0)
+        self.events = [
+    EpisodicEvent.from_dict(event_data)
+    for event_data in data.get("events", [])
+]
+    def get_events(self):
+
+        return tuple(self.events)
+# TODO: add degradation of memories and simplify configs.

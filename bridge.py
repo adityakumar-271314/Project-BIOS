@@ -92,15 +92,15 @@ def run_brain_server():
                     drive=agent.ehe.drive,
                     thrust=motor_output.thrust,
                     steer=motor_output.steer,
-                    pos_x=agent.memory.semantic.internal_pos.x,
-                    pos_y=agent.memory.semantic.internal_pos.y,
-                    velocity_x=agent.memory.semantic.internal_vel.x,
-                    velocity_y=agent.memory.semantic.internal_vel.y,
-                    landmark_count=len(agent.memory.semantic.landmarks),
+                    pos_x=agent.memory.internal_pos.x,
+                    pos_y=agent.memory.internal_pos.y,
+                    velocity_x=agent.memory.internal_vel.x,
+                    velocity_y=agent.memory.internal_vel.y,
+                    landmark_count=len(agent.memory.landmarks),
                     grid_cells=len(agent.memory.semantic._grid),
                 )
             )
-            path_log.append(agent.memory.semantic.internal_pos.copy())
+            path_log.append(agent.memory.internal_pos.copy())
             replay.record(
                 ReplayFrame(
                     tick=agent.tick_count,
@@ -122,7 +122,7 @@ def run_brain_server():
                 "integrity": agent.bst.integrity,
                 "stress": agent.ehe.stress,
                 "alive": agent.bst.is_alive,
-                "episodic_memories": agent.memory.episodic.get_debug_memories()
+                "episodic_memories": agent.memory.get_debug_memories()
 ,
             }
 

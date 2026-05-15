@@ -47,9 +47,9 @@ class Agent:
             emotions=self.ehe,
         )
         self.ehe.update(self.bst, sensor_data)
-        spatial_bias = self.memory.semantic.get_spatial_bias(
-            radius=self.config.memory.bias_radius
-        )
+        spatial_bias = self.memory.get_spatial_bias(
+                            radius=self.config.memory.bias_radius
+                    )
         motor_output = self.brain.evaluate_priorities(self.ehe, sensor_data, spatial_bias)
         self.bst.update(
             stress=self.ehe.stress,

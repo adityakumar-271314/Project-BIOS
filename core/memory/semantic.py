@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from matplotlib.pylab import record
+from pygame import key
 from ..data_models import SensorPacket
 from ..constants import MIN_NORMAL_LENGTH
 from ..vector import Vector2
@@ -391,3 +392,79 @@ class SemanticMemory:
             "position": self.internal_pos,
             "cell_size": self._cell_size
     }
+
+    def import_state(self, data: dict) -> None:
+
+        self._tick = data.get("tick", 0)
+
+        pos = data.get("position", {})
+        self.internal_pos = Vector2(
+            pos.get("x", 0.0),
+            pos.get("y", 0.0),
+        )
+
+        vel = data.get("velocity", {})
+        self.internal_vel = Vector2(
+            vel.get("x", 0.0),
+            vel.get("y", 0.0),
+        )
+
+        self._landmarks.clear()
+
+        for obj_id, landmark_data in data.get("landmarks", {}).items():
+
+            self._landmarks[int(obj_id)] = LandmarkRecord(
+                pos=Vector2(
+                    landmark_data["x"],
+                    landmark_data["y"],
+                ),
+                last_seen_tick=landmark_data["last_seen_tick"],
+                observation_count=landmark_data["observation_count"],
+            )
+
+        self._grid.clear()
+
+        for key, cell_data in data.get("grid", {}).items():
+
+            cx, cy = map(int, key.split(","))
+
+            self._grid[(cx, cy)] = GridCell(
+                hazard=cell_data["hazard"],
+                food=cell_data["food"],
+                last_updated_tick=cell_data["last_updated_tick"],
+            )
+
+    def export_state(self) -> dict:
+
+        return {
+            "tick": self._tick,
+
+            "position": {
+                "x": self.internal_pos.x,
+                "y": self.internal_pos.y,
+            },
+
+            "velocity": {
+                "x": self.internal_vel.x,
+                "y": self.internal_vel.y,
+            },
+
+            "landmarks": {
+                str(obj_id): {
+                    "x": record.pos.x,
+                    "y": record.pos.y,
+                    "last_seen_tick": record.last_seen_tick,
+                    "observation_count": record.observation_count,
+                }
+                for obj_id, record in self._landmarks.items()
+            },
+
+            "grid": {
+                f"{cx},{cy}": {
+                    "hazard": cell.hazard,
+                    "food": cell.food,
+                    "last_updated_tick": cell.last_updated_tick,
+                }
+                for (cx, cy), cell in self._grid.items()
+            },
+        }
