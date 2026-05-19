@@ -25,9 +25,16 @@ Project BIOS is a Python + Godot embodied-agent research prototype focused on bi
 
 ## 🎬 Simulation Preview
 
-| Agent Survival | Memory Visualization | Telemetry Dashboard |
-|:-:|:-:|:-:|
-| ![Demo](docs/media/project_bios_demo.gif) | ![Memory](docs/media/images/semantic_memory.png) | ![Telemetry](docs/media/images/run_analysis.png) |
+<div align="center">
+  <h3>Agent Survival Demo</h3>
+  <img src="docs/media/project_bios_demo.gif" width="800" alt="Agent Survival Demo">
+  <br><br>
+  <h3>Memory Visualization</h3>
+  <img src="docs/media/images/semantic_memory.png" width="800" alt="Memory Visualization">
+  <br><br>
+  <h3>Telemetry Dashboard</h3>
+  <img src="docs/media/images/run_analysis.png" width="800" alt="Telemetry Dashboard">
+</div>
 
 
 ---
@@ -75,7 +82,7 @@ Stores emotionally salient and statistically surprising experiences using **Welf
 flowchart TD
     A[Godot Physics Tick] --> B[Sensor Data]
     B --> C[TCP Bridge]
-    C --> D[Agent.tick()]
+    C --> D["Agent.tick()"]
     D --> E[MemorySystem Update]
     D --> F[Emotion Update]
     D --> G[GoalStackManager]
