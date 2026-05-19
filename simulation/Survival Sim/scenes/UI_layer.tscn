@@ -1,64 +1,336 @@
 [gd_scene format=3 uid="uid://d20hitnuowcs2"]
 
 [ext_resource type="Script" uid="uid://dv2r4lap25wqx" path="res://scripts/SurvivalUI.gd" id="1_lcdw3"]
+[ext_resource type="StyleBox" uid="uid://cniqx51n4qvl4" path="res://Styles/button_normal.tres" id="2_oo06p"]
+[ext_resource type="StyleBox" uid="uid://b0wnsxmmahgp7" path="res://Styles/button_pressed.tres" id="3_jwft5"]
+[ext_resource type="StyleBox" uid="uid://ccn5xgubvkim7" path="res://Styles/button_hover.tres" id="4_ia3sm"]
+[ext_resource type="StyleBox" uid="uid://sne0rtppy3ss" path="res://Styles/panel_cont.tres" id="5_7b4xl"]
+[ext_resource type="StyleBox" uid="uid://c0mc7xc5bll8t" path="res://Styles/progress_bars.tres" id="6_8ef7h"]
+[ext_resource type="Script" uid="uid://dnvpw0kha5t7i" path="res://scripts/ui_controller.gd" id="7_ia3sm"]
+[ext_resource type="Script" uid="uid://ddrmg4qik2rsy" path="res://scripts/EmotionGraph.gd" id="8_7b4xl"]
 
-[sub_resource type="LabelSettings" id="LabelSettings_5hfgq"]
-font_color = Color(0, 0.7826358, 0, 1)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ppods"]
+bg_color = Color(0, 1, 1, 1)
+corner_detail = 6
 
-[sub_resource type="LabelSettings" id="LabelSettings_6cj2t"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hpqjr"]
+bg_color = Color(0, 1, 0, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jwft5"]
+bg_color = Color(1, 0.64705884, 0, 1)
+corner_detail = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ia3sm"]
+bg_color = Color(1, 0, 0, 1)
+corner_detail = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_7b4xl"]
+bg_color = Color(0.627451, 0.1254902, 0.9411765, 1)
+corner_detail = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_oo06p"]
+bg_color = Color(0, 0, 1, 1)
+corner_detail = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8ef7h"]
+bg_color = Color(0.034, 0.034, 0.034, 0.902)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0, 0.3075552, 1, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+expand_margin_left = 4.0
+expand_margin_top = 4.0
+expand_margin_right = 4.0
+expand_margin_bottom = 4.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rmjfw"]
+bg_color = Color(0.05, 0.05, 0.05, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 1, 1, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
 
 [node name="CanvasLayer" type="CanvasLayer" unique_id=733409247]
 script = ExtResource("1_lcdw3")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1216895821]
-offset_right = 42.0
-offset_bottom = 112.0
-
-[node name="EnergyBar" type="ProgressBar" parent="VBoxContainer" unique_id=2128127067]
-self_modulate = Color(0, 0.29411766, 0, 1)
-z_index = 5
-layout_mode = 2
-
-[node name="Energy" type="Label" parent="VBoxContainer/EnergyBar" unique_id=2010789718]
-modulate = Color(0, 0.29411766, 0, 1)
-z_index = 5
-layout_mode = 0
-offset_left = 207.0
-offset_right = 267.0
-offset_bottom = 29.0
-text = "Energy"
-label_settings = SubResource("LabelSettings_5hfgq")
-
-[node name="IntegrityBar" type="ProgressBar" parent="VBoxContainer" unique_id=1630841302]
-self_modulate = Color(0, 0, 1, 1)
-z_index = 5
-layout_mode = 2
-
-[node name="Integrity" type="Label" parent="VBoxContainer/IntegrityBar" unique_id=1285828683]
-modulate = Color(0, 0, 1, 1)
-z_index = 5
-layout_mode = 0
-offset_left = 208.0
-offset_top = 2.0
-offset_right = 274.0
-offset_bottom = 25.0
-text = "Integrity"
-label_settings = SubResource("LabelSettings_6cj2t")
-
-[node name="MotorStatus" type="Label" parent="VBoxContainer" unique_id=1189673770]
-modulate = Color(0.8509804, 0.2784314, 0, 1)
-z_index = 5
-layout_mode = 2
-
-[node name="Stress" type="Label" parent="VBoxContainer" unique_id=535520190]
-modulate = Color(0.56078434, 0, 1, 1)
-z_index = 5
-layout_mode = 2
-
 [node name="ToggleMemoriesButton" type="Button" parent="." unique_id=219354017]
-offset_left = 1003.0
-offset_right = 1149.0
-offset_bottom = 36.0
+custom_minimum_size = Vector2(0, 18)
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -219.0
+offset_top = 1.0
+offset_right = -2.0
+offset_bottom = 38.0
+grow_horizontal = 0
+theme_override_styles/normal = ExtResource("2_oo06p")
+theme_override_styles/pressed = ExtResource("3_jwft5")
+theme_override_styles/hover = ExtResource("4_ia3sm")
 text = "Toggle Memories"
+
+[node name="MainHUD" type="MarginContainer" parent="." unique_id=341344706]
+offset_left = 19.0
+offset_top = 20.0
+offset_right = 207.0
+offset_bottom = 340.0
+
+[node name="PanelContainer" type="PanelContainer" parent="MainHUD" unique_id=1209935371]
+layout_mode = 2
+theme_override_styles/panel = ExtResource("5_7b4xl")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MainHUD/PanelContainer" unique_id=162415871]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="MainHUD/PanelContainer/VBoxContainer" unique_id=32286395]
+layout_mode = 2
+text = "AGENT STATUS"
+
+[node name="HSeparator" type="HSeparator" parent="MainHUD/PanelContainer/VBoxContainer" unique_id=2117348091]
+layout_mode = 2
+
+[node name="GridContainer" type="GridContainer" parent="MainHUD/PanelContainer/VBoxContainer" unique_id=1426459299]
+layout_mode = 2
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 8
+columns = 3
+
+[node name="EnergyLabel" type="Label" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=1053413345]
+layout_mode = 2
+text = "Energy"
+
+[node name="EnergyNumber" type="Label" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=1331233564]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+
+[node name="EnergyBar" type="ProgressBar" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=577988913]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/background = ExtResource("6_8ef7h")
+theme_override_styles/fill = SubResource("StyleBoxFlat_ppods")
+step = 0.1
+show_percentage = false
+
+[node name="IntegrityLabel" type="Label" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=421598368]
+layout_mode = 2
+text = "Integrity"
+
+[node name="IntegrityNumber" type="Label" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=160121437]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+
+[node name="IntegrityBar" type="ProgressBar" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=1370786082]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/fill = SubResource("StyleBoxFlat_hpqjr")
+step = 0.1
+show_percentage = false
+
+[node name="StressLabel" type="Label" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=527924869]
+layout_mode = 2
+text = "Stress"
+
+[node name="StressNumber" type="Label" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=1139128120]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+
+[node name="StressBar" type="ProgressBar" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=1837335646]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/fill = SubResource("StyleBoxFlat_jwft5")
+step = 0.1
+show_percentage = false
+
+[node name="FearLabel" type="Label" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=1425181640]
+layout_mode = 2
+text = "Fear"
+
+[node name="FearNumber" type="Label" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=523178853]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+
+[node name="FearBar" type="ProgressBar" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=1085197151]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/fill = SubResource("StyleBoxFlat_ia3sm")
+step = 0.1
+show_percentage = false
+
+[node name="DriveLabel" type="Label" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=2089007652]
+layout_mode = 2
+text = "Drive"
+
+[node name="DriveNumber" type="Label" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=188322822]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+
+[node name="DriveBar" type="ProgressBar" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=2058230383]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/fill = SubResource("StyleBoxFlat_7b4xl")
+step = 0.1
+show_percentage = false
+
+[node name="ThrustLabel" type="Label" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=2005312383]
+layout_mode = 2
+text = "Thrust"
+
+[node name="ThrustNumber" type="Label" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=1564946070]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+
+[node name="ThrustBar" type="ProgressBar" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=394653938]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/fill = SubResource("StyleBoxFlat_oo06p")
+step = 0.1
+show_percentage = false
+
+[node name="SteerLabel" type="Label" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=1175955528]
+layout_mode = 2
+text = "Steering"
+
+[node name="SteerNumber" type="Label" parent="MainHUD/PanelContainer/VBoxContainer/GridContainer" unique_id=1247502689]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+
+[node name="HSeparator2" type="HSeparator" parent="MainHUD/PanelContainer/VBoxContainer" unique_id=821529150]
+layout_mode = 2
+
+[node name="AliveContainer" type="HBoxContainer" parent="MainHUD/PanelContainer/VBoxContainer" unique_id=267706898]
+layout_mode = 2
+
+[node name="AliveText" type="Label" parent="MainHUD/PanelContainer/VBoxContainer/AliveContainer" unique_id=1575995504]
+layout_mode = 2
+text = "Alive:"
+
+[node name="AliveValue" type="Label" parent="MainHUD/PanelContainer/VBoxContainer/AliveContainer" unique_id=1175305574]
+layout_mode = 2
+
+[node name="GoalContainer" type="HBoxContainer" parent="MainHUD/PanelContainer/VBoxContainer" unique_id=1995996]
+layout_mode = 2
+
+[node name="GoalText" type="Label" parent="MainHUD/PanelContainer/VBoxContainer/GoalContainer" unique_id=798764135]
+layout_mode = 2
+text = "Goal:"
+
+[node name="GoalValue" type="Label" parent="MainHUD/PanelContainer/VBoxContainer/GoalContainer" unique_id=807511879]
+layout_mode = 2
+
+[node name="MiniMap" type="MarginContainer" parent="." unique_id=1464602756]
+custom_minimum_size = Vector2(256, 144)
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -272.0
+offset_top = -161.0
+offset_right = -10.0
+offset_bottom = -11.0
+grow_horizontal = 0
+grow_vertical = 0
+
+[node name="PanelContainer" type="PanelContainer" parent="MiniMap" unique_id=662694829]
+custom_minimum_size = Vector2(256, 144)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_8ef7h")
+
+[node name="SubViewportContainer" type="SubViewportContainer" parent="MiniMap/PanelContainer" unique_id=1551812386]
+custom_minimum_size = Vector2(256, 144)
+layout_mode = 2
+
+[node name="SubViewport" type="SubViewport" parent="MiniMap/PanelContainer/SubViewportContainer" unique_id=2131761131]
+own_world_3d = true
+handle_input_locally = false
+size = Vector2i(256, 144)
+render_target_update_mode = 4
+
+[node name="MiniMapCamera2D" type="Camera2D" parent="MiniMap/PanelContainer/SubViewportContainer/SubViewport" unique_id=1051276891]
+zoom = Vector2(6, 6)
+
+[node name="UIController" type="Node" parent="." unique_id=1573799008]
+script = ExtResource("7_ia3sm")
+
+[node name="EmotionGraph" type="PanelContainer" parent="." unique_id=1049262341]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -140.0
+offset_right = 252.0
+grow_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_rmjfw")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="EmotionGraph" unique_id=278315898]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TitleLabel" type="Label" parent="EmotionGraph/VBoxContainer" unique_id=481107504]
+layout_mode = 2
+text = "EMOTIONAL STATE HISTORY"
+
+[node name="LegendContainer" type="VBoxContainer" parent="EmotionGraph/VBoxContainer" unique_id=1536064467]
+layout_mode = 2
+
+[node name="StressLegend" type="Label" parent="EmotionGraph/VBoxContainer/LegendContainer" unique_id=1726756605]
+modulate = Color(1, 0.64705884, 0, 1)
+layout_mode = 2
+text = "■ STRESS"
+
+[node name="FearLegend" type="Label" parent="EmotionGraph/VBoxContainer/LegendContainer" unique_id=950804205]
+modulate = Color(1, 0, 0, 1)
+layout_mode = 2
+text = "■ FEAR"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="EmotionGraph/VBoxContainer" unique_id=832510469]
+layout_mode = 2
+
+[node name="YAxisLabels" type="VBoxContainer" parent="EmotionGraph/VBoxContainer/HBoxContainer" unique_id=914818663]
+custom_minimum_size = Vector2(30, 0)
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="OneLabel" type="Label" parent="EmotionGraph/VBoxContainer/HBoxContainer/YAxisLabels" unique_id=429184310]
+layout_mode = 2
+text = "1.0"
+
+[node name="ZeroSevenLabel" type="Label" parent="EmotionGraph/VBoxContainer/HBoxContainer/YAxisLabels" unique_id=1129223244]
+layout_mode = 2
+text = "0.7"
+
+[node name="HalfLabel" type="Label" parent="EmotionGraph/VBoxContainer/HBoxContainer/YAxisLabels" unique_id=1286479399]
+layout_mode = 2
+text = "0.5"
+
+[node name="ZeroTwoLabel" type="Label" parent="EmotionGraph/VBoxContainer/HBoxContainer/YAxisLabels" unique_id=416590199]
+layout_mode = 2
+text = "0.2"
+
+[node name="ZeroLabel" type="Label" parent="EmotionGraph/VBoxContainer/HBoxContainer/YAxisLabels" unique_id=870356813]
+layout_mode = 2
+text = "0.0"
+
+[node name="GraphRenderer" type="Control" parent="EmotionGraph/VBoxContainer/HBoxContainer" unique_id=1218220452]
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("8_7b4xl")
 
 [connection signal="pressed" from="ToggleMemoriesButton" to="." method="_on_toggle_memories_button_pressed"]

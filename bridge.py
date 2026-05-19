@@ -121,9 +121,13 @@ def run_brain_server():
                 "energy": agent.bst.energy,
                 "integrity": agent.bst.integrity,
                 "stress": agent.ehe.stress,
+                "fear": agent.ehe.fear,
+                "drive": agent.ehe.drive,
                 "alive": agent.bst.is_alive,
-                "episodic_memories": agent.memory.get_debug_memories()
-,
+                "current_goal": agent.brain.gsm.active_goal.name if agent.brain.gsm.active_goal else "Wander",
+                "landmark_count": len(agent.memory.landmarks),
+                "grid_cells": len(agent.memory.semantic._grid),
+                "episodic_memories": agent.memory.get_debug_memories(),
             }
 
             client_file.write(json.dumps(response) + "\n")
@@ -171,5 +175,5 @@ def run_brain_server():
         run_visualizer(agent.memory.semantic, path=path_log)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":       
     run_brain_server()
