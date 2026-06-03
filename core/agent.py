@@ -30,11 +30,12 @@ class Agent:
         self.config = load_config(config_path)
         self.bst = BodyStateTracker(self.config.body)
         self.ehe = EmotionHormoneEngine(self.config.emotions)
+        self.memory = MemorySystem(self.config.memory)
         self.brain = Brain(
             brain_cfg=self.config.brain,
             skill_cfg=self.config.skills,
+            memory_system=self.memory
         )
-        self.memory = MemorySystem(self.config.memory)
         self.tick_count = 0
 
     def tick(self, env_damage, food, sensor_data, delta=None):
@@ -50,7 +51,10 @@ class Agent:
         spatial_bias = self.memory.get_spatial_bias(
                             radius=self.config.memory.bias_radius
                     )
-        motor_output = self.brain.evaluate_priorities(self.ehe, sensor_data, spatial_bias)
+        motor_output = self.brain.evaluate_priorities(self.ehe, 
+                                                      sensor_data, 
+                                                      spatial_bias,
+                                                      )
         self.bst.update(
             stress=self.ehe.stress,
             external_damage=env_damage,

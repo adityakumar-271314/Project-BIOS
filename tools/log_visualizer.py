@@ -13,10 +13,7 @@ import json
 from pathlib import Path
 from dataclasses import dataclass
 from typing import List, Optional
-
 import matplotlib.pyplot as plt
-import numpy as np
-
 
 @dataclass
 class TelemetryFrame:

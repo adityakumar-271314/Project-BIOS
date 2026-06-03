@@ -44,6 +44,9 @@ class Vector2:
 
     def length(self) -> float:
         return math.sqrt(self.x * self.x + self.y * self.y)
+    
+    def magnitude(self) -> float:
+        return self.length()
 
     def length_sq(self) -> float:
         return self.x * self.x + self.y * self.y

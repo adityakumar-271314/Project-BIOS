@@ -5,7 +5,8 @@ Contains common steering force calculations (walls, drift, smoothing,
 thrust modulation) inherited by all concrete skills.
 """
 import random
-
+import math
+from core.vector import Vector2
 from ...data_models import MotorOutput
 
 
@@ -121,3 +122,37 @@ class BaseSkill:
 
     def _clamp(self, value, min_val, max_val):
         return max(min_val, min(value, max_val))
+    
+    def execute(
+                self,
+                goal,
+                ehe,
+                sensor_data,
+                spatial_bias,
+                memory_system,
+                gsm=None
+            ):
+        raise NotImplementedError
+    
+    def calculate_heading_steer(
+                                self,
+                                agent_pos,
+                                current_heading,
+                                target_pos,
+                            ):
+        target_dir = target_pos - agent_pos
+
+        target_angle = math.atan2(
+            target_dir.y,
+            target_dir.x,
+        )
+
+        steer_angle = (
+            target_angle
+            - current_heading
+        )
+
+        return math.atan2(
+            math.sin(steer_angle),
+            math.cos(steer_angle),
+        )

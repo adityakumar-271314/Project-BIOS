@@ -12,6 +12,8 @@ class WanderSkill(BaseSkill):
         ehe,
         sensor_data,
         spatial_bias,
+        memory_system,
+        gsm=None,  # Optional GSM reference for potential target blacklisting
     ):
         profile = self.skill_cfg.wander
         wall_force = self._wall_force(sensor_data)

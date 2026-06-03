@@ -1,7 +1,3 @@
-from asyncio import events
-
-from pygame import event
-
 from .semantic import SemanticMemory
 from .episodic import EpisodicMemory
 
@@ -81,6 +77,10 @@ class MemorySystem:
     @property
     def internal_vel(self):
         return self.semantic.internal_vel
+    
+    @property
+    def internal_heading(self) -> float:
+        return self.semantic.internal_heading
     
     def recall_recent(self, limit: int = 10):
         events = self.episodic.get_events()

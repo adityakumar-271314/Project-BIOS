@@ -14,10 +14,11 @@ from .skills.avoid_hazard import AvoidHazardSkill
 
 class ActionDispatcher:
     
-    def __init__(self, brain_cfg, skill_cfg):
+    def __init__(self, brain_cfg, skill_cfg, memory_system):
 
         self.cfg = brain_cfg
         self.skill_cfg = skill_cfg
+        self.memory_system = memory_system
 
         self.skills = {
             "wander": WanderSkill(
@@ -42,6 +43,8 @@ class ActionDispatcher:
         ehe,
         sensor_data,
         spatial_bias,
+        memory_system,
+        gsm=None,  # Optional GSM reference for skills that may need to blacklist targets
     ):
         skill = self.skills.get(goal.name)
 
@@ -49,8 +52,10 @@ class ActionDispatcher:
             skill = self.skills["wander"]
 
         return skill.execute(
-            goal=goal,
-            ehe=ehe,
-            sensor_data=sensor_data,
-            spatial_bias=spatial_bias,
-        )
+                            goal=goal,
+                            ehe=ehe,
+                            sensor_data=sensor_data,
+                            spatial_bias=spatial_bias,
+                            memory_system=memory_system,
+                            gsm=gsm,
+                        )

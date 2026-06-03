@@ -306,8 +306,9 @@ class EpisodicMemory:
         self.events.append(event)
         print(
             f"[EPISODE] "
-            f"type={event.event_type} "
-            f"sig={event.significance:.2f}"
+            f"type = {event.event_type} "
+            f"sig = {event.significance:.2f} "
+            f"pos = {event.pos_x:.2f}, {event.pos_y:.2f}"
         )
 
     def debug_summary(self) -> str:

@@ -13,11 +13,8 @@ This is the core spatial cognition module.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
-
-from matplotlib.pylab import record
-from pygame import key
 from ..data_models import SensorPacket
 from ..constants import MIN_NORMAL_LENGTH
 from ..vector import Vector2
@@ -77,7 +74,7 @@ class SemanticMemory:
         # --- odometry state --------------------------------------------------
         self.internal_pos: Vector2 = Vector2(0.0, 0.0)
         self.internal_vel: Vector2 = Vector2(0.0, 0.0)
-
+        self.internal_heading: float = 0.0  # Added: Facing East (0 radians)
         # --- landmark map  ---------------------------------------------------
         self._landmarks: Dict[int, LandmarkRecord] = {}
 
@@ -113,6 +110,10 @@ class SemanticMemory:
         """
         self._tick += 1
         delta: float = sensors.delta
+        self.internal_heading = sensors.current_rotation
+        self.internal_heading = math.atan2(
+            math.sin(self.internal_heading), math.cos(self.internal_heading)
+        )
 
         # 1. Dead reckoning ---------------------------------------------------
         self._integrate_odometry(sensors, delta)

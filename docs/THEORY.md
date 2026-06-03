@@ -90,3 +90,5 @@ These are deliberate choices, not gaps:
 - [ ] Intrinsic motivation / curiosity drive
 - [ ] Hierarchical planning
 - [ ] Value learning
+
+---

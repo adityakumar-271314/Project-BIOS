@@ -509,3 +509,5 @@ The implementation favors:
 over realism or scale.
 
 This allows rapid experimentation while maintaining simulation reliability.
+
+---

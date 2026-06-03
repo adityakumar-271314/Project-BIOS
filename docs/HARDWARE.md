@@ -86,7 +86,3 @@ A small fleet of autonomous agents running Project BIOS, learning from real-worl
 **Status**: Simulation foundation is solid. Hardware bridge experiments will begin after v0.2.
 
 ---
-
-Would you like me to also improve `MEMORY_ARCHITECTURE.md` or create a new `ROADMAP.md`? 
-
-Just push these two files and your documentation will look much more professional.

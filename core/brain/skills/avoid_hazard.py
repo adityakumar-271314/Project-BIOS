@@ -17,6 +17,8 @@ class AvoidHazardSkill(BaseSkill):
         ehe,
         sensor_data,
         spatial_bias,
+        memory_system,
+        gsm=None,  # Optional GSM reference for potential target blacklisting
     ):
         profile = self.skill_cfg.avoid_hazard
         hazard_force = self._hazard_force(
