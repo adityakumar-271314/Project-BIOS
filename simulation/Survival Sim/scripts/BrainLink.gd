@@ -75,8 +75,9 @@ func _receive_from_python():
 			var json = JSON.new()
 			if json.parse(msg) == OK:
 				var data = json.get_data()
-				if data.has("episodic_memories"):
-					episodic_memories = data["episodic_memories"]
+				if data.has("new_memories") and data["new_memories"] is Array:
+					for short_mem in data["new_memories"]:
+						episodic_memories.append(short_mem)
 				if data.get("type") == "INIT":
 					var world = get_node("../../WorldGenerator")
 					var seed_val = data.get("world_seed", 42) 

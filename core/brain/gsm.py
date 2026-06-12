@@ -115,17 +115,16 @@ class GoalStackManager:
                         strategy="direct_sensory"
                     )
                 # Fallback to Episodic/Semantic Memory layout when blind
-                food_memories = self.memory_system.recall_by_type(
-                                                                    "food_recovery"
-                                                                )
+                food_memories = self.memory_system.recall_by_type("food_recovery")
+                print(f"Food memories recalled: ", food_memories, end="")
 
                 valid_memory = None
 
                 for memory in reversed(food_memories):
 
                     spot_key = (
-                        int(memory.pos_x),
-                        int(memory.pos_y),
+                        int(memory.peak_x),
+                        int(memory.peak_y),
                     )
 
                     if spot_key in self._blacklisted_food_spots:
@@ -148,8 +147,8 @@ class GoalStackManager:
                     self._memory_food_exhausted = False
 
                     remembered_vector = Vector2(
-                        valid_memory.pos_x,
-                        valid_memory.pos_y,
+                        valid_memory.peak_x,
+                        valid_memory.peak_y,
                     )
 
                     target_template = SpatialTargetTemplate(

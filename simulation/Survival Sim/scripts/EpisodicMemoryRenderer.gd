@@ -39,10 +39,10 @@ func _draw():
 
 	for memory in memories:
 
-		if not ("position" in memory):
+		if not ("peak_position" in memory):
 			continue
 
-		var pos_data = memory["position"]
+		var pos_data = memory["peak_position"]
 
 		var pos = simulation_origin + Vector2(
 			pos_data["x"],
@@ -54,9 +54,7 @@ func _draw():
             "unknown"
 		)
 
-		var significance = float(
-			memory.get("significance", 1.0)
-		)
+		var significance = float(memory.get("peak_significance", 1.0))
 
 		var color = _get_memory_color(
 			event_type

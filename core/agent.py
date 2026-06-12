@@ -42,11 +42,6 @@ class Agent:
 
         self.tick_count += 1
         dt = delta if delta is not None else sensor_data.delta
-        self.memory.update(
-            sensors=sensor_data,
-            body=self.bst,
-            emotions=self.ehe,
-        )
         self.ehe.update(self.bst, sensor_data)
         spatial_bias = self.memory.get_spatial_bias(
                             radius=self.config.memory.bias_radius
@@ -55,6 +50,20 @@ class Agent:
                                                       sensor_data, 
                                                       spatial_bias,
                                                       )
+        current_goal = self.brain.gsm.active_goal
+        current_skill = self.brain.adse.active_skill_name
+        target_vector = None
+        if current_goal and current_goal.spatial_target:
+            target_vector = current_goal.spatial_target.target_vector
+
+        self.memory.update(
+            sensors=sensor_data,
+            body=self.bst,
+            emotions=self.ehe,
+            active_goal=current_goal,
+            active_skill=current_skill,
+            target=target_vector,
+        )
         self.bst.update(
             stress=self.ehe.stress,
             external_damage=env_damage,

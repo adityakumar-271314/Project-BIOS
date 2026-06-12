@@ -19,6 +19,7 @@ class ActionDispatcher:
         self.cfg = brain_cfg
         self.skill_cfg = skill_cfg
         self.memory_system = memory_system
+        self.active_skill_name = "wander" 
 
         self.skills = {
             "wander": WanderSkill(
@@ -47,9 +48,9 @@ class ActionDispatcher:
         gsm=None,  # Optional GSM reference for skills that may need to blacklist targets
     ):
         skill = self.skills.get(goal.name)
-
         if skill is None:
             skill = self.skills["wander"]
+        self.active_skill_name = goal.name if goal.name in self.skills else "wander"
 
         return skill.execute(
                             goal=goal,
