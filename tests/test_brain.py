@@ -2,13 +2,14 @@ from core.brain.brain import Brain
 from core.config_loader import load_config
 from core.data_models import SensorPacket, SensedObject
 from core.vector import Vector2
-
+from core.memory.memory_system import MemorySystem
 
 class DummyEmotion:
     def __init__(self):
         self.drive = 1.0
         self.fear = 0.0
         self.stress = 0.0
+        self.memory_system = MemorySystem
 
 
 def test_food_creates_steering_force():
@@ -17,6 +18,7 @@ def test_food_creates_steering_force():
     brain = Brain(
         brain_cfg=cfg.brain,
         skill_cfg=cfg.skills,
+        memory_system=MemorySystem,
     )
 
     sensors = SensorPacket(
@@ -45,6 +47,7 @@ def test_thrust_is_clamped():
     brain = Brain(
         brain_cfg=cfg.brain,
         skill_cfg=cfg.skills,
+        memory_system=MemorySystem,
     )
 
     emotions = DummyEmotion()
@@ -57,5 +60,4 @@ def test_thrust_is_clamped():
         sensors,
         Vector2(),
     )
-
     assert output.thrust <= brain.adse.cfg.thrust_max

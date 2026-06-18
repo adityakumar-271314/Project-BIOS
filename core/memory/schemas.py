@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field, asdict
-
+from typing import List
 # RAW TEMPORAL DATA
 
 @dataclass(slots=True)
@@ -46,13 +46,32 @@ class EpisodeFrame:
     fear_delta: float
     drive_delta: float
 
+# Lightweight key frame for compression
+@dataclass(slots=True)
+class SparseFrame:
+    """Conservative sparse representation - keeps most useful fields"""
+    tick: int
+    pos_x: float
+    pos_y: float
+    vel_x: float
+    vel_y: float
+    heading: float
+    energy: float
+    integrity: float
+    stress: float
+    fear: float
+    drive: float
+    significance: float
+    active_skill: str | None = None
+    action_state: str | None = None
+    target_type: str | None = None
+    visible_food: int = 0
+    visible_hazards: int = 0
+    notes: str | None = None
 
-
-# PERSISTENT EPISODE
-
+# PERSISTENT EPISODE - conservative update
 @dataclass(slots=True)
 class EpisodicEvent:
-
     start_tick: int
     peak_tick: int
     end_tick: int
@@ -73,10 +92,13 @@ class EpisodicEvent:
     energy_delta: float
     integrity_delta: float
     peak_snapshot: TickSnapshot
-    frame_trace: list[EpisodeFrame] = field(default_factory=list, repr=False)
+    
+    # === Storage compression change only ===
+    key_frames: List[SparseFrame] = field(default_factory=list)
+    
+    notes: str | None = None   # kept for flexibility
 
     def to_dict(self):
-        # Explicitly serialize the complex nested components using standard asdict
         return {
             "start_tick": self.start_tick,
             "peak_tick": self.peak_tick,
@@ -98,9 +120,9 @@ class EpisodicEvent:
                 "energy_delta": self.energy_delta,
                 "integrity_delta": self.integrity_delta,
             },
-            # Fix: Ensure nested dataclasses are converted fully to vanilla dictionaries
-            "peak_snapshot": asdict(self.peak_snapshot), 
-            "frame_trace": [asdict(frame) for frame in self.frame_trace]      
+            "peak_snapshot": asdict(self.peak_snapshot),
+            "key_frames": [asdict(kf) for kf in self.key_frames],
+            "notes": self.notes,
         }
 
     @classmethod
@@ -110,32 +132,12 @@ class EpisodicEvent:
         start_pos = data.get("start_position", {"x": 0, "y": 0})
         peak_pos = data.get("peak_position", {"x": 0, "y": 0})
         end_pos = data.get("end_position", {"x": 0, "y": 0})
-
+        
         peak_snap_data = data.get("peak_snapshot")
         peak_snap = TickSnapshot(**peak_snap_data) if isinstance(peak_snap_data, dict) else peak_snap_data
 
-        raw_trace = data.get("frame_trace", [])
-        reconstructed_trace = []
-        for f in raw_trace:
-            if isinstance(f, dict):
-                # Fix: Handle the nested 'snapshot' dict inside the frame dict mapping
-                snap_data = f.get("snapshot")
-                snap_f = TickSnapshot(**snap_data) if isinstance(snap_data, dict) else snap_data
-                
-                reconstructed_trace.append(
-                    EpisodeFrame(
-                        snapshot=snap_f,
-                        significance=f["significance"],
-                        event_type=f["event_type"],
-                        energy_delta=f["energy_delta"],
-                        integrity_delta=f["integrity_delta"],
-                        stress_delta=f["stress_delta"],
-                        fear_delta=f["fear_delta"],
-                        drive_delta=f["drive_delta"]
-                    )
-                )
-            else:
-                reconstructed_trace.append(f)
+        raw_key_frames = data.get("key_frames", [])
+        key_frames = [SparseFrame(**kf) if isinstance(kf, dict) else kf for kf in raw_key_frames]
 
         return cls(
             start_tick=data["start_tick"],
@@ -158,5 +160,6 @@ class EpisodicEvent:
             energy_delta=deltas.get("energy_delta", 0.0),
             integrity_delta=deltas.get("integrity_delta", 0.0),
             peak_snapshot=peak_snap,
-            frame_trace=reconstructed_trace
+            key_frames=key_frames,
+            notes=data.get("notes")
         )

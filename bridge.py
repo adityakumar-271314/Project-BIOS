@@ -19,7 +19,8 @@ Key responsibilities:
 """
 TCP Bridge between Godot Simulation and Python Cognition Engine.
 """
-
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import math
 import socket
 import json
@@ -95,7 +96,6 @@ def run_brain_server():
     replay = ReplayRecorder()
     path_log = []
     DEBUG = False # Set to True to enable detailed debug output each tick
-    # --- FIXED INDENTATION END ---
 
     try:
         while True:

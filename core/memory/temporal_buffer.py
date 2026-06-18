@@ -6,7 +6,8 @@ from .schemas import EpisodeFrame, TickSnapshot
 
 
 class TemporalBuffer:
-    """Short-term autobiographical stream.
+    """
+    Short-term autobiographical stream.
 
     Holds recent high-fidelity agent state for future episode reconstruction.
 

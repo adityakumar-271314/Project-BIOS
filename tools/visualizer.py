@@ -36,16 +36,7 @@ import os
 import time
 from typing import List, Optional, Tuple
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
-
-try:
-    import pygame
-except ImportError:
-    raise SystemExit(
-        "pygame is required for the visualizer.\n"
-        "Install it with:  pip install pygame"
-    )
-
+import pygame
 from core.memory.semantic import SemanticMemory
 from core.vector import Vector2
 
