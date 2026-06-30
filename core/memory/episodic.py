@@ -2,6 +2,7 @@
 from __future__ import annotations
 import math
 from .schemas import EpisodicEvent, EpisodeFrame, TickSnapshot
+from .storage.serializer import EpisodeSerializer
 
 """
 Episodic Memory System.
@@ -42,6 +43,8 @@ class EpisodicMemory:
         self.cfg = config
         self.events: list[EpisodicEvent] = []
         self._tick = 0
+        self.serializer = EpisodeSerializer()
+
         self._stats = {
             "energy_delta": RunningStats(),
             "integrity_delta": RunningStats(),
@@ -123,6 +126,7 @@ class EpisodicMemory:
 
     def encode(self, event: EpisodicEvent) -> None:
         self.events.append(event)
+        self.serializer.save(event)
         print(f"[EPISODE ENCODED] type={event.event_type} peak_sig={event.peak_significance:.2f} tick={event.peak_tick}")
 
     def get_events(self):

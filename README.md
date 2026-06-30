@@ -16,12 +16,15 @@ Project BIOS is a Python and Godot embodied-agent research prototype for studyin
 **Agent survival demo**
  
 <img src="docs/media/project_bios_demo.gif" width="800" alt="Agent Survival Demo">
+
 **Memory visualization**
  
 <img src="docs/media/images/semantic_memory.png" width="800" alt="Memory Visualization">
+
 **Telemetry dashboard**
  
 <img src="docs/media/images/run_analysis.png" width="800" alt="Telemetry Dashboard">
+
 ## Core Features
  
 ### Embodied physiology

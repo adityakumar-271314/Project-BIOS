@@ -163,3 +163,25 @@ class EpisodicEvent:
             key_frames=key_frames,
             notes=data.get("notes")
         )
+    
+@dataclass(slots=True)
+class ReconstructedTick:
+    tick: int
+
+    pos_x: float
+    pos_y: float
+
+    vel_x: float
+    vel_y: float
+
+    heading: float
+
+    energy: float
+    integrity: float
+
+    stress: float
+    fear: float
+    drive: float
+
+    confidence: float = 1.0
+    anchor: bool = False
