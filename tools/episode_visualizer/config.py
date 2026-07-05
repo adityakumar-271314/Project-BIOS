@@ -13,6 +13,7 @@ PIXELS_PER_UNIT = 8  # Scale factor
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GRAY = (128, 128, 128)
+LIGHT_GRAY = (220, 220, 220)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
