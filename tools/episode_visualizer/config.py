@@ -1,8 +1,13 @@
 import pygame
 
+
+pygame.display.init()
+info = pygame.display.Info()
+
 # Window and rendering constants
-WINDOW_WIDTH = 1200
-WINDOW_HEIGHT = 800
+
+WINDOW_WIDTH = info.current_w
+WINDOW_HEIGHT = info.current_h
 FPS = 60
 
 # Coordinate system (world units)
@@ -19,6 +24,8 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 DARK_GRAY = (40, 40, 40)
+VERY_LIGHT_GRAY = (224, 224, 224)
+ORANGE = (255, 140, 0)
 
 # Agent
 AGENT_SIZE = 40
@@ -27,3 +34,50 @@ AGENT_COLOR = GREEN
 # Overlays
 HUD_FONT_SIZE = 18
 TIMELINE_HEIGHT = 40
+
+# Core
+BACKGROUND = (12, 12, 18)        
+PANEL_BG = (22, 22, 32)
+PANEL_BORDER = (70, 80, 110)
+PANEL_BORDER_DARK = (15, 15, 25)
+PANEL_HIGHLIGHT = (45, 55, 75, 80)
+
+# Accents
+ACCENT_CYAN = (80, 245, 255)
+ACCENT_CYAN_DIM = (40, 180, 200)
+ACCENT_BLUE = (100, 200, 255)
+SELECT_BAR = (80, 245, 200)
+SELECT_GLOW = (40, 120, 100, 90)
+SELECT_ARROW = (255, 240, 100)
+
+# Text
+TEXT = (235, 240, 245)
+TEXT_DIM = (170, 180, 200)
+TEXT_MUTED = (120, 130, 150)
+TEXT_WHITE = (255, 255, 255)
+TEXT_FOOTER = (140, 150, 170)
+
+# Row styling
+ROW_ALT_BG = (28, 28, 42)
+
+# Guide
+GUIDE_BG = (18, 20, 35, 245)
+DIM_BG = (5, 5, 10, 180)
+GUIDE_BORDER = (110, 140, 190)
+GUIDE_ROW_BG = (35, 40, 60)
+GUIDE_GREEN = (90, 255, 180)
+
+# Error
+ERROR_BORDER = (220, 70, 70)
+ERROR_ACCENT = (255, 90, 90)
+ERROR_GLOW = (255, 130, 110)
+ERROR_RED = (255, 85, 95)
+ERROR_SHADOW = (80, 20, 20, 160)
+
+# Other
+DIVIDER = (55, 60, 75)
+DIVIDER_DARK = (35, 38, 48)
+DIVIDER_LIGHT = (90, 95, 115)
+
+YELLOW = (255, 230, 110)
+BLUE = ACCENT_BLUE

@@ -1,66 +1,74 @@
 import pygame
 
-def handle_input(event, controller) -> bool:
+def handle_playback_input(event: pygame.event.Event, scene) -> bool:
+    """Handles inputs specifically while an episode is actively playing back."""
     if event.type != pygame.KEYDOWN:
         return False
 
+    # Escape returns to the browser scene context safely
     if event.key == pygame.K_ESCAPE:
-        controller.app_state = "BROWSER"
-        controller.refresh_browser_list()
+        scene.controller.switch_to_scene("BROWSER")
         return True
 
-    # Global interactive command reference helper sheet
-    if event.key == pygame.K_F1:
-        controller.show_guide = not controller.show_guide
-        return True
-
-    if not controller.playback:
+    if not scene.playback:
         return False
 
+    # --- Playback Engine Controls ---
     if event.key == pygame.K_SPACE:
-        controller.playback.toggle_play()
+        scene.playback.toggle_play()
         return True
     elif event.key == pygame.K_r:
-        controller.playback.restart()
+        scene.playback.restart()
         return True
     elif event.key == pygame.K_l:
-        controller.playback.toggle_loop()
+        scene.playback.toggle_loop()
         return True
     elif event.key == pygame.K_RIGHT:
-        controller.playback.step_forward()
+        scene.playback.step_forward()
         return True
     elif event.key == pygame.K_LEFT:
-        controller.playback.step_backward()
+        scene.playback.step_backward()
         return True
     elif event.key == pygame.K_UP:
-        controller.playback.adjust_speed(0.25)
+        scene.playback.adjust_speed(0.25)
         return True
     elif event.key == pygame.K_DOWN:
-        controller.playback.adjust_speed(-0.25)
-        return True
-    elif event.key == pygame.K_1:
-        controller.camera.set_mode("FOLLOW")
-        return True
-    elif event.key == pygame.K_2:
-        controller.camera.set_mode("STATIC")
-        controller.camera.reset_static = True
-        return True
-    elif event.key == pygame.K_3:
-        controller.camera.set_mode("FIT")
+        scene.playback.adjust_speed(-0.25)
         return True
 
-    # Target Structural Presentation Toggles
+    # --- Camera View Mode Adjustments ---
+    elif event.key == pygame.K_1:
+        scene.camera.set_mode("FOLLOW")
+        return True
+    elif event.key == pygame.K_2:
+        scene.camera.set_mode("STATIC")
+        scene.camera.reset_static = True
+        return True
+    elif event.key == pygame.K_3:
+        scene.camera.set_mode("FIT")
+        return True
+
+    # --- UI Component & Telemetry Presentation Toggles ---
     elif event.key == pygame.K_h:
-        controller.heading_overlay.visible = not controller.heading_overlay.visible
+        scene.hud_overlay.visible = not scene.hud_overlay.visible
         return True
     elif event.key == pygame.K_t:
-        controller.renderer.trail_visible = not controller.renderer.trail_visible
+        scene.timeline_overlay.visible = not scene.timeline_overlay.visible
+        return True
+    elif event.key == pygame.K_d:
+        scene.heading_overlay.visible = not scene.heading_overlay.visible
         return True
     elif event.key == pygame.K_g:
-        controller.graphs_overlay.visible = not controller.graphs_overlay.visible
+        scene.graphs_overlay.visible = not scene.graphs_overlay.visible
         return True
     elif event.key == pygame.K_c:
-        controller.confidence_overlay.visible = not controller.confidence_overlay.visible
+        scene.confidence_overlay.visible = not scene.confidence_overlay.visible
+        return True
+    elif event.key == pygame.K_p:
+        scene.renderer.trail_visible = not scene.renderer.trail_visible
+        return True
+    elif event.key == pygame.K_v:
+        scene.renderer.raw_visible = not scene.renderer.raw_visible
         return True
 
     return False

@@ -7,15 +7,22 @@ class Camera:
         self.offset_y = 0.0
         self.mode = "FOLLOW"
         self.reset_static = False
+        # Manage viewport state internal definitions dynamically
+        self.screen_w = WINDOW_WIDTH
+        self.screen_h = WINDOW_HEIGHT
+
+    def update_dimensions(self, width: int, height: int):
+        self.screen_w = width
+        self.screen_h = height
 
     def world_to_screen(self, world_x: float, world_y: float) -> tuple:
-        screen_x = int((world_x - self.offset_x) * PIXELS_PER_UNIT * self.zoom + WINDOW_WIDTH / 2)
-        screen_y = int((world_y - self.offset_y) * PIXELS_PER_UNIT * self.zoom + WINDOW_HEIGHT / 2)
+        screen_x = int((world_x - self.offset_x) * PIXELS_PER_UNIT * self.zoom + self.screen_w / 2)
+        screen_y = int((world_y - self.offset_y) * PIXELS_PER_UNIT * self.zoom + self.screen_h / 2)
         return (screen_x, screen_y)
 
     def screen_to_world(self, screen_x: int, screen_y: int) -> tuple:
-        world_x = (screen_x - WINDOW_WIDTH / 2) / (PIXELS_PER_UNIT * self.zoom) + self.offset_x
-        world_y = (screen_y - WINDOW_HEIGHT / 2) / (PIXELS_PER_UNIT * self.zoom) + self.offset_y
+        world_x = (screen_x - self.screen_w / 2) / (PIXELS_PER_UNIT * self.zoom) + self.offset_x
+        world_y = (screen_y - self.screen_h / 2) / (PIXELS_PER_UNIT * self.zoom) + self.offset_y
         return (world_x, world_y)
 
     def set_mode(self, mode: str):
@@ -35,8 +42,8 @@ class Camera:
             world_w = max(1.0, max_x - min_x)
             world_h = max(1.0, max_y - min_y)
             
-            zoom_x = (WINDOW_WIDTH * 0.8) / (world_w * PIXELS_PER_UNIT)
-            zoom_y = (WINDOW_HEIGHT * 0.5) / (world_h * PIXELS_PER_UNIT) # Reserve space for graphing overlays
+            zoom_x = (self.screen_w * 0.8) / (world_w * PIXELS_PER_UNIT)
+            zoom_y = (self.screen_h * 0.5) / (world_h * PIXELS_PER_UNIT)
             
             self.zoom = max(0.1, min(zoom_x, zoom_y, 3.0))
             

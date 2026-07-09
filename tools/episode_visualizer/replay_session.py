@@ -15,6 +15,7 @@ class ReplayTick:
     drive: float
     confidence: float
     anchor: bool
+    drift: float = 0.0
 
 @dataclass(frozen=True, slots=True)
 class ReplaySession:
@@ -25,6 +26,8 @@ class ReplaySession:
     statistics: Dict[str, Any]
     camera_bounds: Tuple[float, float, float, float]
     metadata: Dict[str, Any]
+    raw_path: Tuple[Tuple[float, float], ...] = () 
+    raw_metrics: Dict[int, Dict[str, float]] = None
     schema_version: str = "1.0"
 
     def __post_init__(self):
