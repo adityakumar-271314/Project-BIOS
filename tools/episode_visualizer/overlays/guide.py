@@ -28,12 +28,20 @@ class GuideOverlay:
         dim_bg.fill(DIM_BG)
         screen.blit(dim_bg, (0, 0))
 
-        panel_width = ui.w(990)   
-        panel_height = ui.h(460)  
+        panel_width = ui.w(1020)   # Slightly widened for cleaner margins
+        panel_height = ui.h(480)  
+
 
         guide_surface = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
-        guide_surface.fill(GUIDE_BG)
         
+        # Ensure base background is solid enough to mask underlying text
+        base_color = (GUIDE_BG[0], GUIDE_BG[1], GUIDE_BG[2], 245) if len(GUIDE_BG) >= 3 else (GUIDE_BG, 245)
+        guide_surface.fill(base_color)
+        
+        # Modern UI Touch: Left accent highlight bar
+        accent_bar = pygame.Rect(0, 0, ui.w(6), panel_height)
+        pygame.draw.rect(guide_surface, GUIDE_GREEN, accent_bar, border_top_left_radius=ui.r(12), border_bottom_left_radius=ui.r(12))
+
         # Panel Border
         pygame.draw.rect(
             guide_surface,
@@ -43,7 +51,7 @@ class GuideOverlay:
             border_radius=ui.r(12),
         )
 
-        # 3. Header Section
+        # Header Section
         title = self.controller.big_font.render("DIAGNOSTIC CONTROLS", True, GUIDE_GREEN)
         guide_surface.blit(title, (ui.w(40), ui.h(25)))
 
@@ -58,7 +66,7 @@ class GuideOverlay:
             max(1, ui.r(1)),
         )
 
-        # 4. Data Layout Structures
+        # Data Layout Structures
         playback_controls = [
             ("SPACE", "Toggle Play / Pause"),
             ("R", "Restart Episode"),
@@ -79,10 +87,10 @@ class GuideOverlay:
             ("V", "Toggle Raw Telemetry"),
         ]
 
-        # Draw columns side-by-side (Increased spacing and adjusted x_offsets)
-        self._render_column(ui, guide_surface, "SYSTEM PLAYBACK ENGINE", playback_controls, x_offset=ui.w(40), col_width=ui.w(440))
+        # Dynamic center divider placement
+        col_w = ui.w(440)
+        self._render_column(ui, guide_surface, "SYSTEM PLAYBACK ENGINE", playback_controls, x_offset=ui.w(45), col_width=col_w)
         
-        # Center separating line
         pygame.draw.line(
             guide_surface,
             DIVIDER,
@@ -91,7 +99,7 @@ class GuideOverlay:
             max(1, ui.r(1)),
         )
         
-        self._render_column(ui, guide_surface, "TELEMETRY VISUALIZERS", overlay_controls, x_offset=panel_width // 2 + ui.w(40), col_width=ui.w(440))
+        self._render_column(ui, guide_surface, "TELEMETRY VISUALIZERS", overlay_controls, x_offset=panel_width // 2 + ui.w(25), col_width=col_w)
 
         # 5. Composite back to main viewport
         screen.blit(
@@ -100,50 +108,49 @@ class GuideOverlay:
         )
 
     def _render_column(self, ui, surface: pygame.Surface, section_title: str, items: list, x_offset: int, col_width: int):
-        """Helper to neatly structure a keybinding column with self-sizing dynamic key-caps."""
-        # Render Section Header Title
+        """Helper to neatly structure a keybinding column with crisp, premium key-caps."""
         header_surf = self.controller.small_font.render(section_title, True, TEXT_MUTED)
         surface.blit(header_surf, (x_offset, ui.h(95)))
 
         row_y_start = ui.h(130)
-        row_gap = ui.h(42)
-        
-        # Pushed description layout anchor rightward to accommodate longer key string labels
-        desc_x_align = x_offset + ui.w(110) 
-        key_box_height = ui.h(28)
+        row_gap = ui.h(44)
+        desc_x_align = x_offset + ui.w(115) 
+        key_box_height = ui.h(26)
 
         for i, (key, desc) in enumerate(items):
             current_y = row_y_start + (i * row_gap)
 
-            # --- Visual Enhancement: Background Row Striping ---
-            # Subtle full-width highlight background bar for clean grouping readability
-            row_bg_rect = pygame.Rect(x_offset - ui.w(10), current_y - ui.h(4), col_width, row_gap - ui.h(6))
-            row_bg_color = (GUIDE_ROW_BG[0], GUIDE_ROW_BG[1], GUIDE_ROW_BG[2], 30) # slight alpha blend
-            pygame.draw.rect(surface, row_bg_color, row_bg_rect, border_radius=ui.r(6))
+            # --- Visual Enhancement: Alternating Row Striping ---
+            # Using alternating subtle alpha bands to vastly improve tracking readability
+            if i % 2 == 0:
+                row_bg_rect = pygame.Rect(x_offset - ui.w(8), current_y - ui.h(6), col_width, row_gap - ui.h(4))
+                row_bg_color = (GUIDE_ROW_BG[0], GUIDE_ROW_BG[1], GUIDE_ROW_BG[2], 45)
+                pygame.draw.rect(surface, row_bg_color, row_bg_rect, border_radius=ui.r(6))
 
-            # Generate font surfaces
+            # Generate crisp font surfaces
             key_txt = self.controller.font.render(key, True, YELLOW)
             desc_txt = self.controller.font.render(desc, True, TEXT)
 
-            # Calculate key-cap box dimensions with padded space
-            padding_x = ui.w(18)
+            # Calculate precise keycap dimensions
+            padding_x = ui.w(16)
             key_box_width = max(ui.w(55), key_txt.get_width() + padding_x)
 
-            # --- Visual Enhancement: Tactile Keycap Shadow ---
-            # Drop-shadow underneath keycaps to add tactile depth
+            # --- Visual Enhancement: Subtle Flat Keycap Shadow ---
             shadow_rect = pygame.Rect(x_offset, current_y + ui.r(2), key_box_width, key_box_height)
-            pygame.draw.rect(surface, (10, 10, 15, 180), shadow_rect, border_radius=ui.r(5))
+            pygame.draw.rect(surface, (5, 5, 8, 200), shadow_rect, border_radius=ui.r(4))
 
-            # Draw the primary 'Key Cap' container
+            # Draw crisp primary 'Key Cap' container
             key_rect = pygame.Rect(x_offset, current_y, key_box_width, key_box_height)
-            pygame.draw.rect(surface, GUIDE_ROW_BG, key_rect, border_radius=ui.r(5))
-            pygame.draw.rect(surface, DIVIDER, key_rect, width=max(1, ui.r(1)), border_radius=ui.r(5))
+            pygame.draw.rect(surface, GUIDE_ROW_BG, key_rect, border_radius=ui.r(4))
+            
+            # Keycap inner border glow accent
+            pygame.draw.rect(surface, DIVIDER, key_rect, width=max(1, ui.r(1)), border_radius=ui.r(4))
 
-            # Center key text inside its dynamic box perfectly
+            # Center text inside keycap perfectly
             text_x = x_offset + (key_box_width // 2) - (key_txt.get_width() // 2)
             text_y = current_y + (key_box_height // 2) - (key_txt.get_height() // 2)
             surface.blit(key_txt, (text_x, text_y))
 
-            # Render the description text along the uniform alignment tracking line
+            # Render uniform descriptive text tracking line
             desc_y = current_y + (key_box_height // 2) - (desc_txt.get_height() // 2)
             surface.blit(desc_txt, (desc_x_align, desc_y))

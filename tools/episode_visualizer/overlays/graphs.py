@@ -6,6 +6,7 @@ class GraphsOverlay:
         self.visible = True
         self.base_font_size = 14
         self.font = pygame.font.SysFont("Consolas", self.base_font_size)
+        self.last_sx = 1.0
         self.base_height = 190
         
         self.colors = {
@@ -32,8 +33,10 @@ class GraphsOverlay:
         
         y_top = screen_h - timeline_h - box_h - pad_bottom
         
-        if ui:
+        # Only rebuild the font when UI scale changes
+        if ui and ui.sx != self.last_sx:
             self.font = pygame.font.SysFont("Consolas", ui.r(self.base_font_size))
+            self.last_sx = ui.sx
 
         # --- THICKENED OUTSIDE BORDERS ---
         radius = ui.r(10) if ui else 10

@@ -52,11 +52,12 @@ class VisualizerController:
         # Alias properties providing cross-compatibility with legacy/external input code definitions
         self.playback = None 
 
-        self.scenes = {
+        self.scenes = {}
+        self.scenes.update({
             "BROWSER": BrowserScene(self),
             "PLAYBACK": PlaybackScene(self),
             "ERROR": ErrorScene(self)
-        }
+        })
         self.active_scene = self.scenes["BROWSER"]
         self.running = True
 
