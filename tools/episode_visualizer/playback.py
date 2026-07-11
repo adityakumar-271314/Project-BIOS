@@ -1,5 +1,6 @@
 from tools.episode_visualizer.replay_session import ReplaySession
 
+
 class Playback:
     def __init__(self, session: ReplaySession):
         self.session = session
@@ -14,12 +15,12 @@ class Playback:
     def update(self, dt: float):
         if not self.playing or self.total_frames == 0:
             return
-        
+
         self.time_accumulator += dt * self.speed
-        
+
         while self.time_accumulator >= self.seconds_per_tick:
             self.time_accumulator -= self.seconds_per_tick
-            
+
             if self.current_frame >= self.total_frames - 1:
                 if self.loop:
                     self.current_frame = 0

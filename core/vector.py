@@ -5,11 +5,8 @@ Lightweight Vector2 class with common operations used throughout the
 spatial memory and steering systems.
 """
 
-
-
 from __future__ import annotations
 import math
-
 
 
 class Vector2:
@@ -44,7 +41,7 @@ class Vector2:
 
     def length(self) -> float:
         return math.sqrt(self.x * self.x + self.y * self.y)
-    
+
     def magnitude(self) -> float:
         return self.length()
 

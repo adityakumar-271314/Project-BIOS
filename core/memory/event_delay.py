@@ -29,14 +29,9 @@ class EventDelayQueue:
 
             candidate_tick = self._pending[0]
 
-            if (
-                current_tick - candidate_tick
-                < self.delay_ticks
-            ):
+            if current_tick - candidate_tick < self.delay_ticks:
                 break
 
-            ready.append(
-                self._pending.popleft()
-            )
+            ready.append(self._pending.popleft())
 
         return ready

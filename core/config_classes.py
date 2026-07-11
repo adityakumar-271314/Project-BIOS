@@ -6,7 +6,6 @@ for Project BIOS. Used by config_loader.py to provide type-safe,
 immutable configuration objects to all subsystems.
 """
 
-
 from dataclasses import dataclass
 
 
@@ -42,7 +41,6 @@ class EmotionConfig:
     wall_stress_threshold: float
 
 
-
 @dataclass(frozen=True)
 class WanderProfile:
     persistence: int
@@ -70,6 +68,8 @@ class SkillsConfig:
     wander: WanderProfile
     seek_food: SeekFoodProfile
     avoid_hazard: AvoidHazardProfile
+
+
 @dataclass(frozen=True)
 class BrainConfig:
     food_distance_scale: float
@@ -94,6 +94,7 @@ class BrainConfig:
     fear_threshold: float
     drive_threshold: float
     random_seed: int
+
 
 @dataclass(frozen=True)
 class MemoryConfig:
@@ -124,8 +125,6 @@ class BridgeConfig:
     port: int
     fallback_delta: float
     default_ray_value: float
-
-
 
 
 @dataclass(frozen=True)

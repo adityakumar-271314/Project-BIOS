@@ -4,6 +4,7 @@ BaseSkill — Shared Locomotion Logic.
 Contains common steering force calculations (walls, drift, smoothing,
 thrust modulation) inherited by all concrete skills.
 """
+
 import random
 import math
 from core.vector import Vector2
@@ -11,7 +12,7 @@ from ...data_models import MotorOutput
 
 
 class BaseSkill:
-    
+
     def __init__(self, brain_cfg, skill_cfg):
 
         self.cfg = brain_cfg
@@ -44,16 +45,10 @@ class BaseSkill:
 
         for obj in sensor_data.sensed_objects:
             if obj.type == "food":
-                dist_mult = (
-                    self.cfg.food_distance_scale
-                    / max(obj.dist, 10)
-                )
+                dist_mult = self.cfg.food_distance_scale / max(obj.dist, 10)
 
                 total -= obj.angle * (
-                    ehe.drive
-                    * dist_mult
-                    * self.cfg.food_force_multiplier
-                    * multiplier
+                    ehe.drive * dist_mult * self.cfg.food_force_multiplier * multiplier
                 )
 
         return total
@@ -64,9 +59,7 @@ class BaseSkill:
         for obj in sensor_data.sensed_objects:
             if obj.type == "hazard":
                 total += obj.angle * (
-                    ehe.fear
-                    * self.cfg.hazard_force_multiplier
-                    * multiplier
+                    ehe.fear * self.cfg.hazard_force_multiplier * multiplier
                 )
 
         return total
@@ -88,11 +81,8 @@ class BaseSkill:
         return self.drift_angle
 
     def _smooth_steering(self, steer):
-        final_steer = (
-            steer * self.cfg.steer_smoothing_current
-        ) + (
-            self.last_steer
-            * self.cfg.steer_smoothing_previous
+        final_steer = (steer * self.cfg.steer_smoothing_current) + (
+            self.last_steer * self.cfg.steer_smoothing_previous
         )
 
         self.last_steer = final_steer
@@ -122,24 +112,16 @@ class BaseSkill:
 
     def _clamp(self, value, min_val, max_val):
         return max(min_val, min(value, max_val))
-    
-    def execute(
-                self,
-                goal,
-                ehe,
-                sensor_data,
-                spatial_bias,
-                memory_system,
-                gsm=None
-            ):
+
+    def execute(self, goal, ehe, sensor_data, spatial_bias, memory_system, gsm=None):
         raise NotImplementedError
-    
+
     def calculate_heading_steer(
-                                self,
-                                agent_pos,
-                                current_heading,
-                                target_pos,
-                            ):
+        self,
+        agent_pos,
+        current_heading,
+        target_pos,
+    ):
         target_dir = target_pos - agent_pos
 
         target_angle = math.atan2(
@@ -147,10 +129,7 @@ class BaseSkill:
             target_dir.x,
         )
 
-        steer_angle = (
-            target_angle
-            - current_heading
-        )
+        steer_angle = target_angle - current_heading
 
         return math.atan2(
             math.sin(steer_angle),

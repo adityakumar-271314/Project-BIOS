@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field, asdict
 from typing import List
+
 # RAW TEMPORAL DATA
+
 
 @dataclass(slots=True)
 class TickSnapshot:
@@ -34,6 +36,7 @@ class TickSnapshot:
 
 # TRANSIENT FRAME
 
+
 @dataclass(slots=True)
 class EpisodeFrame:
 
@@ -46,10 +49,12 @@ class EpisodeFrame:
     fear_delta: float
     drive_delta: float
 
+
 # Lightweight key frame for compression
 @dataclass(slots=True)
 class SparseFrame:
     """Conservative sparse representation - keeps most useful fields"""
+
     tick: int
     pos_x: float
     pos_y: float
@@ -68,6 +73,7 @@ class SparseFrame:
     visible_food: int = 0
     visible_hazards: int = 0
     notes: str | None = None
+
 
 # PERSISTENT EPISODE - conservative update
 @dataclass(slots=True)
@@ -92,11 +98,11 @@ class EpisodicEvent:
     energy_delta: float
     integrity_delta: float
     peak_snapshot: TickSnapshot
-    
+
     # === Storage compression change only ===
     key_frames: List[SparseFrame] = field(default_factory=list)
-    
-    notes: str | None = None   # kept for flexibility
+
+    notes: str | None = None  # kept for flexibility
 
     def to_dict(self):
         return {
@@ -126,18 +132,24 @@ class EpisodicEvent:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'EpisodicEvent':
+    def from_dict(cls, data: dict) -> "EpisodicEvent":
         state = data.get("state", {})
         deltas = data.get("deltas", {})
         start_pos = data.get("start_position", {"x": 0, "y": 0})
         peak_pos = data.get("peak_position", {"x": 0, "y": 0})
         end_pos = data.get("end_position", {"x": 0, "y": 0})
-        
+
         peak_snap_data = data.get("peak_snapshot")
-        peak_snap = TickSnapshot(**peak_snap_data) if isinstance(peak_snap_data, dict) else peak_snap_data
+        peak_snap = (
+            TickSnapshot(**peak_snap_data)
+            if isinstance(peak_snap_data, dict)
+            else peak_snap_data
+        )
 
         raw_key_frames = data.get("key_frames", [])
-        key_frames = [SparseFrame(**kf) if isinstance(kf, dict) else kf for kf in raw_key_frames]
+        key_frames = [
+            SparseFrame(**kf) if isinstance(kf, dict) else kf for kf in raw_key_frames
+        ]
 
         return cls(
             start_tick=data["start_tick"],
@@ -161,9 +173,10 @@ class EpisodicEvent:
             integrity_delta=deltas.get("integrity_delta", 0.0),
             peak_snapshot=peak_snap,
             key_frames=key_frames,
-            notes=data.get("notes")
+            notes=data.get("notes"),
         )
-    
+
+
 @dataclass(slots=True)
 class ReconstructedTick:
     tick: int

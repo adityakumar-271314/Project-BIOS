@@ -3,13 +3,18 @@ from .episodic import EpisodicMemory
 from .temporal_buffer import TemporalBuffer
 from .event_delay import EventDelayQueue
 from .episode_pipeline import EpisodePipeline
+
+
 class MemorySystem:
 
     def __init__(self, config):
         self.cfg = config
         self.semantic = SemanticMemory(config)
         self.episodic = EpisodicMemory(config)
-        self.temporal_buffer = TemporalBuffer(seconds=15, fps=60,)
+        self.temporal_buffer = TemporalBuffer(
+            seconds=15,
+            fps=60,
+        )
         self.event_delay = EventDelayQueue(delay_ticks=180)
         self.pipeline = EpisodePipeline(
             episodic_memory=self.episodic,
@@ -37,62 +42,70 @@ class MemorySystem:
             previous_snapshot = snapshots[-2]
             frame = self.episodic.build_frame(previous_snapshot, latest_snapshot)
             self.temporal_buffer.append_frame(frame)
-            
+
             # check significant conditions
-            if frame.event_type != "high_significance" or frame.significance > getattr(self.cfg, "episodic_significance_threshold", 4.0):
+            if frame.event_type != "high_significance" or frame.significance > getattr(
+                self.cfg, "episodic_significance_threshold", 4.0
+            ):
                 # --- FIXED: Only queue if we aren't already tracking a candidate within the hysteresis window ---
-                if not self.event_delay._pending or (self._tick - self.event_delay._pending[-1] > 300):
+                if not self.event_delay._pending or (
+                    self._tick - self.event_delay._pending[-1] > 300
+                ):
                     self.mark_candidate_event(self._tick)
 
         self.episodic.update()
-        
+
         ready_events = self.event_delay.get_ready(self._tick)
         for candidate_tick in ready_events:
             episodes = self.pipeline.process_candidate(candidate_tick)
             for episode in episodes:
                 # --- FIXED: Prevent identical duplicate episodes from being pushed into history ---
-                if not any(e.peak_tick == episode.peak_tick for e in self.episodic.events):
+                if not any(
+                    e.peak_tick == episode.peak_tick for e in self.episodic.events
+                ):
                     self.episodic.encode(episode)
 
     def import_state(self, data: dict) -> None:
 
-        self.semantic.import_state(
-            data.get("semantic", {})
-        )
+        self.semantic.import_state(data.get("semantic", {}))
 
-        self.episodic.import_state(
-            data.get("episodic", {})
-        )
+        self.episodic.import_state(data.get("episodic", {}))
 
     def export_state(self) -> dict:
 
         return {
             "semantic": self.semantic.export_state(),
             "episodic": self.episodic.export_state(),
-            "version": 1
+            "version": 1,
         }
-    
-    def recent_snapshots(self, seconds: float = 5.0,):
+
+    def recent_snapshots(
+        self,
+        seconds: float = 5.0,
+    ):
         return self.temporal_buffer.recent_seconds(seconds)
-    
+
     def snapshot_context(
-                    self,
-                    center_tick: int,
-                    before_ticks: int,
-                    after_ticks: int,
-                ):
+        self,
+        center_tick: int,
+        before_ticks: int,
+        after_ticks: int,
+    ):
         return self.temporal_buffer.get_context(
             center_tick=center_tick,
             before_ticks=before_ticks,
             after_ticks=after_ticks,
         )
-    
+
     def latest_snapshot(self):
         return self.temporal_buffer.latest()
-    
-    def mark_candidate_event(self, tick: int,):
+
+    def mark_candidate_event(
+        self,
+        tick: int,
+    ):
         self.event_delay.add_candidate(tick)
-    
+
     def get_ready_events(self):
         return self.event_delay.get_ready(self._tick)
 
@@ -119,38 +132,39 @@ class MemorySystem:
     def landmarks(self):
 
         return self.semantic.landmarks
+
     @property
     def internal_pos(self):
         return self.semantic.internal_pos
 
-
     @property
     def internal_vel(self):
         return self.semantic.internal_vel
-    
+
     @property
     def internal_heading(self) -> float:
         return self.semantic.internal_heading
-    
+
     def recall_recent(self, limit: int = 10):
         events = self.episodic.get_events()
         return list(events[-limit:])
-    
+
     def recall_by_type(self, event_type: str, limit: int | None = None):
         matches = [
-            event for event in self.episodic.get_events()
+            event
+            for event in self.episodic.get_events()
             if event.event_type == event_type
         ]
         if limit is not None:
             matches = matches[-limit:]
         return matches
-        
+
     def recall_significant(
         self,
         min_significance: float = 5.0,
     ):
         pass
-    
+
     def recall_near(
         self,
         pos_x: float,
@@ -173,13 +187,13 @@ class MemorySystem:
                 matches.append(event)
 
         return matches
-    
+
     def recall_latest(self):
         events = self.episodic.get_events()
         if not events:
             return None
         return events[-1]
-    
+
     def last_significant_event(
         self,
         min_significance: float = 5.0,
@@ -235,8 +249,4 @@ class MemorySystem:
             pos_y=pos_y,
             radius=radius,
         )
-        return [
-            event
-            for event in nearby
-            if event.event_type in danger_types
-        ]
+        return [event for event in nearby if event.event_type in danger_types]

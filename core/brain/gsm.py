@@ -31,7 +31,11 @@ class GoalStackManager:
         self._blacklisted_food_spots: Set[Tuple[int, int]] = set()
         self._memory_food_exhausted = False
 
-    def evaluate_goal(self, ehe, sensor_data,) -> Goal:
+    def evaluate_goal(
+        self,
+        ehe,
+        sensor_data,
+    ) -> Goal:
         """
         Main goal evaluation entrypoint.
         """
@@ -43,15 +47,18 @@ class GoalStackManager:
             return self.active_goal
 
         # 2. If it shouldn't persist, manage interruptions or fetch a new goal
-        new_goal: Goal = self._select_goal(ehe, sensor_data,)
+        new_goal: Goal = self._select_goal(
+            ehe,
+            sensor_data,
+        )
 
         # 3. Interruption logic: If a high priority hazard overrides an incomplete memory search,
         # preserve the current spatial goal onto the stack so we can resume later.
         if (
-            self.active_goal and 
-            self.active_goal.name == "seek_food" and 
-            new_goal.name == "avoid_hazard" and
-            self.active_goal.status == "pending"
+            self.active_goal
+            and self.active_goal.name == "seek_food"
+            and new_goal.name == "avoid_hazard"
+            and self.active_goal.status == "pending"
         ):
             if not any(g.name == "seek_food" for g in self.goal_stack):
                 self.goal_stack.append(self.active_goal)
@@ -61,7 +68,10 @@ class GoalStackManager:
             resumed_goal = self.goal_stack.pop()
             # Verify if resumed goal is spatial and hasn't been cleared/blacklisted
             if resumed_goal.spatial_target:
-                spot_key = (int(resumed_goal.spatial_target.target_vector.x), int(resumed_goal.spatial_target.target_vector.y))
+                spot_key = (
+                    int(resumed_goal.spatial_target.target_vector.x),
+                    int(resumed_goal.spatial_target.target_vector.y),
+                )
                 if spot_key not in self._blacklisted_food_spots:
                     new_goal = resumed_goal
 
@@ -78,20 +88,26 @@ class GoalStackManager:
 
         return self.active_goal
 
-    def _select_goal(self, ehe, sensor_data,) -> Goal:
+    def _select_goal(
+        self,
+        ehe,
+        sensor_data,
+    ) -> Goal:
         """
         Selects the highest priority goal and links spatial data if necessary.
         """
-        hazards_visible = any(obj.type == "hazard" for obj in sensor_data.sensed_objects)
+        hazards_visible = any(
+            obj.type == "hazard" for obj in sensor_data.sensed_objects
+        )
         food_visible = any(obj.type == "food" for obj in sensor_data.sensed_objects)
 
         # --- CRITICAL HAZARD OVERRIDE ---
         if hazards_visible and ehe.fear > self.cfg.fear_threshold:
-            return Goal(    
+            return Goal(
                 name="avoid_hazard",
                 priority=ehe.fear,
                 persistence=self.skill_cfg.avoid_hazard.persistence,
-                strategy="direct_sensory"
+                strategy="direct_sensory",
             )
 
         # --- FOOD SEEKING CORE DRIVE ---
@@ -103,7 +119,7 @@ class GoalStackManager:
                     name="seek_food",
                     priority=ehe.drive,
                     persistence=self.skill_cfg.seek_food.persistence,
-                    strategy="direct_sensory"
+                    strategy="direct_sensory",
                 )
             elif self.memory_system is not None:
 
@@ -112,7 +128,7 @@ class GoalStackManager:
                         name="wander",
                         persistence=self.skill_cfg.wander.persistence,
                         priority=self.skill_cfg.wander.priority,
-                        strategy="direct_sensory"
+                        strategy="direct_sensory",
                     )
                 # Fallback to Episodic/Semantic Memory layout when blind
                 food_memories = self.memory_system.recall_by_type("food_recovery")
@@ -133,14 +149,11 @@ class GoalStackManager:
                     valid_memory = memory
                     break
 
-
                 if valid_memory is None:
 
                     self._memory_food_exhausted = True
 
-                    print(
-                        "[GSM] All remembered food locations exhausted."
-                    )
+                    print("[GSM] All remembered food locations exhausted.")
 
                 else:
 
@@ -158,7 +171,8 @@ class GoalStackManager:
                             valid_memory,
                             "significance",
                             1.0,
-                        ) / 10.0,
+                        )
+                        / 10.0,
                     )
 
                     return Goal(
@@ -174,7 +188,7 @@ class GoalStackManager:
             name="wander",
             persistence=self.skill_cfg.wander.persistence,
             priority=self.skill_cfg.wander.priority,
-            strategy="direct_sensory"
+            strategy="direct_sensory",
         )
 
     def _should_keep_goal(self, ehe) -> bool:
@@ -185,7 +199,10 @@ class GoalStackManager:
             return False
 
         # Instantly interrupt anything if fear spikes and we are not handling a hazard
-        if ehe.fear > self.cfg.fear_threshold and self.active_goal.name != "avoid_hazard":
+        if (
+            ehe.fear > self.cfg.fear_threshold
+            and self.active_goal.name != "avoid_hazard"
+        ):
             return False
 
         if self.goal_age < self.active_goal.persistence:
@@ -213,7 +230,4 @@ class GoalStackManager:
         key = (int(vector.x), int(vector.y))
         self._blacklisted_food_spots.add(key)
 
-        print(
-            f"[GSM] Blacklisted food spot: "
-            f"{key}"
-        )
+        print(f"[GSM] Blacklisted food spot: " f"{key}")

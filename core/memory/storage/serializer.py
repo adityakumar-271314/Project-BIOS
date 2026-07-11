@@ -37,16 +37,14 @@ class EpisodeSerializer:
     def _next_id(self):
 
         folders = [
-            p for p in self.root.iterdir()
+            p
+            for p in self.root.iterdir()
             if p.is_dir() and p.name.startswith("episode_")
         ]
 
         if not folders:
             return 1
 
-        ids = [
-            int(p.name.split("_")[-1])
-            for p in folders
-        ]
+        ids = [int(p.name.split("_")[-1]) for p in folders]
 
         return max(ids) + 1

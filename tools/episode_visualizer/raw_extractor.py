@@ -2,11 +2,14 @@ import json
 from pathlib import Path
 from typing import List, Dict, Any, Tuple
 
+
 class RawTelemetryExtractor:
     def __init__(self, telemetry_file_path: str | Path):
         self.file_path = Path(telemetry_file_path)
 
-    def extract_range(self, start_tick: int, end_tick: int) -> Tuple[List[Tuple[float, float]], Dict[int, Dict[str, float]]]:
+    def extract_range(
+        self, start_tick: int, end_tick: int
+    ) -> Tuple[List[Tuple[float, float]], Dict[int, Dict[str, float]]]:
         """
         Extracts raw telemetry positions and core metrics strictly between start_tick and end_tick.
         Returns a path list of (x, y) coordinates and a mapping of tick_id -> metric data.
@@ -24,7 +27,7 @@ class RawTelemetryExtractor:
                 try:
                     data = json.loads(line)
                     tick_id = data.get("tick")
-                    
+
                     if tick_id is None or not (start_tick <= tick_id <= end_tick):
                         continue
 
@@ -38,7 +41,7 @@ class RawTelemetryExtractor:
                         "integrity": float(data.get("integrity", 1.0)),
                         "stress": float(data.get("stress", 0.0)),
                         "fear": float(data.get("fear", 0.0)),
-                        "drive": float(data.get("drive", 0.0))
+                        "drive": float(data.get("drive", 0.0)),
                     }
                 except (json.JSONDecodeError, KeyError, ValueError):
                     continue  # Safely bypass corrupted lines during structural checks

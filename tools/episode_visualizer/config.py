@@ -1,6 +1,5 @@
 import pygame
 
-
 pygame.display.init()
 info = pygame.display.Info()
 
@@ -36,7 +35,7 @@ HUD_FONT_SIZE = 18
 TIMELINE_HEIGHT = 40
 
 # Core
-BACKGROUND = (12, 12, 18)        
+BACKGROUND = (12, 12, 18)
 PANEL_BG = (22, 22, 32)
 PANEL_BORDER = (70, 80, 110)
 PANEL_BORDER_DARK = (15, 15, 25)

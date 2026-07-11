@@ -1,10 +1,13 @@
+import pytest
 from core.memory.memory_system import MemorySystem
 from core.memory.semantic import SemanticMemory
 from core.config_loader import load_config
 from core.data_models import SensorPacket
 from core.vector import Vector2
+from core.memory.schemas import TickSnapshot
 from core.memory.episodic import EpisodicMemory
-from core.memory.schemas import EpisodicEvent
+from core.config_loader import load_config
+
 
 def test_odometry_updates_position():
     mem = SemanticMemory(load_config().memory)
@@ -51,82 +54,140 @@ def test_landmark_registration():
 
     assert 42 in mem.landmarks
 
-def test_episodic_event_roundtrip():
+
+from core.memory.episodic import RunningStats
+import math
 
 
+def test_running_stats_mean_and_variance():
+    stats = RunningStats()
 
-    event = EpisodicEvent(
-        tick=10,
-        event_type="danger_state",
-        significance=4.5,
-        pos_x=12.0,
-        pos_y=-3.0,
+    for value in [1, 2, 3, 4]:
+        stats.update(value)
 
-        energy=80.0,
-        integrity=90.0,
+    assert stats.n == 4
+    assert stats.mean == 2.5
+    assert math.isclose(stats.variance, 1.6666666666)
+def test_running_stats_empty():
+    stats = RunningStats()
 
-        stress=0.4,
-        fear=0.7,
-        drive=0.2,
+    assert stats.mean == 0.0
+    assert stats.variance == 0.0
+    assert stats.std == 0.0
 
-        energy_delta=-2.0,
-        integrity_delta=-5.0,
 
-        stress_delta=0.1,
-        fear_delta=0.3,
-        drive_delta=0.0,
+def make_snapshot(**kwargs):
+    defaults = dict(
+        tick=0,
+        pos_x=0,
+        pos_y=0,
+        vel_x=0,
+        vel_y=0,
+        heading=0,
+        energy=100,
+        integrity=100,
+        stress=0,
+        fear=0,
+        drive=0,
+    )
+    defaults.update(kwargs)
+    return TickSnapshot(**defaults)
+
+
+def test_compute_deltas():
+    memory = EpisodicMemory(load_config().memory)
+
+    a = make_snapshot(
+        energy=100,
+        integrity=90,
+        stress=0.2,
+        fear=0.3,
+        drive=0.4,
     )
 
-    data = event.to_dict()
-
-    rebuilt = EpisodicEvent.from_dict(data)
-
-    assert rebuilt.tick == event.tick
-    assert rebuilt.event_type == event.event_type
-    assert rebuilt.pos_x == event.pos_x
-    assert rebuilt.integrity_delta == event.integrity_delta
-
-def test_episodic_memory_export_import():
-
-
-
-
-    cfg = load_config().memory
-
-    memory = EpisodicMemory(cfg)
-
-    memory.events.append(
-        EpisodicEvent(
-            tick=1,
-            event_type="test",
-            significance=1.0,
-
-            pos_x=1.0,
-            pos_y=2.0,
-
-            energy=50.0,
-            integrity=100.0,
-
-            stress=0.1,
-            fear=0.2,
-            drive=0.3,
-
-            energy_delta=-1.0,
-            integrity_delta=0.0,
-
-            stress_delta=0.0,
-            fear_delta=0.0,
-            drive_delta=0.0,
-        )
+    b = make_snapshot(
+        energy=90,
+        integrity=80,
+        stress=0.5,
+        fear=0.1,
+        drive=0.9,
     )
 
-    exported = memory.export_state()
+    d = memory.compute_deltas(a, b)
 
-    restored = EpisodicMemory(cfg)
-    restored.import_state(exported)
+    assert d["energy_delta"] == -10
+    assert d["integrity_delta"] == -10
+    assert d["stress_delta"] == pytest.approx(0.3)
+    assert d["fear_delta"] == pytest.approx(-0.2)
+    assert d["drive_delta"] == pytest.approx(0.5)
 
-    assert len(restored.events) == 1
-    assert restored.events[0].event_type == "test"
+
+def test_damage_spike_category():
+    mem = EpisodicMemory(load_config().memory)
+
+    snap = make_snapshot()
+
+    deltas = {
+        "energy_delta":0,
+        "integrity_delta":-999,
+        "stress_delta":0,
+        "fear_delta":0,
+        "drive_delta":0,
+    }
+
+    assert mem.categorize_event(deltas, snap) == "damage_spike"
+
+
+def test_food_recovery_category():
+    mem = EpisodicMemory(load_config().memory)
+
+    snap = make_snapshot()
+
+    deltas = {
+        "energy_delta":999,
+        "integrity_delta":0,
+        "stress_delta":0,
+        "fear_delta":0,
+        "drive_delta":0,
+    }
+
+    assert mem.categorize_event(deltas, snap) == "food_recovery"
+
+
+def test_hazard_category():
+    mem = EpisodicMemory(load_config().memory)
+
+    snap = make_snapshot(hazard_stim=1.0)
+
+    deltas = {
+        "energy_delta":0,
+        "integrity_delta":0,
+        "stress_delta":0,
+        "fear_delta":0,
+        "drive_delta":0,
+    }
+
+    assert mem.categorize_event(deltas, snap) == "hazard_encounter"
+
+
+def test_surprise_zero_before_minimum_samples():
+    mem = EpisodicMemory(load_config().memory)
+
+    assert mem.compute_surprise("energy_delta", 100) == 0
+
+
+def test_surprise_positive_after_training():
+    mem = EpisodicMemory(load_config().memory)
+
+    cfg = mem.cfg
+
+    for _ in range(cfg.episodic_min_samples):
+        mem._stats["energy_delta"].update(0)
+
+    surprise = mem.compute_surprise("energy_delta", 20)
+
+    assert surprise > 0
+
 
 def test_semantic_memory_export_import():
 
@@ -148,6 +209,7 @@ def test_semantic_memory_export_import():
     assert restored.internal_vel.x == 1.0
     assert restored.internal_vel.y == -2.0
 
+
 def test_memory_system_roundtrip():
 
     cfg = load_config().memory
@@ -160,4 +222,3 @@ def test_memory_system_roundtrip():
     restored.import_state(exported)
 
     assert restored.export_state() == exported
-

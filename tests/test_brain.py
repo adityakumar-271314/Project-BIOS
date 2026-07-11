@@ -4,6 +4,7 @@ from core.data_models import SensorPacket, SensedObject
 from core.vector import Vector2
 from core.memory.memory_system import MemorySystem
 
+
 class DummyEmotion:
     def __init__(self):
         self.drive = 1.0
@@ -14,11 +15,11 @@ class DummyEmotion:
 
 def test_food_creates_steering_force():
     cfg = load_config()
-
+    memory = MemorySystem(cfg.memory)
     brain = Brain(
         brain_cfg=cfg.brain,
         skill_cfg=cfg.skills,
-        memory_system=MemorySystem,
+        memory_system=memory,
     )
 
     sensors = SensorPacket(
@@ -43,13 +44,12 @@ def test_food_creates_steering_force():
 
 def test_thrust_is_clamped():
     cfg = load_config()
-
+    memory = MemorySystem(cfg.memory)
     brain = Brain(
         brain_cfg=cfg.brain,
         skill_cfg=cfg.skills,
-        memory_system=MemorySystem,
+        memory_system=memory,
     )
-
     emotions = DummyEmotion()
     emotions.fear = 100
 

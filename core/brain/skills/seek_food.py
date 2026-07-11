@@ -13,6 +13,7 @@ Supports two strategies:
 from .base import BaseSkill
 import math
 
+
 class SeekFoodSkill(BaseSkill):
 
     def execute(
@@ -47,15 +48,9 @@ class SeekFoodSkill(BaseSkill):
 
             wall_force = self._wall_force(sensor_data)
 
-            total_steer = (
-                food_force
-                + hazard_force
-                + wall_force
-            )
+            total_steer = food_force + hazard_force + wall_force
 
-            final_steer = self._smooth_steering(
-                total_steer
-            )
+            final_steer = self._smooth_steering(total_steer)
 
             thrust = self._calculate_thrust(
                 ehe,
@@ -85,15 +80,9 @@ class SeekFoodSkill(BaseSkill):
             agent_vel = memory_system.velocity
             heading = memory_system.internal_heading
             target_pos = goal.spatial_target.target_vector
-            radius = (
-                goal.spatial_target.hysteresis_radius
-                or 40.0
-            )
+            radius = goal.spatial_target.hysteresis_radius or 40.0
 
-            distance = (
-                target_pos - agent_pos
-            ).magnitude()
-
+            distance = (target_pos - agent_pos).magnitude()
 
             target_dir = target_pos - agent_pos
             target_angle = math.atan2(
@@ -101,8 +90,6 @@ class SeekFoodSkill(BaseSkill):
                 target_dir.x,
             )
 
-
-            
             # -------------------------------------------------
             # Reached remembered location
             # -------------------------------------------------
@@ -110,8 +97,7 @@ class SeekFoodSkill(BaseSkill):
             if distance <= radius:
 
                 food_visible = any(
-                    obj.type == "food"
-                    for obj in sensor_data.sensed_objects
+                    obj.type == "food" for obj in sensor_data.sensed_objects
                 )
 
                 if food_visible:
@@ -119,17 +105,11 @@ class SeekFoodSkill(BaseSkill):
 
                 else:
                     goal.status = "failed"
-                    print(
-                        f"[SEEK] Target failed: {target_pos}"
-                    )
+                    print(f"[SEEK] Target failed: {target_pos}")
 
                     if gsm is not None:
-                        gsm.blacklist_target_coordinate(
-                            target_pos
-                        )
-                        print(
-                            f"[SEEK] Goal status now {goal.status}"
-                        )
+                        gsm.blacklist_target_coordinate(target_pos)
+                        print(f"[SEEK] Goal status now {goal.status}")
 
                 return self._motor_output(
                     steer=0.0,
@@ -148,10 +128,8 @@ class SeekFoodSkill(BaseSkill):
 
             steer = -steer / math.pi  # Normalize to [-1, 1]
 
-            steer += self._wall_force(
-                sensor_data
-            )
-            
+            steer += self._wall_force(sensor_data)
+
             steer = self._clamp(
                 steer,
                 -1.0,
@@ -159,9 +137,9 @@ class SeekFoodSkill(BaseSkill):
             )
             self.last_steer = steer
             thrust = self._calculate_thrust(
-                                            ehe,
-                                            multiplier=profile.thrust_multiplier,
-                                        )
+                ehe,
+                multiplier=profile.thrust_multiplier,
+            )
 
             return self._motor_output(
                 steer=steer,

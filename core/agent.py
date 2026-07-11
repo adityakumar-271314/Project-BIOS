@@ -15,7 +15,6 @@ One `tick()` call represents one simulation step. It follows this flow:
 4. Update body physiology (energy, integrity, motion cost)
 """
 
-
 from core.memory.memory_system import MemorySystem
 
 from .body import BodyStateTracker
@@ -34,7 +33,7 @@ class Agent:
         self.brain = Brain(
             brain_cfg=self.config.brain,
             skill_cfg=self.config.skills,
-            memory_system=self.memory
+            memory_system=self.memory,
         )
         self.tick_count = 0
 
@@ -44,12 +43,13 @@ class Agent:
         dt = delta if delta is not None else sensor_data.delta
         self.ehe.update(self.bst, sensor_data)
         spatial_bias = self.memory.get_spatial_bias(
-                            radius=self.config.memory.bias_radius
-                    )
-        motor_output = self.brain.evaluate_priorities(self.ehe, 
-                                                      sensor_data, 
-                                                      spatial_bias,
-                                                      )
+            radius=self.config.memory.bias_radius
+        )
+        motor_output = self.brain.evaluate_priorities(
+            self.ehe,
+            sensor_data,
+            spatial_bias,
+        )
         current_goal = self.brain.gsm.active_goal
         current_skill = self.brain.adse.active_skill_name
         target_vector = None

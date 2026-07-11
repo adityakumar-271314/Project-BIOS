@@ -11,7 +11,6 @@ Simulates the agent's physical state including:
 This module implements the "body" side of the mind-body loop.
 """
 
-
 import math
 from .constants import MAX_ENERGY, MAX_INTEGRITY
 

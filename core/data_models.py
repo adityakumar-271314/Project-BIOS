@@ -7,8 +7,6 @@ Defines:
 - MotorOutput: Agent's actuator commands (thrust, steer)
 """
 
-
-
 from dataclasses import dataclass, field, asdict
 from typing import List
 from .vector import Vector2

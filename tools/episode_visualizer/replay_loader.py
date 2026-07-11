@@ -5,6 +5,24 @@ from core.memory.reconstruction.reconstruct import EpisodeReconstructor
 from tools.episode_visualizer.replay_session import ReplaySession, ReplayTick
 from tools.episode_visualizer.raw_extractor import RawTelemetryExtractor
 
+
+def load_metadata_from_storage(episode_folder_path: str | Path) -> dict:
+    """Fast-load only the lightweight metadata for UI previews and filtering."""
+    folder = Path(episode_folder_path)
+    metadata_file = folder / "metadata.json"
+
+    if not metadata_file.exists():
+        return {}
+
+    try:
+        import json
+
+        with open(metadata_file, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {}  # Return empty or handle gracefully if file is corrupted
+
+
 def load_from_storage(episode_folder_path: str | Path) -> ReplaySession:
     folder = Path(episode_folder_path)
 
@@ -14,9 +32,11 @@ def load_from_storage(episode_folder_path: str | Path) -> ReplaySession:
     loader = EpisodeLoader()
     episodic_event = loader.load(folder)
 
-    root_telemetry_file = Path.cwd() / "telemetry.jsonl" 
+    root_telemetry_file = Path.cwd() / "telemetry.jsonl"
     extractor = RawTelemetryExtractor(root_telemetry_file)
-    raw_path_list, raw_metric_map = extractor.extract_range(episodic_event.start_tick, episodic_event.end_tick)
+    raw_path_list, raw_metric_map = extractor.extract_range(
+        episodic_event.start_tick, episodic_event.end_tick
+    )
 
     reconstructor = EpisodeReconstructor()
     reconstructed_ticks = reconstructor.reconstruct(episodic_event)
@@ -25,18 +45,17 @@ def load_from_storage(episode_folder_path: str | Path) -> ReplaySession:
         raise ValueError("Reconstruction produced an empty sequence of frame ticks.")
 
     validated_ticks = []
-    min_x, min_y = float('inf'), float('inf')
-    max_x, max_y = float('-inf'), float('-inf')
-    
+    min_x, min_y = float("inf"), float("inf")
+    max_x, max_y = float("-inf"), float("-inf")
 
     for idx, rt in enumerate(reconstructed_ticks):
-        if not all(hasattr(rt, k) for k in ['tick', 'pos_x', 'pos_y', 'heading']):
+        if not all(hasattr(rt, k) for k in ["tick", "pos_x", "pos_y", "heading"]):
             raise ValueError("Corrupted tick data: missing geometric components.")
-            
+
         x, y = float(rt.pos_x), float(rt.pos_y)
         min_x, max_x = min(min_x, x), max(max_x, x)
         min_y, max_y = min(min_y, y), max(max_y, y)
-        
+
         # Calculate drift if corresponding raw data point exists
         drift_val = 0.0
         if idx < len(raw_path_list):
@@ -45,12 +64,18 @@ def load_from_storage(episode_folder_path: str | Path) -> ReplaySession:
 
         validated_ticks.append(
             ReplayTick(
-                tick=int(rt.tick), pos_x=x, pos_y=y, heading=float(rt.heading),
-                energy=float(rt.energy), integrity=float(rt.integrity),
-                stress=float(rt.stress), fear=float(rt.fear), drive=float(rt.drive),
-                confidence=float(getattr(rt, 'confidence', 1.0)),
-                anchor=bool(getattr(rt, 'anchor', False)),
-                drift=drift_val
+                tick=int(rt.tick),
+                pos_x=x,
+                pos_y=y,
+                heading=float(rt.heading),
+                energy=float(rt.energy),
+                integrity=float(rt.integrity),
+                stress=float(rt.stress),
+                fear=float(rt.fear),
+                drive=float(rt.drive),
+                confidence=float(getattr(rt, "confidence", 1.0)),
+                anchor=bool(getattr(rt, "anchor", False)),
+                drift=drift_val,
             )
         )
 
@@ -64,10 +89,10 @@ def load_from_storage(episode_folder_path: str | Path) -> ReplaySession:
         camera_bounds=(min_x - 10, min_y - 10, max_x + 10, max_y + 10),
         metadata=episodic_event.to_dict().get("metadata", {}),
         raw_path=tuple(raw_path_list),
-        raw_metrics=raw_metric_map
+        raw_metrics=raw_metric_map,
     )
-    
+
     if not session.validate():
         raise ValueError("ReplaySession structural integrity check failed.")
-        
+
     return session

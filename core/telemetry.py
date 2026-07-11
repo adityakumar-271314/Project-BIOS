@@ -5,8 +5,6 @@ Logs key internal state variables each tick for post-run analysis and
 visualization.
 """
 
-
-
 from dataclasses import dataclass, asdict
 from typing import Dict, Any
 import json

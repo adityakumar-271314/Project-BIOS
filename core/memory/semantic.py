@@ -319,7 +319,9 @@ class SemanticMemory:
                     # Also update the stored landmark position with the *new*
                     # implied location so highly-mobile "landmarks" can track
                     if record.observation_count < self.cfg.landmark_confidence_divisor:
-                        stored_update_alpha = self.cfg.landmark_update_alpha * confidence
+                        stored_update_alpha = (
+                            self.cfg.landmark_update_alpha * confidence
+                        )
                         new_landmark_pos = self.internal_pos + offset
                         record.pos = record.pos.lerp(
                             new_landmark_pos,
@@ -385,14 +387,14 @@ class SemanticMemory:
             (cx + 0.5) * self._cell_size,
             (cy + 0.5) * self._cell_size,
         )
-    
+
     def get_map_data(self):
         return {
             "grid": self._grid,
             "landmarks": self._landmarks,
             "position": self.internal_pos,
-            "cell_size": self._cell_size
-    }
+            "cell_size": self._cell_size,
+        }
 
     def import_state(self, data: dict) -> None:
 
@@ -439,17 +441,14 @@ class SemanticMemory:
 
         return {
             "tick": self._tick,
-
             "position": {
                 "x": self.internal_pos.x,
                 "y": self.internal_pos.y,
             },
-
             "velocity": {
                 "x": self.internal_vel.x,
                 "y": self.internal_vel.y,
             },
-
             "landmarks": {
                 str(obj_id): {
                     "x": record.pos.x,
@@ -459,7 +458,6 @@ class SemanticMemory:
                 }
                 for obj_id, record in self._landmarks.items()
             },
-
             "grid": {
                 f"{cx},{cy}": {
                     "hazard": cell.hazard,

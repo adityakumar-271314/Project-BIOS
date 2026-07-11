@@ -1,5 +1,6 @@
 import pygame
 
+
 class Scene:
     def __init__(self, controller):
         self.controller = controller

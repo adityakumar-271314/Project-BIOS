@@ -5,33 +5,29 @@ Routes the selected goal to the appropriate Skill implementation and
 returns concrete motor commands.
 """
 
-
-
 from .skills.wander import WanderSkill
 from .skills.seek_food import SeekFoodSkill
 from .skills.avoid_hazard import AvoidHazardSkill
 
 
 class ActionDispatcher:
-    
+
     def __init__(self, brain_cfg, skill_cfg, memory_system):
 
         self.cfg = brain_cfg
         self.skill_cfg = skill_cfg
         self.memory_system = memory_system
-        self.active_skill_name = "wander" 
+        self.active_skill_name = "wander"
 
         self.skills = {
             "wander": WanderSkill(
                 brain_cfg,
                 skill_cfg,
             ),
-
             "seek_food": SeekFoodSkill(
                 brain_cfg,
                 skill_cfg,
             ),
-
             "avoid_hazard": AvoidHazardSkill(
                 brain_cfg,
                 skill_cfg,
@@ -53,10 +49,10 @@ class ActionDispatcher:
         self.active_skill_name = goal.name if goal.name in self.skills else "wander"
 
         return skill.execute(
-                            goal=goal,
-                            ehe=ehe,
-                            sensor_data=sensor_data,
-                            spatial_bias=spatial_bias,
-                            memory_system=memory_system,
-                            gsm=gsm,
-                        )
+            goal=goal,
+            ehe=ehe,
+            sensor_data=sensor_data,
+            spatial_bias=spatial_bias,
+            memory_system=memory_system,
+            gsm=gsm,
+        )

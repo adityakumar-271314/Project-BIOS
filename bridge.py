@@ -20,7 +20,8 @@ Key responsibilities:
 TCP Bridge between Godot Simulation and Python Cognition Engine.
 """
 import os
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 import math
 import socket
 import json
@@ -38,16 +39,18 @@ from core.replay import (
     ReplayFrame,
 )
 
+
 # Export this encoder to use inside core.replay and core.telemetry if they save JSON!
 class BIOSNetworkEncoder(json.JSONEncoder):
     def default(self, obj):
-        if hasattr(obj, 'to_dict'):
+        if hasattr(obj, "to_dict"):
             return obj.to_dict()
         return super().default(obj)
-    
+
+
 def get_new_minimized_memories(agent, tracker_state={"last_sent_index": 0}):
     """
-    Slices newly formed memories since the last sync tick and strips them 
+    Slices newly formed memories since the last sync tick and strips them
     down to the bare minimum fields to eliminate network choking.
     """
     all_memories = agent.memory.get_debug_memories()
@@ -56,19 +59,20 @@ def get_new_minimized_memories(agent, tracker_state={"last_sent_index": 0}):
     if total_memories > tracker_state["last_sent_index"]:
         for i in range(tracker_state["last_sent_index"], total_memories):
             mem = all_memories[i]
-            
+
             minimized_packet = {
-                "peak_tick": mem.get("peak_tick"), 
-                "event_type": mem.get("event_type"), 
-                "peak_significance": mem.get("peak_significance"), 
-                "peak_position": mem.get("peak_position") 
+                "peak_tick": mem.get("peak_tick"),
+                "event_type": mem.get("event_type"),
+                "peak_significance": mem.get("peak_significance"),
+                "peak_position": mem.get("peak_position"),
             }
             new_minimized.append(minimized_packet)
-            
+
         tracker_state["last_sent_index"] = total_memories
-        
+
     return new_minimized
-    
+
+
 def run_brain_server():
     host = "127.0.0.1"
     port = 9999
@@ -81,7 +85,7 @@ def run_brain_server():
 
     conn, addr = server.accept()
     client_file = conn.makefile("rw", encoding="utf-8")
-    
+
     # --- FIXED INDENTATION START ---
     cfg = load_config()
     init_packet = {
@@ -90,12 +94,12 @@ def run_brain_server():
     }
     client_file.write(json.dumps(init_packet) + "\n")
     client_file.flush()
-    
+
     agent = Agent()
     telemetry = TelemetryRecorder()
     replay = ReplayRecorder()
     path_log = []
-    DEBUG = False # Set to True to enable detailed debug output each tick
+    DEBUG = False  # Set to True to enable detailed debug output each tick
 
     try:
         while True:
@@ -136,7 +140,7 @@ def run_brain_server():
                 )
             )
             path_log.append(agent.memory.internal_pos.copy())
-            
+
             replay.record(
                 ReplayFrame(
                     tick=agent.tick_count,
@@ -160,7 +164,11 @@ def run_brain_server():
                 "fear": agent.ehe.fear,
                 "drive": agent.ehe.drive,
                 "alive": agent.bst.is_alive,
-                "current_goal": agent.brain.gsm.active_goal.name if agent.brain.gsm.active_goal else "Wander",
+                "current_goal": (
+                    agent.brain.gsm.active_goal.name
+                    if agent.brain.gsm.active_goal
+                    else "Wander"
+                ),
                 "landmark_count": len(agent.memory.landmarks),
                 "grid_cells": len(agent.memory.semantic._grid),
                 "new_memories": get_new_minimized_memories(agent),
@@ -182,9 +190,13 @@ def run_brain_server():
 
                 print("-" * 50)
                 print(f"REAL POSITION:   ({real_pos_x:.1f}, {real_pos_y:.1f})")
-                print(f"MENTAL ESTIMATE: ({mental_in_godot_x:.1f}, {mental_in_godot_y:.1f})")
+                print(
+                    f"MENTAL ESTIMATE: ({mental_in_godot_x:.1f}, {mental_in_godot_y:.1f})"
+                )
                 print(f"DRIFT ERROR:     {drift_distance:.2f} pixels")
-                print(f"MEMORY STATS:    Cells: {len(agent.memory.semantic._grid)} | Landmarks: {len(agent.memory.semantic._landmarks)}")
+                print(
+                    f"MEMORY STATS:    Cells: {len(agent.memory.semantic._grid)} | Landmarks: {len(agent.memory.semantic._landmarks)}"
+                )
 
                 if drift_distance > DRIFT_WARNING_THRESHOLD:
                     print("WARNING: Agent is experiencing high spatial drift!")
@@ -199,5 +211,6 @@ def run_brain_server():
         server.close()
         run_visualizer(agent.memory.semantic, path=path_log)
 
-if __name__ == "__main__":       
+
+if __name__ == "__main__":
     run_brain_server()

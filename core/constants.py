@@ -5,8 +5,6 @@ Includes mathematical constants, safety thresholds, coordinate system
 offsets between Godot and internal memory space, and default simulation values.
 """
 
-
-
 import math
 
 # === MATHEMATICAL CONSTANTS ===

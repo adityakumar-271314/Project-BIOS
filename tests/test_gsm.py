@@ -2,6 +2,7 @@ from core.brain.gsm import GoalStackManager
 from core.config_loader import load_config
 from core.data_models import SensorPacket, SensedObject
 from core.brain.gsm import Goal
+from core.memory.memory_system import MemorySystem
 
 class DummyEmotion:
     def __init__(self):
@@ -12,10 +13,11 @@ class DummyEmotion:
 
 def build_gsm():
     cfg = load_config()
-
+    memory_system = MemorySystem(cfg.memory)
     return GoalStackManager(
         cfg.brain,
         cfg.skills,
+        memory_system=memory_system
     )
 
 
@@ -37,9 +39,9 @@ def test_goal_persistence():
     )
 
     first_goal: Goal = gsm.evaluate_goal(
-    emotions,
-    sensors,
-)
+        emotions,
+        sensors,
+    )
 
     second_goal: Goal = gsm.evaluate_goal(
         emotions,

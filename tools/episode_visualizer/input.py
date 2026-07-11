@@ -1,5 +1,6 @@
 import pygame
 
+
 def handle_playback_input(event: pygame.event.Event, scene) -> bool:
     """Handles inputs specifically while an episode is actively playing back."""
     if event.type != pygame.KEYDOWN:

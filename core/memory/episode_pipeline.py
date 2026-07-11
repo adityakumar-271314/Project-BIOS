@@ -1,5 +1,6 @@
 from .episode_builder import EpisodeBuilder
 
+
 class EpisodePipeline:
     def __init__(self, episodic_memory, temporal_buffer):
         self.builder = EpisodeBuilder()

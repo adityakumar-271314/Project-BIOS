@@ -48,9 +48,7 @@ class TemporalBuffer:
         return len(self._snapshots)
 
     def get_range(self, start_tick: int, end_tick: int) -> List[TickSnapshot]:
-        return [
-            snap for snap in self._snapshots if start_tick <= snap.tick <= end_tick
-        ]
+        return [snap for snap in self._snapshots if start_tick <= snap.tick <= end_tick]
 
     def find_tick(self, tick: int) -> TickSnapshot | None:
         for snap in self._snapshots:
@@ -95,7 +93,9 @@ class TemporalBuffer:
         start_tick = center_tick - before_ticks
         end_tick = center_tick + after_ticks
         return [
-            frame for frame in self._frames if start_tick <= frame.snapshot.tick <= end_tick
+            frame
+            for frame in self._frames
+            if start_tick <= frame.snapshot.tick <= end_tick
         ]
 
     def capture(
@@ -137,8 +137,12 @@ class TemporalBuffer:
             target_y=getattr(target, "y", None),
             # environment summary
             visible_food=sum(1 for obj in sensors.sensed_objects if obj.type == "food"),
-            visible_hazards=sum(1 for obj in sensors.sensed_objects if obj.type == "hazard"),
-            visible_landmarks=sum(1 for obj in sensors.sensed_objects if obj.type == "landmark"),
+            visible_hazards=sum(
+                1 for obj in sensors.sensed_objects if obj.type == "hazard"
+            ),
+            visible_landmarks=sum(
+                1 for obj in sensors.sensed_objects if obj.type == "landmark"
+            ),
             hazard_stim=sensors.hazard_stim,
             food_stim=sensors.food_stim,
         )

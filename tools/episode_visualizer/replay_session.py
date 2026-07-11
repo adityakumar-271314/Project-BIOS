@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Tuple, Any, Dict
 from types import MappingProxyType
 
+
 @dataclass(frozen=True, slots=True)
 class ReplayTick:
     tick: int
@@ -17,6 +18,7 @@ class ReplayTick:
     anchor: bool
     drift: float = 0.0
 
+
 @dataclass(frozen=True, slots=True)
 class ReplaySession:
     name: str
@@ -26,7 +28,7 @@ class ReplaySession:
     statistics: Dict[str, Any]
     camera_bounds: Tuple[float, float, float, float]
     metadata: Dict[str, Any]
-    raw_path: Tuple[Tuple[float, float], ...] = () 
+    raw_path: Tuple[Tuple[float, float], ...] = ()
     raw_metrics: Dict[int, Dict[str, float]] = None
     schema_version: str = "1.0"
 
@@ -44,7 +46,7 @@ class ReplaySession:
             return False
         if self.schema_version != "1.0":
             return False
-            
+
         # Verify sequential ordering, coordinate sanity, and extreme corruption indicators
         last_tick = -1
         for t in self.ticks:
@@ -53,5 +55,5 @@ class ReplaySession:
             if t.confidence < 0.0 or t.confidence > 1.0:  # Range bound violation
                 return False
             last_tick = t.tick
-            
+
         return True

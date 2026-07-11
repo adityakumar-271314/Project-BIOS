@@ -5,7 +5,6 @@ Implements goal-specific behavior by combining relevant steering forces with pro
 weights and thrust modifiers.
 """
 
-
 from .base import BaseSkill
 
 
@@ -29,10 +28,7 @@ class AvoidHazardSkill(BaseSkill):
 
         wall_force = self._wall_force(sensor_data)
 
-        total_steer = (
-            hazard_force
-            + wall_force
-        )
+        total_steer = hazard_force + wall_force
 
         final_steer = self._smooth_steering(total_steer)
 

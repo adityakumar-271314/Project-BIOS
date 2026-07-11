@@ -6,8 +6,6 @@ SimulationConfig dataclass instances with proper nesting of skill profiles
 and subsystem configurations.
 """
 
-
-
 import json
 from .config_classes import (
     RuntimeConfig,
@@ -32,22 +30,12 @@ def load_config(path: str = "config.json") -> SimulationConfig:
     skill_data = data["skills"]
 
     skills = SkillsConfig(
-        wander=WanderProfile(
-            **skill_data["wander"]
-        ),
-
-        seek_food=SeekFoodProfile(
-            **skill_data["seek_food"]
-        ),
-
-        avoid_hazard=AvoidHazardProfile(
-            **skill_data["avoid_hazard"]
-        ),
+        wander=WanderProfile(**skill_data["wander"]),
+        seek_food=SeekFoodProfile(**skill_data["seek_food"]),
+        avoid_hazard=AvoidHazardProfile(**skill_data["avoid_hazard"]),
     )
 
-    brain_cfg = BrainConfig(
-        **brain_data
-    )
+    brain_cfg = BrainConfig(**brain_data)
 
     return SimulationConfig(
         simulation=RuntimeConfig(**data["simulation"]),

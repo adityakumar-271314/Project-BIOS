@@ -38,10 +38,9 @@ class ErrorScene(Scene):
     def render(self, screen: pygame.Surface):
         screen.fill(BACKGROUND)
 
-            
         self.controller.ui.update(screen)
         ui = self.controller.ui
-        
+
         panel_w = ui.w(780)
         panel_h = ui.h(300)
         panel_x = (ui.w(WINDOW_WIDTH) - panel_w) // 2
@@ -148,5 +147,7 @@ class ErrorScene(Scene):
 
         screen.blit(
             hint,
-            hint.get_rect(center=(ui.w(WINDOW_WIDTH) // 2, panel_y + panel_h - ui.h(32))),
+            hint.get_rect(
+                center=(ui.w(WINDOW_WIDTH) // 2, panel_y + panel_h - ui.h(32))
+            ),
         )
