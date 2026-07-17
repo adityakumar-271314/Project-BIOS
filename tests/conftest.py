@@ -1,5 +1,5 @@
 import pytest
-from core.config_loader import load_config
+from infra.config_loader import load_config
 
 
 @pytest.fixture(scope="session")

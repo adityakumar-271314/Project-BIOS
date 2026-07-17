@@ -1,7 +1,7 @@
 from core.emotions import EmotionHormoneEngine
-from core.config_loader import load_config
+from infra.config_loader import load_config
 from core.body import BodyStateTracker
-from core.data_models import SensorPacket
+from infra.data_models import SensorPacket
 
 
 def test_fear_increases_with_hazard():

@@ -1,5 +1,5 @@
 from core.agent import Agent
-from core.data_models import SensorPacket
+from infra.data_models import SensorPacket
 
 
 def test_full_simulation_loop():

@@ -11,13 +11,16 @@ This is the core spatial cognition module.
 """
 
 from __future__ import annotations
-
 import math
+import json
+import os
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
-from ..data_models import SensorPacket
-from ..constants import MIN_NORMAL_LENGTH
-from ..vector import Vector2
+from infra.data_models import SensorPacket
+from infra.constants import MIN_NORMAL_LENGTH
+from core.vector import Vector2
+
 
 # ---------------------------------------------------------------------------
 # Data containers
@@ -467,3 +470,101 @@ class SemanticMemory:
                 for (cx, cy), cell in self._grid.items()
             },
         }
+
+    # ============================================================================
+    # Persistence Interface (Continuation & Lifecycle Management)
+    # ============================================================================
+
+    def initialize_run_state(
+        self,
+        continuation: bool,
+        storage_path: str = "spatial_memory_state.json",
+    ) -> None:
+        """
+        Initialize the memory system for a new simulation run.
+
+        This method is intended to be called immediately after creating a
+        ``SemanticMemory`` instance. Depending on the value of ``continuation``,
+        it either restores a previously saved state or starts from a clean state.
+
+        Parameters
+        ----------
+        continuation : bool
+            If True, attempts to restore the memory state from ``storage_path``.
+            If the file is missing or cannot be deserialized, the system falls
+            back to a clean initialization.
+
+            If False, all previous state is discarded and a fresh run begins.
+
+        storage_path : str, optional
+            Path to the JSON file used for persistent storage.
+        """
+
+        if continuation and os.path.exists(storage_path):
+            try:
+                with open(storage_path, "r", encoding="utf-8") as f:
+                    state = json.load(f)
+
+                self.import_state(state)
+                return
+
+            except (json.JSONDecodeError, KeyError, ValueError):
+                print("Saved file is incompatible or corrupted.")
+                print("Failed to load persisted state. Falling back to a clean initialization.")
+                pass
+
+        # Default behaviour:
+        #   • continuation=False
+        #   • save file missing
+        #   • save file corrupted
+        self.reset_state(storage_path)
+
+
+    def shutdown_and_save(
+        self,
+        storage_path: str = "spatial_memory_state.json",
+    ) -> None:
+        """
+        Persist the complete semantic memory state to disk.
+
+        This should be called during normal application shutdown so that the next
+        run can optionally resume from the saved state.
+        """
+
+        state = self.export_state()
+
+        storage_file = Path(storage_path)
+        storage_file.parent.mkdir(parents=True, exist_ok=True)
+
+        with storage_file.open("w", encoding="utf-8") as f:
+            json.dump(state, f, indent=4)
+        print(f"Semantic memory state saved to {storage_file.resolve()}")
+
+    def reset_state(
+        self,
+        storage_path: str = "spatial_memory_state.json",
+    ) -> None:
+        """
+        Reset all runtime memory and remove any existing persisted state.
+
+        Calling this guarantees that subsequent runs begin with an empty semantic
+        memory and that stale save files cannot accidentally be reused.
+        """
+
+        # Reset runtime variables
+        self._tick = 0
+        self.internal_pos = Vector2(0.0, 0.0)
+        self.internal_vel = Vector2(0.0, 0.0)
+        self.internal_heading = 0.0
+
+        # Clear stored knowledge
+        self._landmarks.clear()
+        self._grid.clear()
+
+        # Remove persisted state if present
+        try:
+            Path(storage_path).unlink(missing_ok=True)
+        except OSError:
+            print(f"Warning: Could not delete {storage_path}. Please check permissions.")
+
+            

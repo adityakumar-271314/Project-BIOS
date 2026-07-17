@@ -40,19 +40,19 @@ class GoalStackManager:
         Main goal evaluation entrypoint.
         """
         memory_system = self.memory_system
-        # 1. Check if the active goal should continue persisting
+        # Check if the active goal should continue persisting
         if self._should_keep_goal(ehe):
             self.goal_age += 1
             assert self.active_goal is not None
             return self.active_goal
 
-        # 2. If it shouldn't persist, manage interruptions or fetch a new goal
+        # If it shouldn't persist, manage interruptions or fetch a new goal
         new_goal: Goal = self._select_goal(
             ehe,
             sensor_data,
         )
 
-        # 3. Interruption logic: If a high priority hazard overrides an incomplete memory search,
+        # Interruption logic: If a high priority hazard overrides an incomplete memory search,
         # preserve the current spatial goal onto the stack so we can resume later.
         if (
             self.active_goal
@@ -63,7 +63,7 @@ class GoalStackManager:
             if not any(g.name == "seek_food" for g in self.goal_stack):
                 self.goal_stack.append(self.active_goal)
 
-        # 4. If shifting back to normal and we have an interrupted goal, resume it
+        # If shifting back to normal and we have an interrupted goal, resume it
         if new_goal.name == "wander" and self.goal_stack:
             resumed_goal = self.goal_stack.pop()
             # Verify if resumed goal is spatial and hasn't been cleared/blacklisted
@@ -75,7 +75,7 @@ class GoalStackManager:
                 if spot_key not in self._blacklisted_food_spots:
                     new_goal = resumed_goal
 
-        # 5. Apply telemetry print hooks
+        # Apply telemetry print hooks
         if self.active_goal is None or self.active_goal.name != new_goal.name:
             print(
                 f"[GSM] Goal Change: "

@@ -8,7 +8,8 @@ extends CharacterBody2D
 
 var current_normals = []
 var prev_vel = Vector2.ZERO 
-
+var consumed_food_ids: Array[int] = []
+#var velocity: Vector2 = Vector2.ZERO
 
 func get_sensory_data() -> Dictionary:
 	var cur_vel = get_real_velocity()
@@ -68,6 +69,7 @@ func get_sensory_data() -> Dictionary:
 				"id": u_id, "type": type, "dist": to_obj.length(), 
 				"angle": Vector2.RIGHT.rotated(rotation).angle_to(to_obj)
 			})
+	data["consumed_food_ids"] = consumed_food_ids
 	return data
 
 func execute_move(motor_data: Dictionary):

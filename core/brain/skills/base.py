@@ -8,7 +8,7 @@ thrust modulation) inherited by all concrete skills.
 import random
 import math
 from core.vector import Vector2
-from ...data_models import MotorOutput
+from infra.data_models import MotorOutput
 
 
 class BaseSkill:

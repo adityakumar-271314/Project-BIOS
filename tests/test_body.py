@@ -1,5 +1,5 @@
 from core.body import BodyStateTracker
-from core.config_loader import load_config
+from infra.config_loader import load_config
 
 
 def test_energy_decreases_after_update():

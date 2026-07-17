@@ -29,7 +29,6 @@ from tools.episode_visualizer.replay_loader import (
 )
 from tools.episode_visualizer.scenes.base import Scene
 
-
 class BrowserScene(Scene):
     def __init__(self, controller):
         super().__init__(controller)

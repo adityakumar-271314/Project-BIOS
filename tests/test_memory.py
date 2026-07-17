@@ -1,12 +1,12 @@
 import pytest
 from core.memory.memory_system import MemorySystem
 from core.memory.semantic import SemanticMemory
-from core.config_loader import load_config
-from core.data_models import SensorPacket
+from infra.config_loader import load_config
+from infra.data_models import SensorPacket
 from core.vector import Vector2
 from core.memory.schemas import TickSnapshot
 from core.memory.episodic import EpisodicMemory
-from core.config_loader import load_config
+from infra.config_loader import load_config
 
 
 def test_odometry_updates_position():
@@ -35,7 +35,7 @@ def test_hazard_memory_recorded():
 
 
 def test_landmark_registration():
-    from core.data_models import SensedObject
+    from infra.data_models import SensedObject
 
     mem = SemanticMemory(load_config().memory)
 

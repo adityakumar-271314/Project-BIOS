@@ -57,11 +57,16 @@ func _send_to_python():
 				food_stim = 20.0
 			
 			# Delete the food (and its parent if it's a sub-area)
-			if thing.get_parent().is_in_group("food") and thing.get_parent() != get_tree().root:
-				thing.get_parent().queue_free()
-			else:
-				thing.queue_free()
-	
+			#if thing.get_parent().is_in_group("food") and thing.get_parent() != get_tree().root:
+				#thing.get_parent().queue_free()
+			#else:
+				#thing.queue_free()
+				
+				var food_object: Node = thing
+				if thing.get_parent().is_in_group("food"):
+					food_object = thing.get_parent()
+
+				_consume_food(food_object)
 	packet["hazard_stim"] = hazard_stim
 	packet["food_stim"] = food_stim
 	
@@ -79,9 +84,10 @@ func _receive_from_python():
 					for short_mem in data["new_memories"]:
 						episodic_memories.append(short_mem)
 				if data.get("type") == "INIT":
-					var world = get_node("../../WorldGenerator")
-					var seed_val = data.get("world_seed", 42) 
-					world.initialize_world(seed_val)
+					#var world = get_node("../../WorldGenerator")
+					#var seed_val = data.get("world_seed", 42) 
+					#world.initialize_world(seed_val)
+					_handle_init(data)
 					continue
 				waiting_for_brain = false # We got our answer, allowed to send again
 				ui.update_display(data)
@@ -91,3 +97,50 @@ func _receive_from_python():
 					set_process(false) # Stop the brain link
 				else:
 					agent.execute_move(data)
+
+func _consume_food(food_object: Node) -> void:
+	var food_id = food_object.get_meta("unique_id", -1)
+
+	if food_id != -1:
+		agent.consumed_food_ids.append(food_id)
+
+	food_object.queue_free()
+	
+func _handle_init(data: Dictionary) -> void:
+	var world = get_node("../../WorldGenerator")
+
+	var world_seed: int = data.get("world_seed", 42)
+	var continuation: bool = data.get("continuation", false)
+	var consumed_food_ids: Array = data.get("consumed_food_ids", [])
+
+	world.initialize_world(
+		world_seed,
+		continuation,
+		consumed_food_ids
+	)
+
+	if continuation:
+		_restore_agent_state(data.get("agent_state", {}))
+		
+func _restore_agent_state(state: Dictionary) -> void:
+	if state.is_empty():
+		return
+
+	# Directly assign exact physical attributes saved from the last live sensors tick
+	agent.global_position = Vector2(
+		state.get("internal_pos_x", agent.global_position.x),
+		state.get("internal_pos_y", agent.global_position.y)
+	)
+
+	agent.velocity = Vector2(
+		state.get("internal_vel_x", 0.0),
+		state.get("internal_vel_y", 0.0)
+	)
+	
+	if state.has("rotation"):
+		# Set direct match polarity as we are using the raw sensor value saved at shutdown
+		agent.rotation = state.get("rotation", 0.0)
+		
+	# Pass tick reference downstream to UI layer rather than setting it on the agent body
+	if state.has("tick_count") and ui.has_method("set_tick_display"):
+		ui.set_tick_display(int(state["tick_count"]))

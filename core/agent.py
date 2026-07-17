@@ -16,12 +16,11 @@ One `tick()` call represents one simulation step. It follows this flow:
 """
 
 from core.memory.memory_system import MemorySystem
-
-from .body import BodyStateTracker
-from .emotions import EmotionHormoneEngine
+from core.body import BodyStateTracker
+from core.emotions import EmotionHormoneEngine
 from core.brain.brain import Brain
-from .config_loader import load_config
-
+from infra.config_loader import load_config
+from infra.agent_state import AgentState
 
 class Agent:
     def __init__(self, config_path="config.json"):
@@ -74,3 +73,24 @@ class Agent:
         )
 
         return motor_output
+
+    def export_state(self) -> AgentState:
+        return AgentState.from_agent(self)
+
+    def import_state(self, state: AgentState) -> None:
+        self.tick_count = state.tick_count
+
+        self.bst.energy = state.energy
+        self.bst.integrity = state.integrity
+
+        self.ehe.stress = state.stress
+        self.ehe.fear = state.fear
+        self.ehe.drive = state.drive
+
+        self.memory.internal_pos.x = state.internal_pos_x
+        self.memory.internal_pos.y = state.internal_pos_y
+
+        self.memory.internal_vel.x = state.internal_vel_x
+        self.memory.internal_vel.y = state.internal_vel_y
+
+        self.bst.is_alive = state.is_alive

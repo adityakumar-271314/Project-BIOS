@@ -10,7 +10,7 @@ stimuli (hazards, walls) into internal drives:
 These signals modulate both goal selection and motor behavior.
 """
 
-from .constants import MAX_ENERGY, MAX_INTEGRITY
+from infra.constants import MAX_ENERGY, MAX_INTEGRITY
 
 
 class EmotionHormoneEngine:

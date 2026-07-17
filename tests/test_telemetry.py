@@ -1,4 +1,4 @@
-from core.telemetry import TickTelemetry
+from infra.telemetry import TickTelemetry
 
 
 def test_telemetry_to_dict():

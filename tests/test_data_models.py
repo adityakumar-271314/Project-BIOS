@@ -1,4 +1,4 @@
-from core.data_models import SensorPacket
+from infra.data_models import SensorPacket
 
 
 def test_sensor_packet_defaults():

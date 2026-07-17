@@ -1,4 +1,4 @@
-from core.config_loader import load_config
+from infra.config_loader import load_config
 
 
 def test_config_loads():

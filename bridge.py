@@ -20,32 +20,28 @@ Key responsibilities:
 TCP Bridge between Godot Simulation and Python Cognition Engine.
 """
 import os
-
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 import math
 import socket
 import json
 from core.agent import Agent
-from core.config_loader import load_config
-from core.constants import SPAWN_OFFSET_X, SPAWN_OFFSET_Y, DRIFT_WARNING_THRESHOLD
-from core.data_models import SensorPacket
+from infra.config_loader import load_config
+from infra.constants import SPAWN_OFFSET_X, SPAWN_OFFSET_Y, DRIFT_WARNING_THRESHOLD
+from infra.data_models import SensorPacket
+from infra.run_manager import (
+    setup_run_session,
+    load_world_state,
+)
 from tools.visualizer import run_visualizer
-from core.telemetry import (
+from infra.json import BIOSJsonEncoder
+from infra.telemetry import (
     TelemetryRecorder,
     TickTelemetry,
 )
-from core.replay import (
+from infra.replay import (
     ReplayRecorder,
     ReplayFrame,
 )
-
-
-# Export this encoder to use inside core.replay and core.telemetry if they save JSON!
-class BIOSNetworkEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if hasattr(obj, "to_dict"):
-            return obj.to_dict()
-        return super().default(obj)
 
 
 def get_new_minimized_memories(agent, tracker_state={"last_sent_index": 0}):
@@ -56,15 +52,18 @@ def get_new_minimized_memories(agent, tracker_state={"last_sent_index": 0}):
     all_memories = agent.memory.get_debug_memories()
     total_memories = len(all_memories)
     new_minimized = []
+    
     if total_memories > tracker_state["last_sent_index"]:
         for i in range(tracker_state["last_sent_index"], total_memories):
             mem = all_memories[i]
 
+            # Structural map matching metadata_index field constraints
             minimized_packet = {
                 "peak_tick": mem.get("peak_tick"),
                 "event_type": mem.get("event_type"),
                 "peak_significance": mem.get("peak_significance"),
-                "peak_position": mem.get("peak_position"),
+                "peak_x": mem.get("peak_x"),
+                "peak_y": mem.get("peak_y"),
             }
             new_minimized.append(minimized_packet)
 
@@ -81,28 +80,64 @@ def run_brain_server():
     server.bind((host, port))
     server.listen()
 
+    cfg = load_config()
+    run_dir = setup_run_session()
+    world_state = load_world_state(
+        run_dir,
+        cfg.simulation.world_seed,
+    )
     print(f"BIOS Brain Server active on {host}:{port}. Waiting for Godot...")
 
     conn, addr = server.accept()
     client_file = conn.makefile("rw", encoding="utf-8")
 
-    # --- FIXED INDENTATION START ---
-    cfg = load_config()
+    
+    # manifest_path = run_dir / "episodes" / "manifest.json"
+    # is_continuation = manifest_path.exists()
+    is_continuation = world_state.continuation
+    agent = Agent() 
+    telemetry = TelemetryRecorder(path=str(run_dir / "telemetry.json"))
+    replay = ReplayRecorder(path=str(run_dir / "replay.json"))
+    path_log = []
+    # Load previous run state if continuing
+    eaten_food_ids = []
+    
+    if is_continuation:
+        agent.memory.initialize_run_state(
+            continuation=True, 
+            storage_path=str(run_dir / "spatial_memory_state.json")
+        )
+        agent.import_state(world_state.agent_state)
+        # Load the run-specific world state metadata
+        world_state_path = run_dir / "world_state.json"
+        if world_state_path.exists():
+            with open(world_state_path, "r") as f:
+                world_state_data = json.load(f)
+                eaten_food_ids = world_state_data.get("eaten_food_ids", [])
+    else:
+        agent.memory.reset_state(
+            storage_path=str(run_dir / "spatial_memory_state.json")
+        )
+
+    # Include eaten_food_ids in the INIT packet
     init_packet = {
-        "type": "INIT",
-        "world_seed": cfg.simulation.world_seed,
-    }
+    "type": "INIT",
+    "world_seed": world_state.world_seed,
+    "continuation": world_state.continuation,
+    "consumed_food_ids": world_state.consumed_food_ids,
+    "agent_state": (
+        world_state.agent_state.__dict__
+        if world_state.agent_state
+        else None
+    ),
+}
+    latest_consumed_food_ids = eaten_food_ids
     client_file.write(json.dumps(init_packet) + "\n")
     client_file.flush()
-
-    agent = Agent()
-    telemetry = TelemetryRecorder()
-    replay = ReplayRecorder()
-    path_log = []
-    DEBUG = False  # Set to True to enable detailed debug output each tick
-
+    DEBUG = True  # Set to True to enable detailed debug output each tick
     try:
         while True:
+
             line = client_file.readline()
             if not line:
                 break
@@ -113,6 +148,12 @@ def run_brain_server():
             except Exception as e:
                 print(f"BRIDGE ERROR: {e}")
                 sensors = SensorPacket(is_real_data=False)
+
+            if "consumed_food_ids" in world_data:
+                latest_consumed_food_ids = world_data["consumed_food_ids"]
+            # To capture it if sent from AgentBody via standard sensor payload:
+            elif hasattr(sensors, "consumed_food_ids"):
+                latest_consumed_food_ids = sensors.consumed_food_ids
 
             motor_output = agent.tick(
                 env_damage=sensors.hazard_stim,
@@ -174,7 +215,7 @@ def run_brain_server():
                 "new_memories": get_new_minimized_memories(agent),
             }
 
-            client_file.write(json.dumps(response, cls=BIOSNetworkEncoder) + "\n")
+            client_file.write(json.dumps(response, cls=BIOSJsonEncoder) + "\n")
             client_file.flush()
 
             # --- DEBUGGING BLOCK ---
@@ -205,12 +246,41 @@ def run_brain_server():
     except Exception as e:
         print(f"Connection Error: {e}")
     finally:
+        # --- NEW DRIFT-SAFE STATE SAVING ---
+        from infra.agent_state import AgentState
+        from infra.world_state import WorldState
+        
+        # Pull baseline dataclass fields from agent
+        final_agent_state = AgentState.from_agent(agent)
+        
+        # Override internal position estimates with true physical values from telemetry
+        if 'sensors' in locals() and sensors.is_real_data:
+            # Storing true absolute coordinates directly in the physics initialization struct
+            final_agent_state.internal_pos_x = sensors.real_pos_x
+            final_agent_state.internal_pos_y = sensors.real_pos_y
+            
+            # If your SensorPacket tracks true rotation, grab it here:
+            if hasattr(sensors, "current_rotation"):
+                final_agent_state.rotation = sensors.current_rotation
+
+        # Build and save final structural frame
+        final_world_state = WorldState(
+            run_id=world_state.run_id,
+            world_seed=world_state.world_seed,
+            continuation=True,
+            consumed_food_ids=latest_consumed_food_ids,
+            agent_state=final_agent_state
+        )
+        final_world_state.save(run_dir / "world_state.json")
+        # -------------------------------------
+
+        # Save memory structures independently (maintains its own internal coordinate maps)
+        agent.memory.shutdown_and_save(storage_path=str(run_dir / "spatial_memory_state.json"))
         telemetry.close()
         replay.close()
         conn.close()
         server.close()
         run_visualizer(agent.memory.semantic, path=path_log)
-
 
 if __name__ == "__main__":
     run_brain_server()

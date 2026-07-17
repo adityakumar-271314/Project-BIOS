@@ -39,14 +39,14 @@ func _draw():
 
 	for memory in memories:
 
-		if not ("peak_position" in memory):
+		if not ("peak_x" and "peak_y" in memory):
 			continue
 
-		var pos_data = memory["peak_position"]
+		#var pos_data = memory["peak_position"]
 
 		var pos = simulation_origin + Vector2(
-			pos_data["x"],
-			-pos_data["y"]
+			memory.get("peak_x", 0.0),
+			-memory.get("peak_y", 0.0)
 		)
 
 		var event_type = memory.get(

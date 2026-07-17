@@ -2,6 +2,7 @@ from __future__ import annotations
 import math
 from .schemas import EpisodicEvent, EpisodeFrame, TickSnapshot
 from .storage.serializer import EpisodeSerializer
+from .storage.episode_archive import EpisodeArchive
 
 """
 Episodic Memory System.
@@ -40,9 +41,8 @@ class RunningStats:
 class EpisodicMemory:
     def __init__(self, config):
         self.cfg = config
-        self.events: list[EpisodicEvent] = []
         self._tick = 0
-        self.serializer = EpisodeSerializer()
+        self.archive = EpisodeArchive(root_dir=getattr(config, "episode_root", "core/memory/episodes/run_000001"))
 
         self._stats = {
             "energy_delta": RunningStats(),
@@ -126,21 +126,22 @@ class EpisodicMemory:
         return frame
 
     def encode(self, event: EpisodicEvent) -> None:
-        self.events.append(event)
-        self.serializer.save(event)
-        print(
-            f"[EPISODE ENCODED] type={event.event_type} peak_sig={event.peak_significance:.2f} tick={event.peak_tick}"
-        )
-
-    def get_events(self):
-        return tuple(self.events)
+        self.archive.save(event)
+        print(f"[EPISODE ENCODED] type={event.event_type} peak_sig={event.peak_significance:.2f} tick={event.peak_tick}")
 
     def export_state(self) -> dict:
-        return {"tick": self._tick, "events": [e.to_dict() for e in self.events]}
+        return {"tick": self._tick, "index": self.archive.index.data}
 
     def import_state(self, data: dict) -> None:
         self._tick = data.get("tick", 0)
-        self.events = [EpisodicEvent.from_dict(e) for e in data.get("events", [])]
+        if "index" in data:
+            self.archive.index.data = data["index"]
+            self.archive.index.save()
+
+    def get_events(self) -> tuple[EpisodicEvent, ...]:
+
+        episodes_meta = self.archive.index.data["episodes"]
+        return tuple(self.archive.load(m["id"]) for m in episodes_meta)
 
     def get_debug_memories(self) -> list[dict]:
-        return [e.to_dict() for e in self.events]
+        return [dict(m) for m in self.archive.index.data["episodes"]]

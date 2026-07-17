@@ -9,7 +9,7 @@ Defines:
 
 from dataclasses import dataclass, field, asdict
 from typing import List
-from .vector import Vector2
+from core.vector import Vector2
 
 # =========================================================
 # SENSORY OBJECTS

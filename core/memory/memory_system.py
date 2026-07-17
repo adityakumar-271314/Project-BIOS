@@ -3,8 +3,6 @@ from .episodic import EpisodicMemory
 from .temporal_buffer import TemporalBuffer
 from .event_delay import EventDelayQueue
 from .episode_pipeline import EpisodePipeline
-
-
 class MemorySystem:
 
     def __init__(self, config):
@@ -43,11 +41,9 @@ class MemorySystem:
             frame = self.episodic.build_frame(previous_snapshot, latest_snapshot)
             self.temporal_buffer.append_frame(frame)
 
-            # check significant conditions
             if frame.event_type != "high_significance" or frame.significance > getattr(
                 self.cfg, "episodic_significance_threshold", 4.0
             ):
-                # --- FIXED: Only queue if we aren't already tracking a candidate within the hysteresis window ---
                 if not self.event_delay._pending or (
                     self._tick - self.event_delay._pending[-1] > 300
                 ):
@@ -59,9 +55,10 @@ class MemorySystem:
         for candidate_tick in ready_events:
             episodes = self.pipeline.process_candidate(candidate_tick)
             for episode in episodes:
-                # --- FIXED: Prevent identical duplicate episodes from being pushed into history ---
+                # --- Use high-speed index checking rather than RAM list iterations ---
                 if not any(
-                    e.peak_tick == episode.peak_tick for e in self.episodic.events
+                    e["peak_tick"] == episode.peak_tick 
+                    for e in self.episodic.archive.index.data["episodes"]
                 ):
                     self.episodic.encode(episode)
 
@@ -146,107 +143,79 @@ class MemorySystem:
         return self.semantic.internal_heading
 
     def recall_recent(self, limit: int = 10):
-        events = self.episodic.get_events()
-        return list(events[-limit:])
+        meta_matches = self.episodic.archive.index.query_recent(limit)
+        return [self.episodic.archive.load(m["id"]) for m in meta_matches]
 
     def recall_by_type(self, event_type: str, limit: int | None = None):
-        matches = [
-            event
-            for event in self.episodic.get_events()
-            if event.event_type == event_type
+        meta_matches = self.episodic.archive.index.query_by_type(event_type, limit)
+        return [self.episodic.archive.load(m["id"]) for m in meta_matches]
+
+    def recall_significant(self, min_significance: float = 5.0):
+        return [
+            self.episodic.archive.load(m["id"])
+            for m in self.episodic.archive.index.data["episodes"]
+            if m["peak_significance"] >= min_significance
         ]
-        if limit is not None:
-            matches = matches[-limit:]
-        return matches
 
-    def recall_significant(
-        self,
-        min_significance: float = 5.0,
-    ):
-        pass
-
-    def recall_near(
-        self,
-        pos_x: float,
-        pos_y: float,
-        radius: float,
-    ):
-
-        radius_sq = radius * radius
-
-        matches = []
-
-        for event in self.episodic.get_events():
-
-            dx = event.peak_x - pos_x
-            dy = event.peak_y - pos_y
-
-            dist_sq = dx * dx + dy * dy
-
-            if dist_sq <= radius_sq:
-                matches.append(event)
-
-        return matches
+    def recall_near(self, pos_x: float, pos_y: float, radius: float):
+        return self.episodic.archive.recall_near(pos_x, pos_y, radius)
 
     def recall_latest(self):
-        events = self.episodic.get_events()
-        if not events:
-            return None
-        return events[-1]
+        return self.episodic.archive.recall_latest()
 
-    def last_significant_event(
-        self,
-        min_significance: float = 5.0,
-    ):
-        matches = self.recall_significant(min_significance)
-        if not matches:
-            return None
-        return matches[-1]
+    def last_significant_event(self, min_significance: float = 5.0):
+        matches = [
+            m for m in self.episodic.archive.index.data["episodes"]
+            if m["peak_significance"] >= min_significance
+        ]
+        return self.episodic.archive.load(matches[-1]["id"]) if matches else None
 
     def last_danger_event(self):
-
-        danger_types = {
-            "danger_state",
-            "hazard_encounter",
-            "damage_spike",
-            "near_death",
-        }
+        danger_types = {"danger_state", "hazard_encounter", "damage_spike", "near_death"}
         matches = [
-            event
-            for event in self.episodic.get_events()
-            if event.event_type in danger_types
+            m for m in self.episodic.archive.index.data["episodes"]
+            if m["event_type"] in danger_types
         ]
-        if not matches:
-            return None
-        return matches[-1]
+        return self.episodic.archive.load(matches[-1]["id"]) if matches else None
 
     def last_food_recovery(self):
-        matches = self.recall_by_type(
-            "food_recovery",
-            limit=1,
-        )
-        if not matches:
-            return None
-        return matches[-1]
+        matches = self.episodic.archive.index.query_by_type("food_recovery", limit=1)
+        return self.episodic.archive.load(matches[-1]["id"]) if matches else None
 
     def most_significant_event(self):
-        pass
+        episodes = self.episodic.archive.index.data["episodes"]
+        if not episodes:
+            return None
+        target_meta = max(episodes, key=lambda m: m["peak_significance"])
+        return self.episodic.archive.load(target_meta["id"])
 
-    def nearby_danger_memories(
-        self,
-        pos_x: float,
-        pos_y: float,
-        radius: float,
-    ):
-        danger_types = {
-            "danger_state",
-            "hazard_encounter",
-            "damage_spike",
-            "near_death",
-        }
-        nearby = self.recall_near(
-            pos_x=pos_x,
-            pos_y=pos_y,
-            radius=radius,
-        )
+    def nearby_danger_memories(self, pos_x: float, pos_y: float, radius: float):
+        danger_types = {"danger_state", "hazard_encounter", "damage_spike", "near_death"}
+        nearby = self.recall_near(pos_x=pos_x, pos_y=pos_y, radius=radius)
         return [event for event in nearby if event.event_type in danger_types]
+
+    def initialize_run_state(
+        self,
+        continuation: bool,
+        storage_path: str = "spatial_memory_state.json",
+    ) -> None:
+        self.semantic.initialize_run_state(continuation, storage_path)
+        
+        if continuation:
+            self._tick = self.semantic._tick
+            
+            self.temporal_buffer.clear() # Ensure your buffer class has a clear/reset method
+            # self.event_delay.clear()     # Prevents stale pre-shutdown ticks from firing
+        else:
+            self._tick = 0
+    def shutdown_and_save(
+        self,
+        storage_path: str = "spatial_memory_state.json",
+    ) -> None:
+        self.semantic.shutdown_and_save(storage_path)
+
+    def reset_state(
+        self,
+        storage_path: str = "spatial_memory_state.json",
+    ) -> None:
+        self.semantic.reset_state(storage_path)

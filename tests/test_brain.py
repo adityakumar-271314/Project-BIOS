@@ -1,6 +1,6 @@
 from core.brain.brain import Brain
-from core.config_loader import load_config
-from core.data_models import SensorPacket, SensedObject
+from infra.config_loader import load_config
+from infra.data_models import SensorPacket, SensedObject
 from core.vector import Vector2
 from core.memory.memory_system import MemorySystem
 

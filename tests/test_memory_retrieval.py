@@ -1,5 +1,5 @@
 from core.memory.memory_system import MemorySystem
-from core.config_loader import load_config
+from infra.config_loader import load_config
 from core.memory.temporal_buffer import TemporalBuffer
 from core.memory.event_delay import EventDelayQueue
 from core.memory.episodic import EpisodicMemory

@@ -1,4 +1,4 @@
-from core.replay import ReplayFrame
+from infra.replay import ReplayFrame
 
 
 def test_replay_frame_to_dict():
