@@ -27,49 +27,86 @@ func _physics_process(delta: float) -> void:
 
 func _send_to_python():
 	var packet = agent.get_sensory_data()
-	
-	var hazard_stim = 0.0
-	var food_stim = 0.0
-	
-	# Detect EVERYTHING touching the agent's physical body
-	var touch_zones: Array = [] # Explicitly untyped
-	touch_zones.assign(body.get_overlapping_areas()) 
+
+	# MUST reset every tick
+	var hazard_stim := 0.0
+	var food_stim := 0.0
+
+	var touch_zones: Array = []
+	touch_zones.assign(body.get_overlapping_areas())
 	touch_zones.append_array(body.get_overlapping_bodies())
-	
+
 	for thing in touch_zones:
-		# 1. HAZARD LOGIC
-		if thing.is_in_group("hazard") or thing.get_parent().is_in_group("hazard"):
+		if not is_instance_valid(thing):
+			continue
+
+		var parent = thing.get_parent()
+		var parent_is_valid := is_instance_valid(parent)
+
+		var is_food: bool = thing.is_in_group("food")
+		var is_hazard: bool = thing.is_in_group("hazard")
+
+		if parent_is_valid:
+			is_food = is_food or parent.is_in_group("food")
+			is_hazard = is_hazard or parent.is_in_group("hazard")
+
+		var detected_type := "unknown"
+
+		if is_hazard:
+			detected_type = "hazard"
+		elif is_food:
+			detected_type = "food"
+
+		print(
+			"[TOUCH] object=",
+			thing.name,
+			" groups=",
+			thing.get_groups(),
+			" parent=",
+			parent.name if parent_is_valid else "NULL",
+			" parent_groups=",
+			parent.get_groups() if parent_is_valid else [],
+			" => type=",
+			detected_type
+		)
+
+		# HAZARD
+		if is_hazard:
 			if thing.has_method("get_intensity"):
 				hazard_stim = thing.get_intensity(agent.global_position)
-			elif thing.get_parent().has_method("get_intensity"):
-				hazard_stim = thing.get_parent().get_intensity(agent.global_position)
+			elif parent_is_valid and parent.has_method("get_intensity"):
+				hazard_stim = parent.get_intensity(agent.global_position)
 			else:
-				hazard_stim = 0.8 # Fallback damage
-	
-		# 2. FOOD LOGIC (Checks parent and self for properties)
-		if thing.is_in_group("food") or thing.get_parent().is_in_group("food"):
-			# Check for energy_value on the object or its parent
+				hazard_stim = 0.8
+
+		# FOOD
+		elif is_food:
 			if "energy_value" in thing:
 				food_stim = thing.energy_value
-			elif "energy_value" in thing.get_parent():
-				food_stim = thing.get_parent().energy_value
+			elif parent_is_valid and "energy_value" in parent:
+				food_stim = parent.energy_value
 			else:
 				food_stim = 20.0
-			
-			# Delete the food (and its parent if it's a sub-area)
-			#if thing.get_parent().is_in_group("food") and thing.get_parent() != get_tree().root:
-				#thing.get_parent().queue_free()
-			#else:
-				#thing.queue_free()
-				
-				var food_object: Node = thing
-				if thing.get_parent().is_in_group("food"):
-					food_object = thing.get_parent()
 
-				_consume_food(food_object)
+			var food_object: Node = thing
+
+			if parent_is_valid and parent.is_in_group("food"):
+				food_object = parent
+
+			_consume_food(food_object)
+
 	packet["hazard_stim"] = hazard_stim
 	packet["food_stim"] = food_stim
-	
+
+	print(
+		"[STIM] hazard=",
+		hazard_stim,
+		" food=",
+		food_stim,
+		" touch_count=",
+		touch_zones.size()
+	)
+
 	socket.put_data((JSON.stringify(packet) + "\n").to_utf8_buffer())
 	
 func _receive_from_python():
@@ -99,12 +136,33 @@ func _receive_from_python():
 					agent.execute_move(data)
 
 func _consume_food(food_object: Node) -> void:
+	if not is_instance_valid(food_object):
+		print("[FOOD] Already invalid / already consumed")
+		return
+
 	var food_id = food_object.get_meta("unique_id", -1)
 
+	print(
+		"[FOOD] CONSUMING name=",
+		food_object.name,
+		" id=",
+		food_id,
+		" groups=",
+		food_object.get_groups()
+	)
+
 	if food_id != -1:
-		agent.consumed_food_ids.append(food_id)
+		if not agent.consumed_food_ids.has(food_id):
+			agent.consumed_food_ids.append(food_id)
 
 	food_object.queue_free()
+
+	print(
+		"[FOOD] queue_free called. id=",
+		food_id,
+		" valid_before_free=",
+		is_instance_valid(food_object)
+	)
 	
 func _handle_init(data: Dictionary) -> void:
 	var world = get_node("../../WorldGenerator")

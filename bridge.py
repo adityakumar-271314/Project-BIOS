@@ -28,6 +28,8 @@ from core.agent import Agent
 from infra.config_loader import load_config
 from infra.constants import SPAWN_OFFSET_X, SPAWN_OFFSET_Y, DRIFT_WARNING_THRESHOLD
 from infra.data_models import SensorPacket
+from infra.agent_state import AgentState
+from infra.world_state import WorldState
 from infra.run_manager import (
     setup_run_session,
     load_world_state,
@@ -134,12 +136,13 @@ def run_brain_server():
     latest_consumed_food_ids = eaten_food_ids
     client_file.write(json.dumps(init_packet) + "\n")
     client_file.flush()
-    DEBUG = True  # Set to True to enable detailed debug output each tick
+    DEBUG = False  # Set to True to enable detailed debug output each tick
     try:
         while True:
 
             line = client_file.readline()
             if not line:
+                print("BRIDGE: EOF received from Godot. Client disconnected.")
                 break
 
             try:
@@ -194,6 +197,7 @@ def run_brain_server():
                 response = {"action": "DECEASED", "alive": False}
                 client_file.write(json.dumps(response) + "\n")
                 client_file.flush()
+                print(f"Agent Died")
                 break
 
             response = {
@@ -245,11 +249,10 @@ def run_brain_server():
 
     except Exception as e:
         print(f"Connection Error: {e}")
-    finally:
-        # --- NEW DRIFT-SAFE STATE SAVING ---
-        from infra.agent_state import AgentState
-        from infra.world_state import WorldState
-        
+        print(
+        f"BRIDGE FATAL EXIT: {type(e).__name__}: {e}", flush=True)
+
+    finally:        
         # Pull baseline dataclass fields from agent
         final_agent_state = AgentState.from_agent(agent)
         
@@ -272,8 +275,6 @@ def run_brain_server():
             agent_state=final_agent_state
         )
         final_world_state.save(run_dir / "world_state.json")
-        # -------------------------------------
-
         # Save memory structures independently (maintains its own internal coordinate maps)
         agent.memory.shutdown_and_save(storage_path=str(run_dir / "spatial_memory_state.json"))
         telemetry.close()

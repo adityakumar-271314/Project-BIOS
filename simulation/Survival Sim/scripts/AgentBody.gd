@@ -45,28 +45,59 @@ func get_sensory_data() -> Dictionary:
 	if ray_r.is_colliding(): data["ray_r"] = ray_r.global_position.distance_to(ray_r.get_collision_point()) / 200.0
 
 	var detections = proximity_sensor.get_overlapping_bodies() + proximity_sensor.get_overlapping_areas()
+
 	for obj in detections:
-		if obj == self or (obj is StaticBody2D and obj.name == "Walls"): continue
-		
+		if obj == self or (obj is StaticBody2D and obj.name == "Walls"):
+			continue
+
 		var target = obj
-		if not (obj.is_in_group("food") or obj.is_in_group("hazard") or obj.is_in_group("landmark")):
-			target = obj.get_parent()
-			
+
+		# Resolve the actual grouped object.
+		# Never blindly call get_parent() without checking.
+		if not (
+			obj.is_in_group("food")
+			or obj.is_in_group("hazard")
+			or obj.is_in_group("landmark")
+		):
+			var parent = obj.get_parent()
+			if parent:
+				target = parent
+
 		var type = "unknown"
-		if target.is_in_group("food"): type = "food"
-		elif target.is_in_group("hazard"): type = "hazard"
-		elif target.is_in_group("landmark"): type = "landmark"
-		
+
+		if target.is_in_group("food"):
+			type = "food"
+		elif target.is_in_group("hazard"):
+			type = "hazard"
+		elif target.is_in_group("landmark"):
+			type = "landmark"
+
+		#var object_id = target.get_instance_id()
+
+		print(
+			"[SENSE] obj=",
+			obj.name,
+			" parent=",
+			target.name,
+			" groups=",
+			target.get_groups(),
+			" => type=",
+			type
+		)
+
 		if type != "unknown":
 			var to_obj = target.global_position - global_position
 			var u_id = -1
+
 			if target.has_meta("unique_id"):
 				u_id = target.get_meta("unique_id")
 			elif target.get_parent() and target.get_parent().has_meta("unique_id"):
 				u_id = target.get_parent().get_meta("unique_id")
 
 			data["sensed_objects"].append({
-				"id": u_id, "type": type, "dist": to_obj.length(), 
+				"id": u_id,
+				"type": type,
+				"dist": to_obj.length(),
 				"angle": Vector2.RIGHT.rotated(rotation).angle_to(to_obj)
 			})
 	data["consumed_food_ids"] = consumed_food_ids
