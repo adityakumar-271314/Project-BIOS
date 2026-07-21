@@ -4,7 +4,7 @@ from pathlib import Path
 from ..schemas import EpisodicEvent
 
 class EpisodeSerializer:
-    def __init__(self, root: Path | str = "run_history/run000001/episodes"):
+    def __init__(self, root: Path | str):
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
         self.manifest_path = self.root / "manifest.json"

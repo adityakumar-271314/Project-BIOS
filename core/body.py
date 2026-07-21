@@ -88,8 +88,3 @@ class BodyStateTracker:
 
         if self.integrity <= 0:
             self.is_alive = False
-
-        print(
-            f"Agnet Integirty: {self.integrity}",
-            f"Agnet Enenrgy: {self.energy}"
-              )

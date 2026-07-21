@@ -7,6 +7,7 @@ from ..schemas import EpisodicEvent
 class EpisodeArchive:
     def __init__(self, root_dir: Path | str, cache_size: int = 128):
         self.root = Path(root_dir)
+        self.root.mkdir(parents=True, exist_ok=True)
         self.serializer = EpisodeSerializer(root=self.root)
         self.index = MetadataIndex(self.root / "metadata_index.json")
         self.cache = OrderedDict()

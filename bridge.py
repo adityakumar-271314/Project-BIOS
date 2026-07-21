@@ -30,10 +30,7 @@ from infra.constants import SPAWN_OFFSET_X, SPAWN_OFFSET_Y, DRIFT_WARNING_THRESH
 from infra.data_models import SensorPacket
 from infra.agent_state import AgentState
 from infra.world_state import WorldState
-from infra.run_manager import (
-    setup_run_session,
-    load_world_state,
-)
+from infra.run_manager import setup_run_session, load_world_state, RunContext
 from tools.visualizer import run_visualizer
 from infra.json import BIOSJsonEncoder
 from infra.telemetry import (
@@ -83,42 +80,38 @@ def run_brain_server():
     server.listen()
 
     cfg = load_config()
-    run_dir = setup_run_session()
-    world_state = load_world_state(
-        run_dir,
-        cfg.simulation.world_seed,
-    )
-    print(f"BIOS Brain Server active on {host}:{port}. Waiting for Godot...")
+    ctx = setup_run_session()  # Returns RunContext instance
+    world_state = load_world_state(ctx, cfg.simulation.world_seed)
+
+    print(f"BIOS Brain Server active on {host}:{port}. Session directory: {ctx.run_dir}")
 
     conn, addr = server.accept()
     client_file = conn.makefile("rw", encoding="utf-8")
 
-    
-    # manifest_path = run_dir / "episodes" / "manifest.json"
-    # is_continuation = manifest_path.exists()
     is_continuation = world_state.continuation
     agent = Agent() 
-    telemetry = TelemetryRecorder(path=str(run_dir / "telemetry.json"))
-    replay = ReplayRecorder(path=str(run_dir / "replay.json"))
-    path_log = []
-    # Load previous run state if continuing
-    eaten_food_ids = []
     
+    telemetry = TelemetryRecorder(path=str(ctx.telemetry))
+    replay = ReplayRecorder(path=str(ctx.replay))
+    path_log = []
+    eaten_food_ids = []
+
     if is_continuation:
         agent.memory.initialize_run_state(
             continuation=True, 
-            storage_path=str(run_dir / "spatial_memory_state.json")
+            storage_path=str(ctx.spatial_memory),
+            episodes_dir=str(ctx.episodes_dir)
         )
         agent.import_state(world_state.agent_state)
-        # Load the run-specific world state metadata
-        world_state_path = run_dir / "world_state.json"
-        if world_state_path.exists():
-            with open(world_state_path, "r") as f:
+        
+        if ctx.world_state.exists():
+            with open(ctx.world_state, "r") as f:
                 world_state_data = json.load(f)
                 eaten_food_ids = world_state_data.get("eaten_food_ids", [])
     else:
         agent.memory.reset_state(
-            storage_path=str(run_dir / "spatial_memory_state.json")
+            storage_path=str(ctx.spatial_memory),
+            episodes_dir=str(ctx.episodes_dir)
         )
 
     # Include eaten_food_ids in the INIT packet
@@ -252,21 +245,15 @@ def run_brain_server():
         print(
         f"BRIDGE FATAL EXIT: {type(e).__name__}: {e}", flush=True)
 
-    finally:        
-        # Pull baseline dataclass fields from agent
+    finally: 
         final_agent_state = AgentState.from_agent(agent)
         
-        # Override internal position estimates with true physical values from telemetry
         if 'sensors' in locals() and sensors.is_real_data:
-            # Storing true absolute coordinates directly in the physics initialization struct
             final_agent_state.internal_pos_x = sensors.real_pos_x
             final_agent_state.internal_pos_y = sensors.real_pos_y
-            
-            # If your SensorPacket tracks true rotation, grab it here:
             if hasattr(sensors, "current_rotation"):
                 final_agent_state.rotation = sensors.current_rotation
 
-        # Build and save final structural frame
         final_world_state = WorldState(
             run_id=world_state.run_id,
             world_seed=world_state.world_seed,
@@ -274,9 +261,11 @@ def run_brain_server():
             consumed_food_ids=latest_consumed_food_ids,
             agent_state=final_agent_state
         )
-        final_world_state.save(run_dir / "world_state.json")
-        # Save memory structures independently (maintains its own internal coordinate maps)
-        agent.memory.shutdown_and_save(storage_path=str(run_dir / "spatial_memory_state.json"))
+        
+        # Save state files cleanly via ctx properties
+        final_world_state.save(ctx.world_state)
+        agent.memory.shutdown_and_save(storage_path=str(ctx.spatial_memory))
+        
         telemetry.close()
         replay.close()
         conn.close()

@@ -2,7 +2,7 @@ import pygame
 import traceback
 from tools.episode_visualizer.config import WINDOW_WIDTH, WINDOW_HEIGHT, FPS, BACKGROUND
 
-from tools.episode_visualizer.scenes.browser import BrowserScene
+from tools.episode_visualizer.scenes.browser.scene import BrowserScene
 from tools.episode_visualizer.scenes.playback import PlaybackScene
 from tools.episode_visualizer.scenes.error import ErrorScene
 from tools.episode_visualizer.overlays.guide import GuideOverlay

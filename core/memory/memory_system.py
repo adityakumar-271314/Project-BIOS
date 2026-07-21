@@ -3,6 +3,8 @@ from .episodic import EpisodicMemory
 from .temporal_buffer import TemporalBuffer
 from .event_delay import EventDelayQueue
 from .episode_pipeline import EpisodePipeline
+from pathlib import Path
+
 class MemorySystem:
 
     def __init__(self, config):
@@ -195,19 +197,22 @@ class MemorySystem:
         return [event for event in nearby if event.event_type in danger_types]
 
     def initialize_run_state(
-        self,
-        continuation: bool,
-        storage_path: str = "spatial_memory_state.json",
-    ) -> None:
-        self.semantic.initialize_run_state(continuation, storage_path)
-        
-        if continuation:
-            self._tick = self.semantic._tick
+            self,
+            continuation: bool,
+            storage_path: str = "spatial_memory_state.json",
+            episodes_dir: Path | str | None = None,
+        ) -> None:
+            # Pass spatial memory path to semantic memory
+            self.semantic.initialize_run_state(continuation, storage_path)
             
-            self.temporal_buffer.clear() # Ensure your buffer class has a clear/reset method
-            # self.event_delay.clear()     # Prevents stale pre-shutdown ticks from firing
-        else:
-            self._tick = 0
+            # Pass run episode directory to episodic memory
+            self.episodic.initialize_run_state(continuation, episodes_dir)
+            
+            if continuation:
+                self._tick = self.semantic._tick
+                self.temporal_buffer.clear()
+            else:
+                self._tick = 0
     def shutdown_and_save(
         self,
         storage_path: str = "spatial_memory_state.json",
@@ -215,7 +220,9 @@ class MemorySystem:
         self.semantic.shutdown_and_save(storage_path)
 
     def reset_state(
-        self,
-        storage_path: str = "spatial_memory_state.json",
-    ) -> None:
-        self.semantic.reset_state(storage_path)
+            self,
+            storage_path: str = "spatial_memory_state.json",
+            episodes_dir: Path | str | None = None,
+        ) -> None:
+            self.semantic.reset_state(storage_path)
+            self.episodic.initialize_run_state(continuation=False, episodes_dir=episodes_dir)

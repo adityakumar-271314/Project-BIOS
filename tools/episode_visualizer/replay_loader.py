@@ -32,8 +32,14 @@ def load_from_storage(episode_folder_path: str | Path) -> ReplaySession:
     loader = EpisodeLoader()
     episodic_event = loader.load(folder)
 
-    root_telemetry_file = Path.cwd() / "telemetry.jsonl"
-    extractor = RawTelemetryExtractor(root_telemetry_file)
+    # Automatically resolve run_history/runXXXXXX/telemetry.json
+    run_dir = folder.parent.parent  # Move up past 'episodes/' to 'runXXXXXX/'
+    telemetry_file = run_dir / "telemetry.json"
+    if not telemetry_file.exists():
+        # Fallback to .jsonl if telemetry uses line-delimited json format
+        telemetry_file = run_dir / "telemetry.jsonl"
+
+    extractor = RawTelemetryExtractor(telemetry_file)
     raw_path_list, raw_metric_map = extractor.extract_range(
         episodic_event.start_tick, episodic_event.end_tick
     )

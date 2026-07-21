@@ -1,5 +1,6 @@
 from __future__ import annotations
 import math
+from pathlib import Path
 from .schemas import EpisodicEvent, EpisodeFrame, TickSnapshot
 from .storage.serializer import EpisodeSerializer
 from .storage.episode_archive import EpisodeArchive
@@ -42,8 +43,9 @@ class EpisodicMemory:
     def __init__(self, config):
         self.cfg = config
         self._tick = 0
-        self.archive = EpisodeArchive(root_dir=getattr(config, "episode_root", "core/memory/episodes/run_000001"))
-
+        self.archive = EpisodeArchive(
+            root_dir=getattr(config, "episode_root", "core/memory/episodes")
+        )
         self._stats = {
             "energy_delta": RunningStats(),
             "integrity_delta": RunningStats(),
@@ -51,6 +53,24 @@ class EpisodicMemory:
             "fear_delta": RunningStats(),
             "drive_delta": RunningStats(),
         }
+
+    def initialize_run_state(
+        self,
+        continuation: bool,
+        episodes_dir: Path | str | None = None,
+    ) -> None:
+        if episodes_dir:
+            self.archive = EpisodeArchive(root_dir=Path(episodes_dir))
+        
+        if not continuation:
+            self._tick = 0
+            self._stats = {
+                "energy_delta": RunningStats(),
+                "integrity_delta": RunningStats(),
+                "stress_delta": RunningStats(),
+                "fear_delta": RunningStats(),
+                "drive_delta": RunningStats(),
+            }
 
     def update(self) -> None:
         self._tick += 1

@@ -57,19 +57,6 @@ func _send_to_python():
 		elif is_food:
 			detected_type = "food"
 
-		print(
-			"[TOUCH] object=",
-			thing.name,
-			" groups=",
-			thing.get_groups(),
-			" parent=",
-			parent.name if parent_is_valid else "NULL",
-			" parent_groups=",
-			parent.get_groups() if parent_is_valid else [],
-			" => type=",
-			detected_type
-		)
-
 		# HAZARD
 		if is_hazard:
 			if thing.has_method("get_intensity"):
@@ -98,14 +85,6 @@ func _send_to_python():
 	packet["hazard_stim"] = hazard_stim
 	packet["food_stim"] = food_stim
 
-	print(
-		"[STIM] hazard=",
-		hazard_stim,
-		" food=",
-		food_stim,
-		" touch_count=",
-		touch_zones.size()
-	)
 
 	socket.put_data((JSON.stringify(packet) + "\n").to_utf8_buffer())
 	
@@ -137,19 +116,9 @@ func _receive_from_python():
 
 func _consume_food(food_object: Node) -> void:
 	if not is_instance_valid(food_object):
-		print("[FOOD] Already invalid / already consumed")
 		return
 
 	var food_id = food_object.get_meta("unique_id", -1)
-
-	print(
-		"[FOOD] CONSUMING name=",
-		food_object.name,
-		" id=",
-		food_id,
-		" groups=",
-		food_object.get_groups()
-	)
 
 	if food_id != -1:
 		if not agent.consumed_food_ids.has(food_id):
@@ -157,12 +126,6 @@ func _consume_food(food_object: Node) -> void:
 
 	food_object.queue_free()
 
-	print(
-		"[FOOD] queue_free called. id=",
-		food_id,
-		" valid_before_free=",
-		is_instance_valid(food_object)
-	)
 	
 func _handle_init(data: Dictionary) -> void:
 	var world = get_node("../../WorldGenerator")

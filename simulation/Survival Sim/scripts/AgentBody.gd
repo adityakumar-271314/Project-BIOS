@@ -72,19 +72,6 @@ func get_sensory_data() -> Dictionary:
 		elif target.is_in_group("landmark"):
 			type = "landmark"
 
-		#var object_id = target.get_instance_id()
-
-		print(
-			"[SENSE] obj=",
-			obj.name,
-			" parent=",
-			target.name,
-			" groups=",
-			target.get_groups(),
-			" => type=",
-			type
-		)
-
 		if type != "unknown":
 			var to_obj = target.global_position - global_position
 			var u_id = -1
