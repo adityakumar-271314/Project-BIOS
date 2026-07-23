@@ -60,7 +60,7 @@ This creates stable, believable behavior compared to purely reactive systems.
 
 ## Memory Systems
 
-### Semantic Memory — Cognitive Map
+### Spatial Memory — Cognitive Map
 - Dead-reckoning odometry with landmark-based correction
 - Sparse grid encoding hazard and food "place cells"
 - Generates spatial bias vectors for planning

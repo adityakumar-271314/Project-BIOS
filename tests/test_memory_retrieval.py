@@ -6,6 +6,7 @@ from core.memory.episodic import EpisodicMemory
 
 from tests.test_memory import make_snapshot
 
+
 def test_build_frame_updates_statistics():
     mem = EpisodicMemory(load_config().memory)
 
@@ -47,7 +48,7 @@ def test_delay_queue_multiple_ready():
 
     ready = q.get_ready(8)
 
-    assert ready == [1,3]
+    assert ready == [1, 3]
 
 
 def test_context_lookup():
@@ -56,11 +57,12 @@ def test_context_lookup():
     for i in range(10):
         tb.append_snapshot(make_snapshot(tick=i))
 
-    context = tb.get_context(5,2,2)
+    context = tb.get_context(5, 2, 2)
 
     ticks = [s.tick for s in context]
 
-    assert ticks == [3,4,5,6,7]
+    assert ticks == [3, 4, 5, 6, 7]
+
 
 from core.memory.episode_builder import EpisodeBuilder
 
@@ -71,6 +73,7 @@ def test_builder_returns_empty_without_peak():
     frames = []
 
     assert builder.build(frames) == []
+
 
 def test_recall_latest_empty():
     cfg = load_config()

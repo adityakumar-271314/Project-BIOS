@@ -1,6 +1,6 @@
 import pytest
 from core.memory.memory_system import MemorySystem
-from core.memory.semantic import SemanticMemory
+from core.memory.spatial_memory.core import SpatialMemory
 from infra.config_loader import load_config
 from infra.data_models import SensorPacket
 from core.vector import Vector2
@@ -10,7 +10,7 @@ from infra.config_loader import load_config
 
 
 def test_odometry_updates_position():
-    mem = SemanticMemory(load_config().memory)
+    mem = SpatialMemory(load_config().memory)
 
     sensors = SensorPacket(
         accel=Vector2(10, 0),
@@ -23,7 +23,7 @@ def test_odometry_updates_position():
 
 
 def test_hazard_memory_recorded():
-    mem = SemanticMemory(load_config().memory)
+    mem = SpatialMemory(load_config().memory)
 
     sensors = SensorPacket(
         hazard_stim=1.0,
@@ -37,7 +37,7 @@ def test_hazard_memory_recorded():
 def test_landmark_registration():
     from infra.data_models import SensedObject
 
-    mem = SemanticMemory(load_config().memory)
+    mem = SpatialMemory(load_config().memory)
 
     sensors = SensorPacket(
         sensed_objects=[
@@ -68,6 +68,8 @@ def test_running_stats_mean_and_variance():
     assert stats.n == 4
     assert stats.mean == 2.5
     assert math.isclose(stats.variance, 1.6666666666)
+
+
 def test_running_stats_empty():
     stats = RunningStats()
 
@@ -128,11 +130,11 @@ def test_damage_spike_category():
     snap = make_snapshot()
 
     deltas = {
-        "energy_delta":0,
-        "integrity_delta":-999,
-        "stress_delta":0,
-        "fear_delta":0,
-        "drive_delta":0,
+        "energy_delta": 0,
+        "integrity_delta": -999,
+        "stress_delta": 0,
+        "fear_delta": 0,
+        "drive_delta": 0,
     }
 
     assert mem.categorize_event(deltas, snap) == "damage_spike"
@@ -144,11 +146,11 @@ def test_food_recovery_category():
     snap = make_snapshot()
 
     deltas = {
-        "energy_delta":999,
-        "integrity_delta":0,
-        "stress_delta":0,
-        "fear_delta":0,
-        "drive_delta":0,
+        "energy_delta": 999,
+        "integrity_delta": 0,
+        "stress_delta": 0,
+        "fear_delta": 0,
+        "drive_delta": 0,
     }
 
     assert mem.categorize_event(deltas, snap) == "food_recovery"
@@ -160,11 +162,11 @@ def test_hazard_category():
     snap = make_snapshot(hazard_stim=1.0)
 
     deltas = {
-        "energy_delta":0,
-        "integrity_delta":0,
-        "stress_delta":0,
-        "fear_delta":0,
-        "drive_delta":0,
+        "energy_delta": 0,
+        "integrity_delta": 0,
+        "stress_delta": 0,
+        "fear_delta": 0,
+        "drive_delta": 0,
     }
 
     assert mem.categorize_event(deltas, snap) == "hazard_encounter"
@@ -193,14 +195,14 @@ def test_semantic_memory_export_import():
 
     cfg = load_config().memory
 
-    semantic = SemanticMemory(cfg)
+    semantic = SpatialMemory(cfg)
 
     semantic.internal_pos = Vector2(10.0, 20.0)
     semantic.internal_vel = Vector2(1.0, -2.0)
 
     exported = semantic.export_state()
 
-    restored = SemanticMemory(cfg)
+    restored = SpatialMemory(cfg)
     restored.import_state(exported)
 
     assert restored.internal_pos.x == 10.0

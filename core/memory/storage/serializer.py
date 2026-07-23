@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from ..schemas import EpisodicEvent
 
+
 class EpisodeSerializer:
     def __init__(self, root: Path | str):
         self.root = Path(root)

@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+
 class MetadataIndex:
     def __init__(self, index_path: Path | str):
         self.path = Path(index_path)

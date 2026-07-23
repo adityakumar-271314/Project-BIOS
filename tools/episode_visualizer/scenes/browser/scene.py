@@ -55,7 +55,9 @@ class BrowserScene(Scene):
                 self.runs_list = self.browser_util.list_runs()
                 self.apply_filters()
             else:
-                self.episodes_list = self.browser_util.list_episodes(run_id=self.state.selected_run_name)
+                self.episodes_list = self.browser_util.list_episodes(
+                    run_id=self.state.selected_run_name
+                )
                 self.cached_metadata.clear()
                 lowest_tick = float("inf")
                 highest_tick = 0
@@ -65,7 +67,11 @@ class BrowserScene(Scene):
                     self.cached_metadata[str(path)] = meta
 
                     ep_start = int(meta.get("start_tick", 0))
-                    ep_end = int(meta.get("ticks", meta.get("frames", meta.get("end_tick", 2000))))
+                    ep_end = int(
+                        meta.get(
+                            "ticks", meta.get("frames", meta.get("end_tick", 2000))
+                        )
+                    )
                     if isinstance(ep_end, list) and ep_end:
                         ep_end = max(ep_end)
 
@@ -77,7 +83,9 @@ class BrowserScene(Scene):
                     if ep_end > highest_tick:
                         highest_tick = ep_end
 
-                self.state.min_repository_ticks = lowest_tick if lowest_tick != float("inf") else 0
+                self.state.min_repository_ticks = (
+                    lowest_tick if lowest_tick != float("inf") else 0
+                )
                 self.state.max_repository_ticks = max(highest_tick, 2000)
 
                 self.state.tick_start = self.state.min_repository_ticks
@@ -115,7 +123,11 @@ class BrowserScene(Scene):
                     if isinstance(event_type, dict):
                         event_type = event_type.get("type", event_type)
                     ev_str = str(event_type).lower().strip()
-                    return target_ev == ev_str or target_ev in ev_str or ev_str in target_ev
+                    return (
+                        target_ev == ev_str
+                        or target_ev in ev_str
+                        or ev_str in target_ev
+                    )
 
                 results = [p for p in results if matches_event(p)]
 
@@ -132,26 +144,34 @@ class BrowserScene(Scene):
                 meta = self.cached_metadata.get(str(ep), {})
                 ep_start = meta.get("_calculated_start", 0)
                 ep_end = meta.get("_calculated_end", 2000)
-                return self.state.tick_start <= ep_start and ep_end <= self.state.tick_end
+                return (
+                    self.state.tick_start <= ep_start and ep_end <= self.state.tick_end
+                )
 
             self.filtered_list = [p for p in results if in_tick_range(p)]
 
-        self.state.selected_idx = max(0, min(self.state.selected_idx, len(self.filtered_list) - 1))
+        self.state.selected_idx = max(
+            0, min(self.state.selected_idx, len(self.filtered_list) - 1)
+        )
         self.update_preview()
 
-
     def update_preview(self):
-        if self.filtered_list and 0 <= self.state.selected_idx < len(self.filtered_list):
+        if self.filtered_list and 0 <= self.state.selected_idx < len(
+            self.filtered_list
+        ):
             target_folder = self.filtered_list[self.state.selected_idx]
             if self.state.current_view == "RUNS":
-                episodes_in_run = self.browser_util.list_episodes(run_id=target_folder.name)
-                
+                episodes_in_run = self.browser_util.list_episodes(
+                    run_id=target_folder.name
+                )
+
                 # Check for run-level manifest metadata if present
                 manifest_path = target_folder / "episodes" / "manifest.json"
                 manifest_data = {}
                 if manifest_path.exists():
                     try:
                         import json
+
                         with open(manifest_path, "r") as f:
                             manifest_data = json.load(f)
                     except Exception:
@@ -164,7 +184,9 @@ class BrowserScene(Scene):
                     **manifest_data,
                 }
             else:
-                self.state.selected_metadata = self.cached_metadata.get(str(target_folder), {})
+                self.state.selected_metadata = self.cached_metadata.get(
+                    str(target_folder), {}
+                )
         else:
             self.state.selected_metadata = {}
 
@@ -202,8 +224,13 @@ class BrowserScene(Scene):
         if event.key == pygame.K_UP:
             self.state.selected_idx = max(0, self.state.selected_idx - 1)
         elif event.key == pygame.K_DOWN:
-            self.state.selected_idx = min(len(self.filtered_list) - 1, self.state.selected_idx + 1)
-        elif event.key in (pygame.K_ESCAPE, pygame.K_BACKSPACE) and not self.state.search_active:
+            self.state.selected_idx = min(
+                len(self.filtered_list) - 1, self.state.selected_idx + 1
+            )
+        elif (
+            event.key in (pygame.K_ESCAPE, pygame.K_BACKSPACE)
+            and not self.state.search_active
+        ):
             if self.state.current_view == "EPISODES":
                 self.state.current_view = "RUNS"
                 self.state.selected_run_path = None
@@ -233,7 +260,9 @@ class BrowserScene(Scene):
                     session = load_from_storage(target_folder)
                     self.controller.switch_to_scene("PLAYBACK", session=session)
                 except Exception as e:
-                    self.controller.trigger_error(f"Reconstruction Halt Constraint: {e}")
+                    self.controller.trigger_error(
+                        f"Reconstruction Halt Constraint: {e}"
+                    )
             return True
 
         if self.state.selected_idx != original_idx:
@@ -258,21 +287,43 @@ class BrowserScene(Scene):
 
         if not self.filtered_list and not self.runs_list and not self.episodes_list:
             title = self.controller.big_font.render("EMPTY REPOSITORY", True, ERROR_RED)
-            msg = self.controller.font.render("No runs or episodes discovered.", True, TEXT_MUTED)
+            msg = self.controller.font.render(
+                "No runs or episodes discovered.", True, TEXT_MUTED
+            )
             screen.blit(
                 title,
-                title.get_rect(center=(ui.w(WINDOW_WIDTH) // 2, ui.h(WINDOW_HEIGHT) // 2 - ui.h(50))),
+                title.get_rect(
+                    center=(
+                        ui.w(WINDOW_WIDTH) // 2,
+                        ui.h(WINDOW_HEIGHT) // 2 - ui.h(50),
+                    )
+                ),
             )
-            screen.blit(msg, msg.get_rect(center=(ui.w(WINDOW_WIDTH) // 2, ui.h(WINDOW_HEIGHT) // 2)))
+            screen.blit(
+                msg,
+                msg.get_rect(
+                    center=(ui.w(WINDOW_WIDTH) // 2, ui.h(WINDOW_HEIGHT) // 2)
+                ),
+            )
             return
 
-        title_str = "SYSTEM RUN BROWSER" if self.state.current_view == "RUNS" else f"RUN: {self.state.selected_run_name}"
+        title_str = (
+            "SYSTEM RUN BROWSER"
+            if self.state.current_view == "RUNS"
+            else f"RUN: {self.state.selected_run_name}"
+        )
         title = self.controller.big_font.render(title_str, True, ACCENT_CYAN)
         screen.blit(title, (ui.x(40), ui.y(25)))
 
         toggle_rect = pygame.Rect(ui.x(40), ui.y(70), ui.w(135), ui.h(32))
         pygame.draw.rect(screen, PANEL_BG, toggle_rect, border_radius=ui.r(6))
-        pygame.draw.rect(screen, PANEL_BORDER, toggle_rect, width=max(1, ui.r(1)), border_radius=ui.r(6))
+        pygame.draw.rect(
+            screen,
+            PANEL_BORDER,
+            toggle_rect,
+            width=max(1, ui.r(1)),
+            border_radius=ui.r(6),
+        )
         toggle_text = self.controller.small_font.render(
             f"SIDE PANEL {'v' if self.state.show_filters else '>'}", True, ACCENT_CYAN
         )
@@ -280,20 +331,33 @@ class BrowserScene(Scene):
 
         shortcuts = [
             ("↑↓", "Navigate"),
-            ("ENTER", "Select Run" if self.state.current_view == "RUNS" else "Load Episode"),
-            ("BACKSPACE", "Back to Runs" if self.state.current_view == "EPISODES" else "Exit"),
+            (
+                "ENTER",
+                "Select Run" if self.state.current_view == "RUNS" else "Load Episode",
+            ),
+            (
+                "BACKSPACE",
+                "Back to Runs" if self.state.current_view == "EPISODES" else "Exit",
+            ),
             ("Ctrl+F", "Filter"),
             ("ESC", "Back/Exit"),
         ]
         current_x = toggle_rect.right + ui.w(20)
         text_y_center = toggle_rect.y + toggle_rect.height // 2
         for key, action in shortcuts:
-            key_render = self.controller.small_font.render(f"[{key}]", True, ACCENT_BLUE)
-            screen.blit(key_render, (current_x, text_y_center - key_render.get_height() // 2))
+            key_render = self.controller.small_font.render(
+                f"[{key}]", True, ACCENT_BLUE
+            )
+            screen.blit(
+                key_render, (current_x, text_y_center - key_render.get_height() // 2)
+            )
             current_x += key_render.get_width() + ui.w(4)
 
             action_render = self.controller.small_font.render(action, True, TEXT_MUTED)
-            screen.blit(action_render, (current_x, text_y_center - action_render.get_height() // 2))
+            screen.blit(
+                action_render,
+                (current_x, text_y_center - action_render.get_height() // 2),
+            )
             current_x += action_render.get_width() + ui.w(16)
 
         pygame.draw.line(
@@ -315,9 +379,18 @@ class BrowserScene(Scene):
         if self.state.show_filters and self.state.current_view == "EPISODES":
             self.filter_panel.render(screen)
 
-        pygame.draw.rect(screen, PANEL_BG, (panel_x, panel_y, left_pane_w, panel_h), border_radius=ui.r(8))
         pygame.draw.rect(
-            screen, PANEL_BORDER, (panel_x, panel_y, left_pane_w, panel_h), width=max(1, ui.r(1)), border_radius=ui.r(8)
+            screen,
+            PANEL_BG,
+            (panel_x, panel_y, left_pane_w, panel_h),
+            border_radius=ui.r(8),
+        )
+        pygame.draw.rect(
+            screen,
+            PANEL_BORDER,
+            (panel_x, panel_y, left_pane_w, panel_h),
+            width=max(1, ui.r(1)),
+            border_radius=ui.r(8),
         )
 
         self.episode_list_panel.render(screen, panel_x, panel_y, left_pane_w, panel_h)

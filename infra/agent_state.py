@@ -5,7 +5,7 @@ from pathlib import Path
 import json
 
 
-@dataclass#(frozen=True, slots=True)
+@dataclass  # (frozen=True, slots=True)
 class AgentState:
     tick_count: int
 
@@ -30,22 +30,16 @@ class AgentState:
     def from_agent(cls, agent) -> "AgentState":
         return cls(
             tick_count=agent.tick_count,
-
             energy=agent.bst.energy,
             integrity=agent.bst.integrity,
-
             stress=agent.ehe.stress,
             fear=agent.ehe.fear,
             drive=agent.ehe.drive,
-
             internal_pos_x=agent.memory.internal_pos.x,
             internal_pos_y=agent.memory.internal_pos.y,
-
             internal_vel_x=agent.memory.internal_vel.x,
             internal_vel_y=agent.memory.internal_vel.y,
-
             is_alive=agent.bst.is_alive,
-
             rotation=getattr(agent, "rotation", 0.0),
         )
 

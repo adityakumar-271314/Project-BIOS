@@ -10,7 +10,7 @@ The architecture is intentionally divided into multiple layers:
 
 | Layer           | Responsibility                              |
 | --------------- | ------------------------------------------- |
-| Semantic Memory | Spatial cognition and environmental mapping |
+| Spatial Memory | Spatial cognition and environmental mapping |
 | Episodic Memory | Autobiographical event encoding             |
 | Memory System   | Unified facade and retrieval API            |
 
@@ -32,7 +32,7 @@ The memory subsystem is fully deterministic under identical simulation inputs.
 Sensors
    ↓
 MemorySystem.update()
-   ├── SemanticMemory.update()
+   ├── SpatialMemory.update()
    └── EpisodicMemory.update()
 ```
 
@@ -52,7 +52,7 @@ core/memory/memory_system.py
 
 It owns:
 
-* `SemanticMemory`
+* `SpatialMemory`
 * `EpisodicMemory`
 
 and exposes:
@@ -66,15 +66,15 @@ This prevents higher-level systems from directly depending on internal subsystem
 
 ---
 
-# Semantic Memory
+# Spatial Memory
 
 Location:
 
 ```text
-core/memory/semantic.py
+core/memory/spatial_memory
 ```
 
-Semantic memory functions as the agent's spatial cognition system.
+Spatial memory functions as the agent's spatial cognition system.
 
 It models:
 
@@ -153,7 +153,7 @@ Episodic memory stores autobiographical experiences judged to be:
 * emotionally salient
 * physiologically critical
 
-Unlike semantic memory, episodic memory is sparse and event-oriented.
+Unlike spatial memory, episodic memory is sparse and event-oriented.
 
 ---
 
@@ -324,7 +324,7 @@ Distance checks currently use squared Euclidean distance.
 
 ---
 
-# Semantic Query Helpers
+# Spatial Query Helpers
 
 Higher-level helper methods simplify common cognitive queries.
 
@@ -350,7 +350,7 @@ This keeps subsystem responsibilities separated:
 
 # Serialization Architecture
 
-Both semantic and episodic memory support full export/import serialization.
+Both spatial and episodic memory support full export/import serialization.
 
 ---
 
@@ -358,7 +358,7 @@ Both semantic and episodic memory support full export/import serialization.
 
 ```python
 {
-    "semantic": ...,
+    "spatial": ...,
     "episodic": ...,
     "version": 1,
 }
@@ -368,9 +368,9 @@ Versioning allows future migration compatibility.
 
 ---
 
-# Semantic Serialization
+# Spatial Serialization
 
-Semantic memory exports:
+Spatial memory exports:
 
 * internal position
 * internal velocity
@@ -469,7 +469,7 @@ This is preferred over hard memory caps.
 
 ---
 
-## 2. Episodic → Semantic Consolidation
+## 2. Episodic → Spatial Consolidation
 
 Repeated episodic patterns may eventually compress into generalized semantic knowledge.
 

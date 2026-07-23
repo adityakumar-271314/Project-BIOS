@@ -1,5 +1,6 @@
 # tools/episode_visualizer/scenes/browser/state.py
 
+
 class BrowserState:
     """Encapsulates all search, filtering, selection, and view toggles for the browser."""
 

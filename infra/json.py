@@ -1,4 +1,6 @@
 import json
+
+
 class BIOSJsonEncoder(json.JSONEncoder):
     def default(self, obj):
         if hasattr(obj, "to_dict"):

@@ -38,7 +38,7 @@ from typing import List, Optional, Tuple
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import pygame
-from core.memory.semantic import SemanticMemory
+from core.memory.spatial_memory.core import SpatialMemory
 from core.vector import Vector2
 
 # ---------------------------------------------------------------------------
@@ -94,7 +94,7 @@ class _Visualizer:
     HEIGHT = 800
     FONT_PATH = None  # uses pygame default
 
-    def __init__(self, memory: SemanticMemory, path: Optional[List[Vector2]] = None):
+    def __init__(self, memory: SpatialMemory, path: Optional[List[Vector2]] = None):
         self.memory = memory
         self.path: List[Vector2] = path or []
 
@@ -455,7 +455,7 @@ class _Visualizer:
 
 
 def run_visualizer(
-    memory: SemanticMemory,
+    memory: SpatialMemory,
     path: Optional[List[Vector2]] = None,
 ) -> None:
     """
@@ -492,9 +492,9 @@ if __name__ == "__main__":
         collision_velocity_damping = 0.3
         grid_prune_threshold = 0.005
 
-    from core.memory.semantic import SemanticMemory, GridCell, LandmarkRecord
+    from core.memory.spatial_memory.core import SpatialMemory, GridCell, LandmarkRecord
 
-    mem = SemanticMemory(_Cfg())
+    mem = SpatialMemory(_Cfg())
 
     import random, math as _math
 

@@ -61,7 +61,7 @@ class EpisodicMemory:
     ) -> None:
         if episodes_dir:
             self.archive = EpisodeArchive(root_dir=Path(episodes_dir))
-        
+
         if not continuation:
             self._tick = 0
             self._stats = {
@@ -147,7 +147,9 @@ class EpisodicMemory:
 
     def encode(self, event: EpisodicEvent) -> None:
         self.archive.save(event)
-        print(f"[EPISODE ENCODED] type={event.event_type} peak_sig={event.peak_significance:.2f} tick={event.peak_tick}")
+        print(
+            f"[EPISODE ENCODED] type={event.event_type} peak_sig={event.peak_significance:.2f} tick={event.peak_tick}"
+        )
 
     def export_state(self) -> dict:
         return {"tick": self._tick, "index": self.archive.index.data}

@@ -35,7 +35,7 @@ class RunContext:
 def setup_run_session(base_dir="run_history", default_run_id=None) -> RunContext:
     base_path = Path(base_dir)
     base_path.mkdir(parents=True, exist_ok=True)
-    
+
     if default_run_id:
         run_path = base_path / f"run{int(default_run_id):06d}"
         run_path.mkdir(parents=True, exist_ok=True)
@@ -50,20 +50,28 @@ def setup_run_session(base_dir="run_history", default_run_id=None) -> RunContext
         choice = "1"
 
     if choice == "2":
-        existing_runs = sorted([p for p in base_path.iterdir() if p.is_dir() and p.name.startswith("run")])
+        existing_runs = sorted(
+            [p for p in base_path.iterdir() if p.is_dir() and p.name.startswith("run")]
+        )
         if existing_runs:
             print("\nAvailable runs:")
             for idx, run in enumerate(existing_runs):
                 print(f"  [{idx}] {run.name}")
             try:
-                run_idx = int(input(f"Choose run index (0-{len(existing_runs)-1}): ").strip())
+                run_idx = int(
+                    input(f"Choose run index (0-{len(existing_runs)-1}): ").strip()
+                )
                 return RunContext(run_dir=existing_runs[run_idx])
             except (ValueError, IndexError):
                 print("Invalid index. Defaulting to fresh run.")
         else:
             print("No existing run folders detected. Creating fresh.")
 
-    existing_ids = [int(p.name.replace("run", "")) for p in base_path.iterdir() if p.is_dir() and p.name.startswith("run")]
+    existing_ids = [
+        int(p.name.replace("run", ""))
+        for p in base_path.iterdir()
+        if p.is_dir() and p.name.startswith("run")
+    ]
     next_id = max(existing_ids) + 1 if existing_ids else 1
     run_path = base_path / f"run{next_id:06d}"
     run_path.mkdir(parents=True, exist_ok=True)

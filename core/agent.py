@@ -22,6 +22,7 @@ from core.brain.brain import Brain
 from infra.config_loader import load_config
 from infra.agent_state import AgentState
 
+
 class Agent:
     def __init__(self, config_path="config.json"):
 

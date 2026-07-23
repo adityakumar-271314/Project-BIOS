@@ -25,11 +25,7 @@ class WorldState:
             "world_seed": self.world_seed,
             "continuation": self.continuation,
             "consumed_food_ids": self.consumed_food_ids,
-            "agent_state": (
-                self.agent_state.__dict__
-                if self.agent_state
-                else None
-            ),
+            "agent_state": (self.agent_state.__dict__ if self.agent_state else None),
         }
 
         with open(path, "w", encoding="utf-8") as f:

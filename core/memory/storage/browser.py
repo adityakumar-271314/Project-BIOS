@@ -12,16 +12,12 @@ class EpisodeBrowser:
         if not self.root.exists():
             return []
         return sorted(
-            [
-                p
-                for p in self.root.iterdir()
-                if p.is_dir() and p.name.startswith("run")
-            ]
+            [p for p in self.root.iterdir() if p.is_dir() and p.name.startswith("run")]
         )
 
     def list_episodes(self, run_id: Optional[str] = None) -> List[Path]:
         """
-        Lists episode directories within run_history/<run_id>/episodes/, 
+        Lists episode directories within run_history/<run_id>/episodes/,
         or across all runs if run_id is None.
         """
         if not self.root.exists():

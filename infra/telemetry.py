@@ -4,6 +4,7 @@ Telemetry Recording System.
 Logs key internal state variables each tick for post-run analysis and
 visualization.
 """
+
 from infra.json import BIOSJsonEncoder
 from dataclasses import dataclass, asdict
 from typing import Dict, Any
@@ -35,6 +36,8 @@ class TickTelemetry:
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
+
+
 class TelemetryRecorder:
 
     def __init__(self, path: str = "telemetry.jsonl"):
@@ -45,7 +48,6 @@ class TelemetryRecorder:
     def record(self, data: TickTelemetry):
 
         self.file.write(json.dumps(data, cls=BIOSJsonEncoder) + "\n")
-
 
     def close(self):
         self.file.close()

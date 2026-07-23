@@ -19,7 +19,7 @@ Project BIOS is a Python and Godot embodied-agent research prototype for studyin
 
 **Memory visualization**
  
-<img src="docs/media/images/semantic_memory.png" width="800" alt="Memory Visualization">
+<img src="docs/media/images/spatial_memory.png" width="800" alt="Memory Visualization">
 
 **Telemetry dashboard**
  
@@ -59,7 +59,7 @@ Each tick proceeds as follows: the Godot physics step produces sensor data, whic
  
 - `BodyStateTracker` — physiology and homeostasis
 - `EmotionHormoneEngine` — drive, fear, stress
-- `MemorySystem` — semantic and episodic memory
+- `MemorySystem` - spatial and episodic memory
 - `Brain` — Goal Stack Manager and action dispatcher (ADSE)
 
 ### Technical design principles
@@ -124,7 +124,7 @@ Project BIOS records two logs per run: `telemetry.jsonl`, containing internal st
  
 Tooling:
  
-- **Semantic memory visualizer** (`tools/visualizer.py`) — post-mortem inspection of an agent's spatial recording.
+- **Spatial memory visualizer** (`tools/visualizer.py`) — post-mortem inspection of an agent's spatial recording.
 - **Log visualizer** (`python tools/log_visualizer.py`) — parses `telemetry.jsonl` into multi-variable analytical plots.
 - **Episodic memory renderer** — native engine-side playback inside Godot.
 

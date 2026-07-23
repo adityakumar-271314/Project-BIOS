@@ -20,6 +20,7 @@ Key responsibilities:
 TCP Bridge between Godot Simulation and Python Cognition Engine.
 """
 import os
+
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 import math
 import socket
@@ -51,7 +52,7 @@ def get_new_minimized_memories(agent, tracker_state={"last_sent_index": 0}):
     all_memories = agent.memory.get_debug_memories()
     total_memories = len(all_memories)
     new_minimized = []
-    
+
     if total_memories > tracker_state["last_sent_index"]:
         for i in range(tracker_state["last_sent_index"], total_memories):
             mem = all_memories[i]
@@ -83,14 +84,16 @@ def run_brain_server():
     ctx = setup_run_session()  # Returns RunContext instance
     world_state = load_world_state(ctx, cfg.simulation.world_seed)
 
-    print(f"BIOS Brain Server active on {host}:{port}. Session directory: {ctx.run_dir}")
+    print(
+        f"BIOS Brain Server active on {host}:{port}. Session directory: {ctx.run_dir}"
+    )
 
     conn, addr = server.accept()
     client_file = conn.makefile("rw", encoding="utf-8")
 
     is_continuation = world_state.continuation
-    agent = Agent() 
-    
+    agent = Agent()
+
     telemetry = TelemetryRecorder(path=str(ctx.telemetry))
     replay = ReplayRecorder(path=str(ctx.replay))
     path_log = []
@@ -98,38 +101,35 @@ def run_brain_server():
 
     if is_continuation:
         agent.memory.initialize_run_state(
-            continuation=True, 
+            continuation=True,
             storage_path=str(ctx.spatial_memory),
-            episodes_dir=str(ctx.episodes_dir)
+            episodes_dir=str(ctx.episodes_dir),
         )
         agent.import_state(world_state.agent_state)
-        
+
         if ctx.world_state.exists():
             with open(ctx.world_state, "r") as f:
                 world_state_data = json.load(f)
                 eaten_food_ids = world_state_data.get("eaten_food_ids", [])
     else:
         agent.memory.reset_state(
-            storage_path=str(ctx.spatial_memory),
-            episodes_dir=str(ctx.episodes_dir)
+            storage_path=str(ctx.spatial_memory), episodes_dir=str(ctx.episodes_dir)
         )
 
     # Include eaten_food_ids in the INIT packet
     init_packet = {
-    "type": "INIT",
-    "world_seed": world_state.world_seed,
-    "continuation": world_state.continuation,
-    "consumed_food_ids": world_state.consumed_food_ids,
-    "agent_state": (
-        world_state.agent_state.__dict__
-        if world_state.agent_state
-        else None
-    ),
-}
+        "type": "INIT",
+        "world_seed": world_state.world_seed,
+        "continuation": world_state.continuation,
+        "consumed_food_ids": world_state.consumed_food_ids,
+        "agent_state": (
+            world_state.agent_state.__dict__ if world_state.agent_state else None
+        ),
+    }
     latest_consumed_food_ids = eaten_food_ids
     client_file.write(json.dumps(init_packet) + "\n")
     client_file.flush()
-    DEBUG = False  # Set to True to enable detailed debug output each tick
+    DEBUG = True  # Set to True to enable detailed debug output each tick
     try:
         while True:
 
@@ -242,13 +242,12 @@ def run_brain_server():
 
     except Exception as e:
         print(f"Connection Error: {e}")
-        print(
-        f"BRIDGE FATAL EXIT: {type(e).__name__}: {e}", flush=True)
+        print(f"BRIDGE FATAL EXIT: {type(e).__name__}: {e}", flush=True)
 
-    finally: 
+    finally:
         final_agent_state = AgentState.from_agent(agent)
-        
-        if 'sensors' in locals() and sensors.is_real_data:
+
+        if "sensors" in locals() and sensors.is_real_data:
             final_agent_state.internal_pos_x = sensors.real_pos_x
             final_agent_state.internal_pos_y = sensors.real_pos_y
             if hasattr(sensors, "current_rotation"):
@@ -259,18 +258,19 @@ def run_brain_server():
             world_seed=world_state.world_seed,
             continuation=True,
             consumed_food_ids=latest_consumed_food_ids,
-            agent_state=final_agent_state
+            agent_state=final_agent_state,
         )
-        
+
         # Save state files cleanly via ctx properties
         final_world_state.save(ctx.world_state)
         agent.memory.shutdown_and_save(storage_path=str(ctx.spatial_memory))
-        
+
         telemetry.close()
         replay.close()
         conn.close()
         server.close()
         run_visualizer(agent.memory.semantic, path=path_log)
+
 
 if __name__ == "__main__":
     run_brain_server()

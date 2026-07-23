@@ -4,6 +4,7 @@ from .serializer import EpisodeSerializer
 from .metadata_index import MetadataIndex
 from ..schemas import EpisodicEvent
 
+
 class EpisodeArchive:
     def __init__(self, root_dir: Path | str, cache_size: int = 128):
         self.root = Path(root_dir)
@@ -16,7 +17,7 @@ class EpisodeArchive:
     def save(self, event: EpisodicEvent):
         # Persist full episode data to disk
         episode_id = self.serializer.save(event)
-        
+
         # Extract and append minimal metadata tracking metrics
         meta = {
             "id": episode_id,
@@ -24,10 +25,10 @@ class EpisodeArchive:
             "peak_tick": event.peak_tick,
             "peak_significance": event.peak_significance,
             "peak_x": event.peak_x,
-            "peak_y": event.peak_y
+            "peak_y": event.peak_y,
         }
         self.index.add(meta)
-        
+
         # Cache the live instance
         self._cache_put(episode_id, event)
 
@@ -35,7 +36,7 @@ class EpisodeArchive:
         if episode_id in self.cache:
             self.cache.move_to_end(episode_id)
             return self.cache[episode_id]
-        
+
         event = self.serializer.load(episode_id)
         self._cache_put(episode_id, event)
         return event
@@ -49,7 +50,9 @@ class EpisodeArchive:
         meta = self.index.query_latest()
         return self.load(meta["id"]) if meta else None
 
-    def recall_near(self, pos_x: float, pos_y: float, radius: float) -> list[EpisodicEvent]:
+    def recall_near(
+        self, pos_x: float, pos_y: float, radius: float
+    ) -> list[EpisodicEvent]:
         r_sq = radius * radius
         matches = []
         for meta in self.index.data["episodes"]:

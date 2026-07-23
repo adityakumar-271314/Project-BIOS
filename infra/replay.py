@@ -4,6 +4,7 @@ Replay Recording System.
 Saves complete tick-by-tick sensor input and motor output for deterministic
 replay, debugging, and analysis.
 """
+
 from infra.json import BIOSJsonEncoder
 
 from dataclasses import dataclass, asdict
@@ -20,6 +21,8 @@ class ReplayFrame:
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
+
+
 class ReplayRecorder:
 
     def __init__(self, path="replay.jsonl"):
@@ -27,9 +30,8 @@ class ReplayRecorder:
         self.file = open(path, "a+", encoding="utf-8")
 
     def record(self, frame: ReplayFrame):
-        
-        self.file.write(json.dumps(frame, cls=BIOSJsonEncoder) + "\n")
 
+        self.file.write(json.dumps(frame, cls=BIOSJsonEncoder) + "\n")
 
     def close(self):
 

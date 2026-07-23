@@ -1,15 +1,16 @@
-from .semantic import SemanticMemory
+from .spatial_memory.core import SpatialMemory
 from .episodic import EpisodicMemory
 from .temporal_buffer import TemporalBuffer
 from .event_delay import EventDelayQueue
 from .episode_pipeline import EpisodePipeline
 from pathlib import Path
 
+
 class MemorySystem:
 
     def __init__(self, config):
         self.cfg = config
-        self.semantic = SemanticMemory(config)
+        self.semantic = SpatialMemory(config)
         self.episodic = EpisodicMemory(config)
         self.temporal_buffer = TemporalBuffer(
             seconds=15,
@@ -59,7 +60,7 @@ class MemorySystem:
             for episode in episodes:
                 # --- Use high-speed index checking rather than RAM list iterations ---
                 if not any(
-                    e["peak_tick"] == episode.peak_tick 
+                    e["peak_tick"] == episode.peak_tick
                     for e in self.episodic.archive.index.data["episodes"]
                 ):
                     self.episodic.encode(episode)
@@ -167,15 +168,22 @@ class MemorySystem:
 
     def last_significant_event(self, min_significance: float = 5.0):
         matches = [
-            m for m in self.episodic.archive.index.data["episodes"]
+            m
+            for m in self.episodic.archive.index.data["episodes"]
             if m["peak_significance"] >= min_significance
         ]
         return self.episodic.archive.load(matches[-1]["id"]) if matches else None
 
     def last_danger_event(self):
-        danger_types = {"danger_state", "hazard_encounter", "damage_spike", "near_death"}
+        danger_types = {
+            "danger_state",
+            "hazard_encounter",
+            "damage_spike",
+            "near_death",
+        }
         matches = [
-            m for m in self.episodic.archive.index.data["episodes"]
+            m
+            for m in self.episodic.archive.index.data["episodes"]
             if m["event_type"] in danger_types
         ]
         return self.episodic.archive.load(matches[-1]["id"]) if matches else None
@@ -192,27 +200,33 @@ class MemorySystem:
         return self.episodic.archive.load(target_meta["id"])
 
     def nearby_danger_memories(self, pos_x: float, pos_y: float, radius: float):
-        danger_types = {"danger_state", "hazard_encounter", "damage_spike", "near_death"}
+        danger_types = {
+            "danger_state",
+            "hazard_encounter",
+            "damage_spike",
+            "near_death",
+        }
         nearby = self.recall_near(pos_x=pos_x, pos_y=pos_y, radius=radius)
         return [event for event in nearby if event.event_type in danger_types]
 
     def initialize_run_state(
-            self,
-            continuation: bool,
-            storage_path: str = "spatial_memory_state.json",
-            episodes_dir: Path | str | None = None,
-        ) -> None:
-            # Pass spatial memory path to semantic memory
-            self.semantic.initialize_run_state(continuation, storage_path)
-            
-            # Pass run episode directory to episodic memory
-            self.episodic.initialize_run_state(continuation, episodes_dir)
-            
-            if continuation:
-                self._tick = self.semantic._tick
-                self.temporal_buffer.clear()
-            else:
-                self._tick = 0
+        self,
+        continuation: bool,
+        storage_path: str = "spatial_memory_state.json",
+        episodes_dir: Path | str | None = None,
+    ) -> None:
+        # Pass spatial memory path to semantic memory
+        self.semantic.initialize_run_state(continuation, storage_path)
+
+        # Pass run episode directory to episodic memory
+        self.episodic.initialize_run_state(continuation, episodes_dir)
+
+        if continuation:
+            self._tick = self.semantic._tick
+            self.temporal_buffer.clear()
+        else:
+            self._tick = 0
+
     def shutdown_and_save(
         self,
         storage_path: str = "spatial_memory_state.json",
@@ -220,9 +234,11 @@ class MemorySystem:
         self.semantic.shutdown_and_save(storage_path)
 
     def reset_state(
-            self,
-            storage_path: str = "spatial_memory_state.json",
-            episodes_dir: Path | str | None = None,
-        ) -> None:
-            self.semantic.reset_state(storage_path)
-            self.episodic.initialize_run_state(continuation=False, episodes_dir=episodes_dir)
+        self,
+        storage_path: str = "spatial_memory_state.json",
+        episodes_dir: Path | str | None = None,
+    ) -> None:
+        self.semantic.reset_state(storage_path)
+        self.episodic.initialize_run_state(
+            continuation=False, episodes_dir=episodes_dir
+        )
