@@ -2,14 +2,15 @@ from __future__ import annotations
 from collections import deque
 from typing import Any, List, Tuple
 
-from .schemas import EpisodeFrame, TickSnapshot
+from ..schemas import EpisodeFrame, TickSnapshot
 
 
 class TemporalBuffer:
     """
     Short-term autobiographical stream.
 
-    Holds recent high-fidelity agent state for future episode reconstruction.
+    Holds recent high-fidelity agent state and annotated frames
+    independently for temporal context extraction.
 
     This is NOT memory. It is a transient rolling window.
     """
@@ -60,7 +61,6 @@ class TemporalBuffer:
         ticks = int(seconds * self.fps)
         if ticks <= 0:
             return ()
-        # Slice from the end of the deque efficiently
         return tuple(list(self._snapshots)[-ticks:])
 
     def get_context(
@@ -105,19 +105,20 @@ class TemporalBuffer:
         sensors: Any,
         body: Any,
         emotions: Any,
-        semantic_memory: Any,
+        spatial_mem: Any,
         goal: Any,
         active_skill: Any,
         target: Any,
-    ) -> None:
+    ) -> TickSnapshot:
+        """Constructs and returns a raw TickSnapshot without direct frame generation."""
         snapshot = TickSnapshot(
             tick=tick,
             # spatial
-            pos_x=semantic_memory.position.x,
-            pos_y=semantic_memory.position.y,
-            vel_x=semantic_memory.velocity.x,
-            vel_y=semantic_memory.velocity.y,
-            heading=semantic_memory.internal_heading,
+            pos_x=spatial_mem.position.x,
+            pos_y=spatial_mem.position.y,
+            vel_x=spatial_mem.velocity.x,
+            vel_y=spatial_mem.velocity.y,
+            heading=spatial_mem.internal_heading,
             # body
             energy=body.energy,
             integrity=body.integrity,
@@ -126,7 +127,7 @@ class TemporalBuffer:
             fear=emotions.fear,
             drive=emotions.drive,
             # goal state
-            goal_name=getattr(goal, "name"),
+            goal_name=getattr(goal, "name", None),
             goal_priority=getattr(goal, "priority", 0.0),
             # execution state
             active_skill=active_skill,
@@ -148,3 +149,4 @@ class TemporalBuffer:
         )
 
         self.append_snapshot(snapshot)
+        return snapshot

@@ -1,117 +1,83 @@
-from typing import List
+from typing import List, Optional
 from .schemas import EpisodicEvent, EpisodeFrame, SparseFrame
+from .boundary.boundary import BoundaryInterval
+from .boundary.boundary_detector import BoundaryDetector
 
 
 class EpisodeBuilder:
     def __init__(
         self,
-        low_threshold: float = 0.25,
-        merge_overlap: bool = True,
         compression_ratio: float = 0.08,
         min_keyframes: int = 5,
         change_threshold: float = 0.25,
+        boundary_detector: Optional[BoundaryDetector] = None,
     ):
         """
-        Pure computational worker for temporal compression and episode extraction.
-
-        Args:
-            low_threshold: The significance floor used for boundary hysteresis.
-            merge_overlap: Whether to consolidate overlapping temporal intervals.
+        Pure computational worker for constructing EpisodicEvent instances from 
+        annotated EpisodeFrame sequences and BoundaryIntervals.
         """
-        self.LOW_THRESHOLD = low_threshold
-        self.MERGE_OVERLAP = merge_overlap
         self.COMPRESSION_RATIO = compression_ratio
         self.MIN_KEYFRAMES = min_keyframes
         self.CHANGE_THRESHOLD = change_threshold
+        self.boundary_detector = boundary_detector or BoundaryDetector()
 
-    def build(self, frames: List[EpisodeFrame]) -> List[EpisodicEvent]:
+    def build(
+        self,
+        frames: List[EpisodeFrame],
+        boundaries: Optional[List[BoundaryInterval]] = None,
+    ) -> List[EpisodicEvent]:
         """
-        Transforms a continuous sequence of annotated frames into distinct, consolidated events.
-
-        Args:
-            frames: Chronological list of EpisodeFrame objects received from the buffer context.
-
-        Returns:
-            A list of constructed, summarized EpisodicEvent objects.
+        Transforms frames into consolidated EpisodicEvents using BoundaryIntervals.
+        If boundaries are not provided, uses the BoundaryDetector to extract them.
         """
         if not frames:
             return []
 
-        # --- Responsibility 1 & 2: Find and Filter Candidate Peaks --- (unchanged)
-        peak_indices = []
-        for i in range(1, len(frames) - 1):
-            current = frames[i]
-            prev_frame = frames[i - 1]
-            next_frame = frames[i + 1]
-            if (
-                current.significance > prev_frame.significance
-                and current.significance >= next_frame.significance
-            ):
-                if current.significance > self.LOW_THRESHOLD:
-                    peak_indices.append(i)
+        # Step 1: Obtain Boundary Intervals if not pre-computed
+        if boundaries is None:
+            boundaries = self.boundary_detector.detect_boundaries(frames)
 
-        if not peak_indices:
+        if not boundaries:
             return []
 
-        # --- Responsibility 3 & 4: Expand Regions & Apply Hysteresis --- (unchanged)
-        raw_intervals = []
-        for peak_idx in peak_indices:
-            start_idx = peak_idx
-            while start_idx > 0 and frames[start_idx].significance > self.LOW_THRESHOLD:
-                start_idx -= 1
-            if (
-                frames[start_idx].significance <= self.LOW_THRESHOLD
-                and start_idx < peak_idx
-            ):
-                start_idx += 1
+        # Map frames by tick for fast lookup
+        frame_map = {f.snapshot.tick: f for f in frames}
+        sorted_ticks = sorted(frame_map.keys())
 
-            end_idx = peak_idx
-            while (
-                end_idx < len(frames) - 1
-                and frames[end_idx].significance > self.LOW_THRESHOLD
-            ):
-                end_idx += 1
-            if (
-                frames[end_idx].significance <= self.LOW_THRESHOLD
-                and end_idx > peak_idx
-            ):
-                end_idx -= 1
-
-            raw_intervals.append((start_idx, end_idx))
-
-        # --- Responsibility 5: Merge Overlapping Regions --- (unchanged)
-        if self.MERGE_OVERLAP and len(raw_intervals) > 1:
-            raw_intervals.sort(key=lambda x: x[0])
-            merged_intervals = [raw_intervals[0]]
-            for current_start, current_end in raw_intervals[1:]:
-                last_start, last_end = merged_intervals[-1]
-                if current_start <= last_end:
-                    merged_intervals[-1] = (last_start, max(last_end, current_end))
-                else:
-                    merged_intervals.append((current_start, current_end))
-            intervals = merged_intervals
-        else:
-            intervals = raw_intervals
-
-        # --- Build Persistent Episodes from Intervals --- (core logic same)
         episodes = []
-        for start_idx, end_idx in intervals:
-            window_frames = frames[start_idx : end_idx + 1]
+
+        # Step 2: Build EpisodicEvents for each validated BoundaryInterval
+        for interval in boundaries:
+            # Extract frames within [start_tick, end_tick]
+            window_frames = [
+                frame_map[t]
+                for t in sorted_ticks
+                if interval.start_tick <= t <= interval.end_tick
+            ]
+
             if not window_frames:
                 continue
 
-            peak_frame = max(window_frames, key=lambda f: f.significance)
+            # Identify peak frame by highest importance score
+            peak_frame = max(window_frames, key=lambda f: f.importance)
             first_snap = window_frames[0].snapshot
             last_snap = window_frames[-1].snapshot
 
             key_frames = self._extract_key_frames(window_frames)
+
+            # Construct consolidated notes including boundary reasons
+            start_reasons_str = ",".join(interval.start_reasons)
+            end_reasons_str = ",".join(interval.end_reasons)
+            notes_str = f"Start: [{start_reasons_str}] | End: [{end_reasons_str}]"
+            if peak_frame.snapshot.notes:
+                notes_str += f" | {peak_frame.snapshot.notes}"
 
             episode = EpisodicEvent(
                 start_tick=first_snap.tick,
                 peak_tick=peak_frame.snapshot.tick,
                 end_tick=last_snap.tick,
                 event_type=peak_frame.event_type,
-                peak_significance=peak_frame.significance,
+                peak_significance=peak_frame.importance,
                 start_x=first_snap.pos_x,
                 start_y=first_snap.pos_y,
                 peak_x=peak_frame.snapshot.pos_x,
@@ -119,25 +85,23 @@ class EpisodeBuilder:
                 end_x=last_snap.pos_x,
                 end_y=last_snap.pos_y,
                 max_fear=max(f.snapshot.fear for f in window_frames),
-                avg_fear=sum(f.snapshot.fear for f in window_frames)
-                / len(window_frames),
+                avg_fear=sum(f.snapshot.fear for f in window_frames) / len(window_frames),
                 max_stress=max(f.snapshot.stress for f in window_frames),
-                avg_stress=sum(f.snapshot.stress for f in window_frames)
-                / len(window_frames),
+                avg_stress=sum(f.snapshot.stress for f in window_frames) / len(window_frames),
                 max_drive=max(f.snapshot.drive for f in window_frames),
-                avg_drive=sum(f.snapshot.drive for f in window_frames)
-                / len(window_frames),
+                avg_drive=sum(f.snapshot.drive for f in window_frames) / len(window_frames),
                 energy_delta=last_snap.energy - first_snap.energy,
                 integrity_delta=last_snap.integrity - first_snap.integrity,
                 peak_snapshot=peak_frame.snapshot,
                 key_frames=key_frames,
-                notes=peak_frame.snapshot.notes,
+                notes=notes_str,
             )
             episodes.append(episode)
+
         return episodes
 
     def _extract_key_frames(self, window: List[EpisodeFrame]) -> List[SparseFrame]:
-        """helper - simple, stable change + budget based selection."""
+        """Selection of sparse keyframes across window duration."""
         if not window:
             return []
 
@@ -145,11 +109,11 @@ class EpisodeBuilder:
         key_frames = []
         used_indices = set()
 
-        # Always include anchors
+        # Always include boundary anchors
         key_frames.append(self._to_sparse(window[0]))
         used_indices.add(0)
 
-        peak_idx = max(range(n), key=lambda i: window[i].significance)
+        peak_idx = max(range(n), key=lambda i: window[i].importance)
         if peak_idx not in used_indices:
             key_frames.append(self._to_sparse(window[peak_idx]))
             used_indices.add(peak_idx)
@@ -160,7 +124,7 @@ class EpisodeBuilder:
                 key_frames.append(self._to_sparse(window[last_idx]))
                 used_indices.add(last_idx)
 
-        # Simple change detection (absolute + relative, stable near zero)
+        # Dynamic change detection for intermediate keyframes
         for i in range(1, n):
             prev = window[i - 1].snapshot
             curr = window[i].snapshot
@@ -169,35 +133,28 @@ class EpisodeBuilder:
             stress_change = abs(curr.stress - prev.stress)
             fear_change = abs(curr.fear - prev.fear)
             drive_change = abs(curr.drive - prev.drive)
-            sig_change = abs(curr_frame.significance - window[i - 1].significance)
-
-            rel_stress = stress_change / (abs(prev.stress) + 1e-5)
-            rel_fear = fear_change / (abs(prev.fear) + 1e-5)
-            rel_drive = drive_change / (abs(prev.drive) + 1e-5)
+            imp_change = abs(curr_frame.importance - window[i - 1].importance)
 
             if (
                 stress_change > 0.15
                 or fear_change > 0.15
                 or drive_change > 0.15
-                or sig_change > 0.1
-                or rel_stress > self.CHANGE_THRESHOLD
-                or rel_fear > self.CHANGE_THRESHOLD
-                or rel_drive > self.CHANGE_THRESHOLD
-                or (prev.active_skill != curr.active_skill)
-                or (prev.target_type != curr.target_type)
+                or imp_change > 0.1
+                or curr_frame.transition_flags.get("skill_shift", False)
+                or curr_frame.transition_flags.get("target_shift", False)
             ):
                 if i not in used_indices:
                     key_frames.append(self._to_sparse(curr_frame))
                     used_indices.add(i)
 
-        # Fill to target budget with highest significance remaining frames
+        # Fill to target budget with remaining highest importance frames
         target = max(self.MIN_KEYFRAMES, int(n * self.COMPRESSION_RATIO))
         if len(key_frames) < target:
             candidates = []
             for i in range(n):
                 if i not in used_indices:
                     score = (
-                        window[i].significance
+                        window[i].importance
                         + abs(window[i].snapshot.fear) * 0.3
                         + abs(window[i].snapshot.stress) * 0.3
                         + abs(window[i].snapshot.drive) * 0.2
@@ -208,7 +165,6 @@ class EpisodeBuilder:
             for _, idx in candidates[: target - len(key_frames)]:
                 key_frames.append(self._to_sparse(window[idx]))
 
-        # Sort by tick
         key_frames.sort(key=lambda kf: kf.tick)
         return key_frames
 
@@ -226,7 +182,7 @@ class EpisodeBuilder:
             stress=snap.stress,
             fear=snap.fear,
             drive=snap.drive,
-            significance=frame.significance,
+            significance=frame.importance,
             active_skill=snap.active_skill,
             action_state=snap.action_state,
             target_type=snap.target_type,

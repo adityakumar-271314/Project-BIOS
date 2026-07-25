@@ -1,8 +1,7 @@
 from __future__ import annotations
 import math
 from pathlib import Path
-from .schemas import EpisodicEvent, EpisodeFrame, TickSnapshot
-from .storage.serializer import EpisodeSerializer
+from .schemas import EpisodicEvent
 from .storage.episode_archive import EpisodeArchive
 
 """
@@ -46,7 +45,7 @@ class EpisodicMemory:
         self.archive = EpisodeArchive(
             root_dir=getattr(config, "episode_root", "core/memory/episodes")
         )
-        self._stats = {
+        self.stats = {
             "energy_delta": RunningStats(),
             "integrity_delta": RunningStats(),
             "stress_delta": RunningStats(),
@@ -64,7 +63,7 @@ class EpisodicMemory:
 
         if not continuation:
             self._tick = 0
-            self._stats = {
+            self.stats = {
                 "energy_delta": RunningStats(),
                 "integrity_delta": RunningStats(),
                 "stress_delta": RunningStats(),
@@ -75,75 +74,11 @@ class EpisodicMemory:
     def update(self) -> None:
         self._tick += 1
 
-    def compute_surprise(self, key: str, value: float) -> float:
-        stats = self._stats[key]
-        if stats.n < self.cfg.episodic_min_samples:
-            return 0.0
-        effective_std = max(stats.std, self.cfg.min_std)
-        return abs(value - stats.mean) / effective_std
-
-    def compute_deltas(self, previous: TickSnapshot, current: TickSnapshot) -> dict:
-        return {
-            "energy_delta": current.energy - previous.energy,
-            "integrity_delta": current.integrity - previous.integrity,
-            "stress_delta": current.stress - previous.stress,
-            "fear_delta": current.fear - previous.fear,
-            "drive_delta": current.drive - previous.drive,
-        }
-
-    def compute_significance(self, deltas: dict, snapshot: TickSnapshot) -> float:
-        weighted_surprise = (
-            self.compute_surprise("energy_delta", deltas["energy_delta"]) * 0.2
-            + self.compute_surprise("integrity_delta", deltas["integrity_delta"]) * 0.3
-            + self.compute_surprise("stress_delta", deltas["stress_delta"]) * 0.2
-            + self.compute_surprise("fear_delta", deltas["fear_delta"]) * 0.2
-            + self.compute_surprise("drive_delta", deltas["drive_delta"]) * 0.1
-        )
-        emotional_intensity = (
-            snapshot.stress * 0.3 + snapshot.fear * 0.5 + snapshot.drive * 0.2
-        )
-        return (weighted_surprise * 0.7) + (emotional_intensity * 0.3)
-
-    def categorize_event(self, deltas: dict, snapshot: TickSnapshot) -> str:
-        if deltas["integrity_delta"] < -self.cfg.episodic_damage_threshold:
-            return "damage_spike"
-        if deltas["energy_delta"] > self.cfg.episodic_food_recovery_threshold:
-            return "food_recovery"
-        if snapshot.hazard_stim > 0.7:
-            return "hazard_encounter"
-        if snapshot.fear > self.cfg.episodic_danger_fear_threshold:
-            return "danger_state"
-        if snapshot.drive > self.cfg.episodic_starvation_drive_threshold:
-            return "starvation_state"
-        return "high_significance"
-
     def update_stats(self, deltas: dict) -> None:
+        """Causal execution principle: Updates running statistics with frame deltas."""
         for key, value in deltas.items():
-            if key in self._stats:
-                self._stats[key].update(value)
-
-    def build_frame(
-        self, previous_snapshot: TickSnapshot, current_snapshot: TickSnapshot
-    ) -> EpisodeFrame:
-        """Called live every tick to process sensory transitions dynamically."""
-        deltas = self.compute_deltas(previous_snapshot, current_snapshot)
-        significance = self.compute_significance(deltas, current_snapshot)
-        event_type = self.categorize_event(deltas=deltas, snapshot=current_snapshot)
-
-        frame = EpisodeFrame(
-            snapshot=current_snapshot,
-            significance=significance,
-            event_type=event_type,
-            energy_delta=deltas["energy_delta"],
-            integrity_delta=deltas["integrity_delta"],
-            stress_delta=deltas["stress_delta"],
-            fear_delta=deltas["fear_delta"],
-            drive_delta=deltas["drive_delta"],
-        )
-
-        # Causal execution principle: Update statistical knowledge directly on creation
-        self.update_stats(deltas)
-        return frame
+            if key in self.stats:
+                self.stats[key].update(value)
 
     def encode(self, event: EpisodicEvent) -> None:
         self.archive.save(event)
@@ -161,7 +96,6 @@ class EpisodicMemory:
             self.archive.index.save()
 
     def get_events(self) -> tuple[EpisodicEvent, ...]:
-
         episodes_meta = self.archive.index.data["episodes"]
         return tuple(self.archive.load(m["id"]) for m in episodes_meta)
 

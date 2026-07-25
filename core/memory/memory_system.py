@@ -1,96 +1,170 @@
+from pathlib import Path
+from typing import Optional, Any, List, Dict
+
 from .spatial_memory.core import SpatialMemory
 from .episodic import EpisodicMemory
-from .temporal_buffer import TemporalBuffer
 from .event_delay import EventDelayQueue
 from .episode_pipeline import EpisodePipeline
-from pathlib import Path
+from .boundary.boundary_detector import BoundaryDetector
+
+from .temporal.temporal_buffer import TemporalBuffer
+from .temporal.annotation_queue import AnnotationQueue
+from .frame.frame_annotator import FrameAnnotator
 
 
 class MemorySystem:
+    """
+    Central orchestrator for spatial, transient streaming, 
+    rich frame annotation, boundary detection, and long-term episodic memory.
+    """
 
     def __init__(self, config):
         self.cfg = config
-        self.semantic = SpatialMemory(config)
+        
+        self.spatial_mem = SpatialMemory(config)
         self.episodic = EpisodicMemory(config)
-        self.temporal_buffer = TemporalBuffer(
-            seconds=15,
-            fps=60,
-        )
+        
+        self.temporal_buffer = TemporalBuffer(seconds=15, fps=60)
+        self.annotation_queue = AnnotationQueue(delay_ticks=0)
+        self.frame_annotator = FrameAnnotator(config=config)
+        self.boundary_detector = BoundaryDetector()
+        
         self.event_delay = EventDelayQueue(delay_ticks=180)
         self.pipeline = EpisodePipeline(
             episodic_memory=self.episodic,
             temporal_buffer=self.temporal_buffer,
+            boundary_detector=self.boundary_detector,
         )
+        
         self._tick = 0
+        self._last_annotated_snapshot = None
 
-    def update(self, sensors, body, emotions, active_goal, active_skill, target):
+    def update(
+        self,
+        sensors: Any,
+        body: Any,
+        emotions: Any,
+        active_goal: Any,
+        active_skill: Any,
+        target: Any,
+    ) -> None:
         self._tick += 1
-        self.semantic.update(sensors)
-        self.temporal_buffer.capture(
+
+        # Update Spatial Memory
+        self.spatial_mem.update(sensors)
+
+        # Capture raw TickSnapshot into Temporal Buffer & Annotation Queue
+        snapshot = self.temporal_buffer.capture(
             tick=self._tick,
             sensors=sensors,
             body=body,
             emotions=emotions,
-            semantic_memory=self.semantic,
+            spatial_mem=self.spatial_mem,
             goal=active_goal,
             active_skill=active_skill,
             target=target,
         )
-        latest_snapshot = self.temporal_buffer.latest()
-        snapshots = self.temporal_buffer.snapshots()
+        self.annotation_queue.enqueue(snapshot)
 
-        if len(snapshots) >= 2:
-            previous_snapshot = snapshots[-2]
-            frame = self.episodic.build_frame(previous_snapshot, latest_snapshot)
+        # Process ready snapshots through FrameAnnotator pipeline
+        ready_snapshots = self.annotation_queue.pop_ready(self._tick)
+        for curr_snapshot in ready_snapshots:
+            # Annotate Frame
+            frame = self.frame_annotator.annotate(
+                prev_snapshot=self._last_annotated_snapshot,
+                curr_snapshot=curr_snapshot,
+                stats=self.episodic.stats,
+            )
+
+            # Causal update of Welford running statistics
+            self.episodic.update_stats(
+                {
+                    "energy_delta": frame.energy_delta,
+                    "integrity_delta": frame.integrity_delta,
+                    "stress_delta": frame.stress_delta,
+                    "fear_delta": frame.fear_delta,
+                    "drive_delta": frame.drive_delta,
+                }
+            )
+
+            # Store Frame in Temporal Buffer
             self.temporal_buffer.append_frame(frame)
+            self._last_annotated_snapshot = curr_snapshot
 
-            if frame.event_type != "high_significance" or frame.significance > getattr(
-                self.cfg, "episodic_significance_threshold", 4.0
-            ):
+            # Check for Candidate Boundary Triggers
+            sig_thresh = getattr(self.cfg, "episodic_significance_threshold", 0.6)
+            if frame.importance > sig_thresh or len(frame.event_tags) > 0:
                 if not self.event_delay._pending or (
                     self._tick - self.event_delay._pending[-1] > 300
                 ):
-                    self.mark_candidate_event(self._tick)
+                    self.mark_candidate_event(frame.snapshot.tick)
 
+        # Advance Episodic Memory Clock
         self.episodic.update()
 
+        # Process Retrospective Delay Queue through Pipeline
         ready_events = self.event_delay.get_ready(self._tick)
         for candidate_tick in ready_events:
             episodes = self.pipeline.process_candidate(candidate_tick)
             for episode in episodes:
-                # --- Use high-speed index checking rather than RAM list iterations ---
                 if not any(
                     e["peak_tick"] == episode.peak_tick
                     for e in self.episodic.archive.index.data["episodes"]
                 ):
                     self.episodic.encode(episode)
 
+    def mark_candidate_event(self, tick: int) -> None:
+        self.event_delay.add_candidate(tick)
+
+    def initialize_run_state(
+        self,
+        continuation: bool,
+        storage_path: str = "spatial_memory_state.json",
+        episodes_dir: Path | str | None = None,
+    ) -> None:
+        self.spatial_mem.initialize_run_state(continuation, storage_path)
+        self.episodic.initialize_run_state(continuation, episodes_dir)
+
+        if continuation:
+            self._tick = self.spatial_mem._tick
+            self.temporal_buffer.clear()
+            self.annotation_queue.clear()
+            self._last_annotated_snapshot = None
+        else:
+            self._tick = 0
+            self._last_annotated_snapshot = None
+
     def import_state(self, data: dict) -> None:
-
-        self.semantic.import_state(data.get("semantic", {}))
-
+        self.spatial_mem.import_state(data.get("semantic", {}))
         self.episodic.import_state(data.get("episodic", {}))
 
     def export_state(self) -> dict:
-
         return {
-            "semantic": self.semantic.export_state(),
+            "semantic": self.spatial_mem.export_state(),
             "episodic": self.episodic.export_state(),
             "version": 1,
         }
 
-    def recent_snapshots(
+    def shutdown_and_save(self, storage_path: str = "spatial_memory_state.json") -> None:
+        self.spatial_mem.shutdown_and_save(storage_path)
+
+    def reset_state(
         self,
-        seconds: float = 5.0,
-    ):
+        storage_path: str = "spatial_memory_state.json",
+        episodes_dir: Path | str | None = None,
+    ) -> None:
+        self.spatial_mem.reset_state(storage_path)
+        self.episodic.initialize_run_state(continuation=False, episodes_dir=episodes_dir)
+        self.temporal_buffer.clear()
+        self.annotation_queue.clear()
+        self._last_annotated_snapshot = None
+
+    # --- Query & Accessor Proxies ---
+
+    def recent_snapshots(self, seconds: float = 5.0):
         return self.temporal_buffer.recent_seconds(seconds)
 
-    def snapshot_context(
-        self,
-        center_tick: int,
-        before_ticks: int,
-        after_ticks: int,
-    ):
+    def snapshot_context(self, center_tick: int, before_ticks: int, after_ticks: int):
         return self.temporal_buffer.get_context(
             center_tick=center_tick,
             before_ticks=before_ticks,
@@ -100,50 +174,38 @@ class MemorySystem:
     def latest_snapshot(self):
         return self.temporal_buffer.latest()
 
-    def mark_candidate_event(
-        self,
-        tick: int,
-    ):
-        self.event_delay.add_candidate(tick)
-
     def get_ready_events(self):
         return self.event_delay.get_ready(self._tick)
 
     def get_spatial_bias(self, position=None, radius=None):
-        return self.semantic.get_spatial_bias(
-            position=position,
-            radius=radius,
-        )
+        return self.spatial_mem.get_spatial_bias(position=position, radius=radius)
 
     def get_debug_memories(self):
         return self.episodic.get_debug_memories()
 
     @property
     def position(self):
-
-        return self.semantic.position
+        return self.spatial_mem.position
 
     @property
     def velocity(self):
-
-        return self.semantic.velocity
+        return self.spatial_mem.velocity
 
     @property
     def landmarks(self):
-
-        return self.semantic.landmarks
+        return self.spatial_mem.landmarks
 
     @property
     def internal_pos(self):
-        return self.semantic.internal_pos
+        return self.spatial_mem.internal_pos
 
     @property
     def internal_vel(self):
-        return self.semantic.internal_vel
+        return self.spatial_mem.internal_vel
 
     @property
     def internal_heading(self) -> float:
-        return self.semantic.internal_heading
+        return self.spatial_mem.internal_heading
 
     def recall_recent(self, limit: int = 10):
         meta_matches = self.episodic.archive.index.query_recent(limit)
@@ -208,37 +270,3 @@ class MemorySystem:
         }
         nearby = self.recall_near(pos_x=pos_x, pos_y=pos_y, radius=radius)
         return [event for event in nearby if event.event_type in danger_types]
-
-    def initialize_run_state(
-        self,
-        continuation: bool,
-        storage_path: str = "spatial_memory_state.json",
-        episodes_dir: Path | str | None = None,
-    ) -> None:
-        # Pass spatial memory path to semantic memory
-        self.semantic.initialize_run_state(continuation, storage_path)
-
-        # Pass run episode directory to episodic memory
-        self.episodic.initialize_run_state(continuation, episodes_dir)
-
-        if continuation:
-            self._tick = self.semantic._tick
-            self.temporal_buffer.clear()
-        else:
-            self._tick = 0
-
-    def shutdown_and_save(
-        self,
-        storage_path: str = "spatial_memory_state.json",
-    ) -> None:
-        self.semantic.shutdown_and_save(storage_path)
-
-    def reset_state(
-        self,
-        storage_path: str = "spatial_memory_state.json",
-        episodes_dir: Path | str | None = None,
-    ) -> None:
-        self.semantic.reset_state(storage_path)
-        self.episodic.initialize_run_state(
-            continuation=False, episodes_dir=episodes_dir
-        )

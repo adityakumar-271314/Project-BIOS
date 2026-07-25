@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field, asdict
-from typing import List
+from typing import List, Set, Dict, Any
 
 # RAW TEMPORAL DATA
 
@@ -34,20 +34,35 @@ class TickSnapshot:
     notes: str | None = None
 
 
-# TRANSIENT FRAME
+# TRANSIENT FRAME (EXPANDED FOR PART A)
 
 
 @dataclass(slots=True)
 class EpisodeFrame:
 
     snapshot: TickSnapshot
+    
+    # Legacy / Bridge Fields (Kept for compatibility with downstream EpisodeBuilder)
     significance: float
     event_type: str
+    
+    # Deltas
     energy_delta: float
     integrity_delta: float
     stress_delta: float
     fear_delta: float
     drive_delta: float
+
+    # Rich Metrics (Part A)
+    importance: float = 0.0
+    prediction_error: float = 0.0
+    attention_score: float = 0.0
+    novelty: float = 0.0
+
+    # Categorical Signals & Change Masks (Part A)
+    event_tags: Set[str] = field(default_factory=set)
+    transition_flags: Dict[str, bool] = field(default_factory=dict)
+    change_mask: Dict[str, bool] = field(default_factory=dict)
 
 
 # Lightweight key frame for compression

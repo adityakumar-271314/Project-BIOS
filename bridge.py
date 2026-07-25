@@ -129,7 +129,7 @@ def run_brain_server():
     latest_consumed_food_ids = eaten_food_ids
     client_file.write(json.dumps(init_packet) + "\n")
     client_file.flush()
-    DEBUG = True  # Set to True to enable detailed debug output each tick
+    DEBUG = False  # Set to True to enable detailed debug output each tick
     try:
         while True:
 
@@ -173,7 +173,7 @@ def run_brain_server():
                     velocity_x=agent.memory.internal_vel.x,
                     velocity_y=agent.memory.internal_vel.y,
                     landmark_count=len(agent.memory.landmarks),
-                    grid_cells=len(agent.memory.semantic._grid),
+                    grid_cells=len(agent.memory.spatial_mem._grid),
                 )
             )
             path_log.append(agent.memory.internal_pos.copy())
@@ -208,7 +208,7 @@ def run_brain_server():
                     else "Wander"
                 ),
                 "landmark_count": len(agent.memory.landmarks),
-                "grid_cells": len(agent.memory.semantic._grid),
+                "grid_cells": len(agent.memory.spatial_mem._grid),
                 "new_memories": get_new_minimized_memories(agent),
             }
 
@@ -219,7 +219,7 @@ def run_brain_server():
             if DEBUG:
                 real_pos_x = sensors.real_pos_x
                 real_pos_y = sensors.real_pos_y
-                internal = agent.memory.semantic.internal_pos
+                internal = agent.memory.spatial_mem.internal_pos
                 mental_in_godot_x = internal.x + SPAWN_OFFSET_X
                 mental_in_godot_y = SPAWN_OFFSET_Y - internal.y
                 error_x = real_pos_x - mental_in_godot_x
@@ -233,7 +233,7 @@ def run_brain_server():
                 )
                 print(f"DRIFT ERROR:     {drift_distance:.2f} pixels")
                 print(
-                    f"MEMORY STATS:    Cells: {len(agent.memory.semantic._grid)} | Landmarks: {len(agent.memory.semantic._landmarks)}"
+                    f"MEMORY STATS:    Cells: {len(agent.memory.spatial_mem._grid)} | Landmarks: {len(agent.memory.spatial_mem._landmarks)}"
                 )
 
                 if drift_distance > DRIFT_WARNING_THRESHOLD:
@@ -241,7 +241,6 @@ def run_brain_server():
                 print("-" * 50)
 
     except Exception as e:
-        print(f"Connection Error: {e}")
         print(f"BRIDGE FATAL EXIT: {type(e).__name__}: {e}", flush=True)
 
     finally:
@@ -269,8 +268,7 @@ def run_brain_server():
         replay.close()
         conn.close()
         server.close()
-        run_visualizer(agent.memory.semantic, path=path_log)
-
+        run_visualizer(agent.memory.spatial_mem, path=path_log)
 
 if __name__ == "__main__":
     run_brain_server()
