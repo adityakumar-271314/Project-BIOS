@@ -6,16 +6,17 @@ from .episodic import EpisodicMemory
 from .event_delay import EventDelayQueue
 from .episode_pipeline import EpisodePipeline
 from .boundary.boundary_detector import BoundaryDetector
-
+from .schemas import EpisodeCandidate
 from .temporal.temporal_buffer import TemporalBuffer
 from .temporal.annotation_queue import AnnotationQueue
 from .frame.frame_annotator import FrameAnnotator
+from .frame.candidate_scorer import EpisodeCandidateScorer
 
 
 class MemorySystem:
     """
     Central orchestrator for spatial, transient streaming, 
-    rich frame annotation, boundary detection, and long-term episodic memory.
+    rich frame annotation, candidate scoring, boundary detection, and long-term episodic memory.
     """
 
     def __init__(self, config):
@@ -27,6 +28,7 @@ class MemorySystem:
         self.temporal_buffer = TemporalBuffer(seconds=15, fps=60)
         self.annotation_queue = AnnotationQueue(delay_ticks=0)
         self.frame_annotator = FrameAnnotator(config=config)
+        self.candidate_scorer = EpisodeCandidateScorer(config=config)  # NEW
         self.boundary_detector = BoundaryDetector()
         
         self.event_delay = EventDelayQueue(delay_ticks=180)
@@ -35,7 +37,7 @@ class MemorySystem:
             temporal_buffer=self.temporal_buffer,
             boundary_detector=self.boundary_detector,
         )
-        
+
         self._tick = 0
         self._last_annotated_snapshot = None
 
@@ -91,20 +93,24 @@ class MemorySystem:
             self.temporal_buffer.append_frame(frame)
             self._last_annotated_snapshot = curr_snapshot
 
-            # Check for Candidate Boundary Triggers
-            sig_thresh = getattr(self.cfg, "episodic_significance_threshold", 0.6)
-            if frame.importance > sig_thresh or len(frame.event_tags) > 0:
+            # Compute continuous candidate score and rolling attention
+            candidate = self.candidate_scorer.process(frame)
+
+            # Trigger candidate event using rolling score threshold
+            candidate_thresh = getattr(self.cfg, "candidate_threshold", 0.8)
+            if candidate.rolling_score > candidate_thresh:
                 if not self.event_delay._pending or (
-                    self._tick - self.event_delay._pending[-1] > 300
+                    self._tick - self.event_delay._pending[-1].tick > 300
                 ):
-                    self.mark_candidate_event(frame.snapshot.tick)
+                    self.mark_candidate_event(candidate)
 
         # Advance Episodic Memory Clock
         self.episodic.update()
 
         # Process Retrospective Delay Queue through Pipeline
-        ready_events = self.event_delay.get_ready(self._tick)
-        for candidate_tick in ready_events:
+        ready_candidates = self.event_delay.get_ready(self._tick)
+        for candidate in ready_candidates:
+            candidate_tick = candidate.tick if hasattr(candidate, "tick") else candidate
             episodes = self.pipeline.process_candidate(candidate_tick)
             for episode in episodes:
                 if not any(
@@ -112,9 +118,9 @@ class MemorySystem:
                     for e in self.episodic.archive.index.data["episodes"]
                 ):
                     self.episodic.encode(episode)
-
-    def mark_candidate_event(self, tick: int) -> None:
-        self.event_delay.add_candidate(tick)
+        
+    def mark_candidate_event(self, candidate: EpisodeCandidate) -> None:
+        self.event_delay.add_candidate(candidate)
 
     def initialize_run_state(
         self,

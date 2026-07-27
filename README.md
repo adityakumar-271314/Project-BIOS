@@ -5,7 +5,7 @@ An embodied cognition simulation in which behavior emerges from physiology, emot
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
 [![Godot](https://img.shields.io/badge/Godot-4.x-478CBF?style=flat&logo=godot-engine&logoColor=white)](https://godotengine.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Status](https://img.shields.io/badge/Status-v0.1_Research_Prototype-orange)](https://github.com/adityakumar-271314/Project-BIOS)
+[![Status](https://img.shields.io/badge/Status-v1.0.0_Research_Prototype-orange)](https://github.com/adityakumar-271314/Project-BIOS)
  
 Project BIOS is a Python and Godot embodied-agent research prototype for studying biologically inspired autonomous behavior. Agents act through internal drives rather than hardcoded decision logic.
  
@@ -136,7 +136,7 @@ pytest -v
  
 ## Known Limitations
  
-Project BIOS is an early-stage research prototype (v0.1). The constraints below are intentional, to keep the current foundation small and legible:
+Project BIOS is an early-stage research prototype (v1.0.0). The constraints below are intentional, to keep the current foundation small and legible:
  
 - No long-term memory consolidation (episodic to semantic).
 - Planning is reactive only; no multi-step goals yet.
@@ -146,7 +146,7 @@ Project BIOS is an early-stage research prototype (v0.1). The constraints below 
 
 ## Roadmap
  
-### v0.2 (planned)
+### v2.0.0 (planned)
  
 - Memory-guided planning (avoiding past hazards, revisiting known food locations).
 - Episodic memory influence on decision-making.

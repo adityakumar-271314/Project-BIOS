@@ -22,12 +22,12 @@ class EventDelayQueue:
         self,
         current_tick: int,
     ):
-
         ready = []
 
         while self._pending:
-
-            candidate_tick = self._pending[0]
+            # Check the tick attribute of the candidate object
+            candidate = self._pending[0]
+            candidate_tick = candidate.tick if hasattr(candidate, "tick") else candidate
 
             if current_tick - candidate_tick < self.delay_ticks:
                 break

@@ -31,6 +31,8 @@ class EpisodeSerializer:
         folder = self.root / f"episode{episode_id:06d}"
         folder.mkdir(parents=True, exist_ok=True)
 
+        # Extract signature-derived metrics for fast-index metadata
+        sig = event.signature
         metadata = {
             "episode_id": episode_id,
             "event_type": event.event_type,
@@ -38,6 +40,10 @@ class EpisodeSerializer:
             "peak_tick": event.peak_tick,
             "end_tick": event.end_tick,
             "peak_significance": event.peak_significance,
+            "landmark_interactions": sig.landmark_interactions,
+            "goal_transitions": len(sig.goal_transitions),
+            "skill_transitions": len(sig.skill_transitions),
+            "primary_drivers": list(sig.primary_importance_drivers),
         }
 
         with open(folder / "metadata.json", "w") as f:

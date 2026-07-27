@@ -15,10 +15,11 @@ class EpisodeArchive:
         self.cache_size = cache_size
 
     def save(self, event: EpisodicEvent):
-        # Persist full episode data to disk
+        # Persist full episode data (including immutable signature) to disk
         episode_id = self.serializer.save(event)
 
-        # Extract and append minimal metadata tracking metrics
+        # Extract minimal index metadata using the revised EpisodeSignature attributes
+        sig = event.signature
         meta = {
             "id": episode_id,
             "event_type": event.event_type,
@@ -26,10 +27,14 @@ class EpisodeArchive:
             "peak_significance": event.peak_significance,
             "peak_x": event.peak_x,
             "peak_y": event.peak_y,
+            "landmark_interactions": sig.landmark_interactions,
+            "goal_transitions": len(sig.goal_transitions),
+            "skill_transitions": len(sig.skill_transitions),
+            "primary_drivers": list(sig.primary_importance_drivers),
         }
         self.index.add(meta)
 
-        # Cache the live instance
+        # Cache live instance
         self._cache_put(episode_id, event)
 
     def load(self, episode_id: int) -> EpisodicEvent:

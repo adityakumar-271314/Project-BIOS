@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field, asdict
-from typing import List, Set, Dict, Any
+from typing import List, Tuple, Set, Dict, Any
 
 # RAW TEMPORAL DATA
 
@@ -89,8 +89,111 @@ class SparseFrame:
     visible_hazards: int = 0
     notes: str | None = None
 
+@dataclass(slots=True, frozen=True)
+class StateSummary:
+    """Compact summary of continuous metrics (initial, final, min, max, net delta)."""
+    initial: float
+    final: float
+    min_val: float
+    max_val: float
 
-# PERSISTENT EPISODE - conservative update
+    @property
+    def net_change(self) -> float:
+        return self.final - self.initial
+
+
+@dataclass(slots=True, frozen=True)
+class BehavioralTransition:
+    """Captures a meaningful state shift without storing telemetry."""
+    tick: int
+    from_state: str | None
+    to_state: str | None
+
+
+@dataclass(slots=True, frozen=True)
+class EpisodeSignature:
+    """
+    Canonical, language-agnostic behavioral representation of an episode.
+    Immutable once finalized. Captures identity, outcome, and importance drivers
+    without duplicating detailed frame telemetry or keyframes.
+    """
+    # Behavioral Identity
+    dominant_goal: str | None = None
+    dominant_skill: str | None = None
+    dominant_target: str | None = None
+
+    # Meaningful Transitions (Only populated if state changes occurred)
+    goal_transitions: Tuple[BehavioralTransition, ...] = ()
+    skill_transitions: Tuple[BehavioralTransition, ...] = ()
+    target_transitions: Tuple[BehavioralTransition, ...] = ()
+
+    # Outcome & Summaries
+    outcome_completed: bool = False
+    resource_summaries: Dict[str, StateSummary] = field(default_factory=dict)
+    emotion_summaries: Dict[str, StateSummary] = field(default_factory=dict)
+
+    # Environment Summary
+    max_hazard_exposure: float = 0.0
+    max_reward_exposure: float = 0.0
+    landmark_interactions: int = 0
+
+    # Retention Drivers & Descriptors (Why this episode exists)
+    primary_importance_drivers: Tuple[str, ...] = ()
+    duration_ticks: int = 0
+    behavioral_complexity: float = 0.0
+    overall_novelty: float = 0.0
+    overall_importance: float = 0.0
+
+    # Lightweight Keyframe References (Tick identifiers only)
+    keyframe_ticks: Tuple[int, ...] = ()
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "dominant_goal": self.dominant_goal,
+            "dominant_skill": self.dominant_skill,
+            "dominant_target": self.dominant_target,
+            "goal_transitions": [asdict(t) for t in self.goal_transitions],
+            "skill_transitions": [asdict(t) for t in self.skill_transitions],
+            "target_transitions": [asdict(t) for t in self.target_transitions],
+            "outcome_completed": self.outcome_completed,
+            "resource_summaries": {k: asdict(v) for k, v in self.resource_summaries.items()},
+            "emotion_summaries": {k: asdict(v) for k, v in self.emotion_summaries.items()},
+            "max_hazard_exposure": self.max_hazard_exposure,
+            "max_reward_exposure": self.max_reward_exposure,
+            "landmark_interactions": self.landmark_interactions,
+            "primary_importance_drivers": list(self.primary_importance_drivers),
+            "duration_ticks": self.duration_ticks,
+            "behavioral_complexity": self.behavioral_complexity,
+            "overall_novelty": self.overall_novelty,
+            "overall_importance": self.overall_importance,
+            "keyframe_ticks": list(self.keyframe_ticks),
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "EpisodeSignature":
+        if not data:
+            return cls()
+        return cls(
+            dominant_goal=data.get("dominant_goal"),
+            dominant_skill=data.get("dominant_skill"),
+            dominant_target=data.get("dominant_target"),
+            goal_transitions=tuple(BehavioralTransition(**t) for t in data.get("goal_transitions", [])),
+            skill_transitions=tuple(BehavioralTransition(**t) for t in data.get("skill_transitions", [])),
+            target_transitions=tuple(BehavioralTransition(**t) for t in data.get("target_transitions", [])),
+            outcome_completed=data.get("outcome_completed", False),
+            resource_summaries={k: StateSummary(**v) for k, v in data.get("resource_summaries", {}).items()},
+            emotion_summaries={k: StateSummary(**v) for k, v in data.get("emotion_summaries", {}).items()},
+            max_hazard_exposure=data.get("max_hazard_exposure", 0.0),
+            max_reward_exposure=data.get("max_reward_exposure", 0.0),
+            landmark_interactions=data.get("landmark_interactions", 0),
+            primary_importance_drivers=tuple(data.get("primary_importance_drivers", ())),
+            duration_ticks=data.get("duration_ticks", 0),
+            behavioral_complexity=data.get("behavioral_complexity", 0.0),
+            overall_novelty=data.get("overall_novelty", 0.0),
+            overall_importance=data.get("overall_importance", 0.0),
+            keyframe_ticks=tuple(data.get("keyframe_ticks", ())),
+        )
+
 @dataclass(slots=True)
 class EpisodicEvent:
     start_tick: int
@@ -114,10 +217,13 @@ class EpisodicEvent:
     integrity_delta: float
     peak_snapshot: TickSnapshot
 
-    # === Storage compression change only ===
+    # Storage compression change
     key_frames: List[SparseFrame] = field(default_factory=list)
+    
+    # Immutable Canonical Behavioral Signature
+    signature: EpisodeSignature = field(default_factory=EpisodeSignature)
 
-    notes: str | None = None  # kept for flexibility
+    notes: str | None = None  # Kept as optional secondary text view
 
     def to_dict(self):
         return {
@@ -143,6 +249,7 @@ class EpisodicEvent:
             },
             "peak_snapshot": asdict(self.peak_snapshot),
             "key_frames": [asdict(kf) for kf in self.key_frames],
+            "signature": self.signature.to_dict(),
             "notes": self.notes,
         }
 
@@ -165,6 +272,9 @@ class EpisodicEvent:
         key_frames = [
             SparseFrame(**kf) if isinstance(kf, dict) else kf for kf in raw_key_frames
         ]
+        
+        sig_data = data.get("signature", {})
+        signature = EpisodeSignature.from_dict(sig_data) if isinstance(sig_data, dict) else sig_data
 
         return cls(
             start_tick=data["start_tick"],
@@ -188,9 +298,9 @@ class EpisodicEvent:
             integrity_delta=deltas.get("integrity_delta", 0.0),
             peak_snapshot=peak_snap,
             key_frames=key_frames,
+            signature=signature,
             notes=data.get("notes"),
         )
-
 
 @dataclass(slots=True)
 class ReconstructedTick:
@@ -213,3 +323,14 @@ class ReconstructedTick:
 
     confidence: float = 1.0
     anchor: bool = False
+
+@dataclass(slots=True)
+class EpisodeCandidate:
+    """Continuous multi-signal candidate event produced by rolling attention."""
+
+    tick: int
+    frame_score: float
+    rolling_score: float
+    confidence: float
+    contributors: Dict[str, float] = field(default_factory=dict)
+    peak_reason: str = ""
