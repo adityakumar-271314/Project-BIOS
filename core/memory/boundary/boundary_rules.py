@@ -4,7 +4,7 @@ from ..schemas import EpisodeFrame
 
 class BoundaryRules:
     """
-    Evaluates rich frame features between consecutive frames to detect evidence 
+    Evaluates rich frame features between consecutive frames to detect evidence
     for episode start and end boundaries.
     """
 
@@ -21,7 +21,7 @@ class BoundaryRules:
             curr_frame: The current EpisodeFrame being evaluated.
 
         Returns:
-            A tuple of (start_triggers, end_triggers) mapping active trigger 
+            A tuple of (start_triggers, end_triggers) mapping active trigger
             reason keys to their activation strength (0.0 to 1.0).
         """
         start_triggers: Dict[str, float] = {}
@@ -58,7 +58,9 @@ class BoundaryRules:
                 start_triggers["interaction_start"] = 0.85
 
         # 4. Target acquisition
-        if "target_acquired" in tags or (transitions.get("target_shift") and curr_snap.target_id is not None):
+        if "target_acquired" in tags or (
+            transitions.get("target_shift") and curr_snap.target_id is not None
+        ):
             start_triggers["target_acquired"] = 0.85
 
         # 5. Emotion spikes
@@ -101,7 +103,9 @@ class BoundaryRules:
             end_triggers["activity_completion"] = 0.7
 
         # 5. Target loss
-        if "target_lost" in tags or (transitions.get("target_shift") and curr_snap.target_id is None):
+        if "target_lost" in tags or (
+            transitions.get("target_shift") and curr_snap.target_id is None
+        ):
             end_triggers["target_loss"] = 0.8
 
         # 6. Drop in attention / importance after high activity

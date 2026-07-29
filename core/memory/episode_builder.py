@@ -12,6 +12,7 @@ from .schemas import (
     BehavioralTransition,
 )
 
+
 class EpisodeBuilder:
     def __init__(
         self,
@@ -21,7 +22,7 @@ class EpisodeBuilder:
         boundary_detector: Optional[BoundaryDetector] = None,
     ):
         """
-        Pure computational worker for constructing EpisodicEvent instances from 
+        Pure computational worker for constructing EpisodicEvent instances from
         annotated EpisodeFrame sequences and BoundaryIntervals.
         """
         self.COMPRESSION_RATIO = compression_ratio
@@ -97,11 +98,14 @@ class EpisodeBuilder:
                 end_x=last_snap.pos_x,
                 end_y=last_snap.pos_y,
                 max_fear=max(f.snapshot.fear for f in window_frames),
-                avg_fear=sum(f.snapshot.fear for f in window_frames) / len(window_frames),
+                avg_fear=sum(f.snapshot.fear for f in window_frames)
+                / len(window_frames),
                 max_stress=max(f.snapshot.stress for f in window_frames),
-                avg_stress=sum(f.snapshot.stress for f in window_frames) / len(window_frames),
+                avg_stress=sum(f.snapshot.stress for f in window_frames)
+                / len(window_frames),
                 max_drive=max(f.snapshot.drive for f in window_frames),
-                avg_drive=sum(f.snapshot.drive for f in window_frames) / len(window_frames),
+                avg_drive=sum(f.snapshot.drive for f in window_frames)
+                / len(window_frames),
                 energy_delta=last_snap.energy - first_snap.energy,
                 integrity_delta=last_snap.integrity - first_snap.integrity,
                 peak_snapshot=peak_frame.snapshot,
@@ -145,7 +149,9 @@ class EpisodeBuilder:
                 )
             if curr.active_skill != prev.active_skill:
                 skill_trans.append(
-                    BehavioralTransition(curr.tick, prev.active_skill, curr.active_skill)
+                    BehavioralTransition(
+                        curr.tick, prev.active_skill, curr.active_skill
+                    )
                 )
             if curr.target_type != prev.target_type:
                 target_trans.append(
@@ -191,7 +197,9 @@ class EpisodeBuilder:
             drivers.add("integrity_change")
 
         # 5. Descriptive Statistics
-        complexity = (len(goal_trans) + len(skill_trans) + len(target_trans)) / max(1, len(window))
+        complexity = (len(goal_trans) + len(skill_trans) + len(target_trans)) / max(
+            1, len(window)
+        )
         avg_novelty = sum(f.novelty for f in window) / len(window)
         max_importance = max(f.importance for f in window)
         duration = window[-1].snapshot.tick - window[0].snapshot.tick + 1
@@ -220,7 +228,7 @@ class EpisodeBuilder:
     def _extract_key_frames(self, window: List[EpisodeFrame]) -> List[SparseFrame]:
         """
         Density-Aware Keyframe Selection.
-        
+
         Calculates initial keyframe scores based on importance, novelty, transitions,
         and candidates. Iteratively selects the highest scoring frame and applies Gaussian
         density suppression to nearby frames, encouraging diversity while preserving high-information clusters.
@@ -265,7 +273,7 @@ class EpisodeBuilder:
                 dist = abs(window[i].snapshot.tick - window[selected_i].snapshot.tick)
                 penalty = math.exp(-0.5 * (dist / sigma) ** 2)
                 # Dampen score up to 60% based on proximity
-                effective_scores[i] *= (1.0 - 0.6 * penalty)
+                effective_scores[i] *= 1.0 - 0.6 * penalty
 
         # Apply suppression for initial seeds
         for idx in list(selected_indices):

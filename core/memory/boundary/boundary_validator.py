@@ -4,7 +4,7 @@ from .boundary import BoundaryInterval
 
 class BoundaryValidator:
     """
-    Validates boundary candidates, filters noise/oscillations, and enforces temporal 
+    Validates boundary candidates, filters noise/oscillations, and enforces temporal
     hygiene to produce structured BoundaryInterval instances.
     """
 
@@ -67,7 +67,9 @@ class BoundaryValidator:
 
             # Next start tick to cap this interval's search boundary
             next_start_tick = (
-                valid_starts[i + 1]["tick"] if i + 1 < len(valid_starts) else max_tick + 1
+                valid_starts[i + 1]["tick"]
+                if i + 1 < len(valid_starts)
+                else max_tick + 1
             )
 
             # Find matching ends occurring after start_tick and before next_start_tick

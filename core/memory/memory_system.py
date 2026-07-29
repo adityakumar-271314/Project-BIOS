@@ -15,22 +15,22 @@ from .frame.candidate_scorer import EpisodeCandidateScorer
 
 class MemorySystem:
     """
-    Central orchestrator for spatial, transient streaming, 
+    Central orchestrator for spatial, transient streaming,
     rich frame annotation, candidate scoring, boundary detection, and long-term episodic memory.
     """
 
     def __init__(self, config):
         self.cfg = config
-        
+
         self.spatial_mem = SpatialMemory(config)
         self.episodic = EpisodicMemory(config)
-        
+
         self.temporal_buffer = TemporalBuffer(seconds=15, fps=60)
         self.annotation_queue = AnnotationQueue(delay_ticks=0)
         self.frame_annotator = FrameAnnotator(config=config)
         self.candidate_scorer = EpisodeCandidateScorer(config=config)  # NEW
         self.boundary_detector = BoundaryDetector()
-        
+
         self.event_delay = EventDelayQueue(delay_ticks=180)
         self.pipeline = EpisodePipeline(
             episodic_memory=self.episodic,
@@ -111,14 +111,15 @@ class MemorySystem:
         ready_candidates = self.event_delay.get_ready(self._tick)
         for candidate in ready_candidates:
             candidate_tick = candidate.tick if hasattr(candidate, "tick") else candidate
-            episodes = self.pipeline.process_candidate(candidate_tick)
+            result = self.pipeline.process_candidate(candidate_tick)
+            episodes = result["events"]
             for episode in episodes:
                 if not any(
                     e["peak_tick"] == episode.peak_tick
                     for e in self.episodic.archive.index.data["episodes"]
                 ):
                     self.episodic.encode(episode)
-        
+
     def mark_candidate_event(self, candidate: EpisodeCandidate) -> None:
         self.event_delay.add_candidate(candidate)
 
@@ -151,7 +152,9 @@ class MemorySystem:
             "version": 1,
         }
 
-    def shutdown_and_save(self, storage_path: str = "spatial_memory_state.json") -> None:
+    def shutdown_and_save(
+        self, storage_path: str = "spatial_memory_state.json"
+    ) -> None:
         self.spatial_mem.shutdown_and_save(storage_path)
 
     def reset_state(
@@ -160,7 +163,9 @@ class MemorySystem:
         episodes_dir: Path | str | None = None,
     ) -> None:
         self.spatial_mem.reset_state(storage_path)
-        self.episodic.initialize_run_state(continuation=False, episodes_dir=episodes_dir)
+        self.episodic.initialize_run_state(
+            continuation=False, episodes_dir=episodes_dir
+        )
         self.temporal_buffer.clear()
         self.annotation_queue.clear()
         self._last_annotated_snapshot = None

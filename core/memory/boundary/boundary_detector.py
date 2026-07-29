@@ -9,8 +9,8 @@ from .boundary_validator import BoundaryValidator
 class BoundaryDetector:
     """
     Main orchestrator for Stage 1 — Part B: Boundary Detection.
-    
-    Processes chronological EpisodeFrame sequences through BoundaryRules -> BoundaryScore 
+
+    Processes chronological EpisodeFrame sequences through BoundaryRules -> BoundaryScore
     -> BoundaryValidator to detect, score, and emit validated BoundaryIntervals.
     """
 
@@ -64,27 +64,33 @@ class BoundaryDetector:
             )
 
             # 2. Score Candidate Evidences
-            start_conf, start_reasons, end_conf, end_reasons = self.scoring_engine.score_frame(
-                prev_frame=prev_frame,
-                curr_frame=curr_frame,
-                start_triggers=start_triggers,
-                end_triggers=end_triggers,
+            start_conf, start_reasons, end_conf, end_reasons = (
+                self.scoring_engine.score_frame(
+                    prev_frame=prev_frame,
+                    curr_frame=curr_frame,
+                    start_triggers=start_triggers,
+                    end_triggers=end_triggers,
+                )
             )
 
             # Record candidates above noise thresholds
             if start_conf > 0.1:
-                start_candidates.append({
-                    "tick": curr_tick,
-                    "confidence": start_conf,
-                    "reasons": start_reasons,
-                })
+                start_candidates.append(
+                    {
+                        "tick": curr_tick,
+                        "confidence": start_conf,
+                        "reasons": start_reasons,
+                    }
+                )
 
             if end_conf > 0.1:
-                end_candidates.append({
-                    "tick": curr_tick,
-                    "confidence": end_conf,
-                    "reasons": end_reasons,
-                })
+                end_candidates.append(
+                    {
+                        "tick": curr_tick,
+                        "confidence": end_conf,
+                        "reasons": end_reasons,
+                    }
+                )
 
         max_tick = frames[-1].snapshot.tick
 

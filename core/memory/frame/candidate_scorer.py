@@ -57,7 +57,9 @@ class EpisodeCandidateScorer:
             },
         )
 
-    def compute_frame_score(self, frame: EpisodeFrame) -> Tuple[float, Dict[str, float], str]:
+    def compute_frame_score(
+        self, frame: EpisodeFrame
+    ) -> Tuple[float, Dict[str, float], str]:
         """Calculates instantaneous frame score and tracks individual component contributions."""
         contributors: Dict[str, float] = {}
 
@@ -65,11 +67,11 @@ class EpisodeCandidateScorer:
         contributors["prediction_error"] = (
             frame.prediction_error * self.metric_weights.get("prediction_error", 0.25)
         )
-        contributors["importance"] = (
-            frame.importance * self.metric_weights.get("importance", 0.20)
+        contributors["importance"] = frame.importance * self.metric_weights.get(
+            "importance", 0.20
         )
-        contributors["novelty"] = (
-            frame.novelty * self.metric_weights.get("novelty", 0.15)
+        contributors["novelty"] = frame.novelty * self.metric_weights.get(
+            "novelty", 0.15
         )
         contributors["attention_score"] = (
             frame.attention_score * self.metric_weights.get("attention_score", 0.15)

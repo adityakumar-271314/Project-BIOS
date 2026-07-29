@@ -6,7 +6,7 @@ from typing import List
 class BoundaryInterval:
     """
     Standalone schema representing a detected temporal episode boundary interval.
-    
+
     Decoupled from EpisodicEvent, capturing start/end confidence and activation
     triggers for temporal segment filtering and episode construction.
     """

@@ -8,8 +8,8 @@ from .frame_metrics import FrameMetrics
 class FrameAnnotator:
     """
     Primary processing engine for frame generation.
-    
-    Owns rule evaluation, continuous state change tracking, and continuous 
+
+    Owns rule evaluation, continuous state change tracking, and continuous
     metric scoring to produce rich, extensible EpisodeFrame instances.
     """
 
@@ -19,7 +19,9 @@ class FrameAnnotator:
         self.changes_engine = FrameChanges()
         self.metrics_engine = FrameMetrics()
 
-    def _compute_deltas(self, prev: TickSnapshot, curr: TickSnapshot) -> Dict[str, float]:
+    def _compute_deltas(
+        self, prev: TickSnapshot, curr: TickSnapshot
+    ) -> Dict[str, float]:
         return {
             "energy_delta": curr.energy - prev.energy,
             "integrity_delta": curr.integrity - prev.integrity,
@@ -32,10 +34,26 @@ class FrameAnnotator:
         self, deltas: Dict[str, float], snapshot: TickSnapshot
     ) -> str:
         """Bridge fallback for legacy EpisodeBuilder downstream compatibility."""
-        dmg_thresh = getattr(self.config, "episodic_damage_threshold", 0.05) if self.config else 0.05
-        food_thresh = getattr(self.config, "episodic_food_recovery_threshold", 0.1) if self.config else 0.1
-        fear_thresh = getattr(self.config, "episodic_danger_fear_threshold", 0.7) if self.config else 0.7
-        drive_thresh = getattr(self.config, "episodic_starvation_drive_threshold", 0.7) if self.config else 0.7
+        dmg_thresh = (
+            getattr(self.config, "episodic_damage_threshold", 0.05)
+            if self.config
+            else 0.05
+        )
+        food_thresh = (
+            getattr(self.config, "episodic_food_recovery_threshold", 0.1)
+            if self.config
+            else 0.1
+        )
+        fear_thresh = (
+            getattr(self.config, "episodic_danger_fear_threshold", 0.7)
+            if self.config
+            else 0.7
+        )
+        drive_thresh = (
+            getattr(self.config, "episodic_starvation_drive_threshold", 0.7)
+            if self.config
+            else 0.7
+        )
 
         if deltas["integrity_delta"] < -dmg_thresh:
             return "damage_spike"
@@ -68,7 +86,7 @@ class FrameAnnotator:
         event_tags = self.rules_engine.evaluate(
             prev=prev_snapshot, curr=curr_snapshot, config=self.config
         )
-        
+
         change_mask, transition_flags = self.changes_engine.compute(
             prev=prev_snapshot, curr=curr_snapshot
         )

@@ -33,6 +33,8 @@ class FrameChanges:
         change_mask["stress_changed"] = abs(curr.stress - prev.stress) > 0.05
         change_mask["fear_changed"] = abs(curr.fear - prev.fear) > 0.05
         change_mask["drive_changed"] = abs(curr.drive - prev.drive) > 0.05
-        change_mask["hazard_stim_changed"] = abs(curr.hazard_stim - prev.hazard_stim) > 0.1
+        change_mask["hazard_stim_changed"] = (
+            abs(curr.hazard_stim - prev.hazard_stim) > 0.1
+        )
 
         return change_mask, transition_flags

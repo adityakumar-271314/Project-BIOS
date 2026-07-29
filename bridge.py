@@ -42,6 +42,7 @@ from infra.replay import (
     ReplayRecorder,
     ReplayFrame,
 )
+import traceback
 
 
 def get_new_minimized_memories(agent, tracker_state={"last_sent_index": 0}):
@@ -242,6 +243,7 @@ def run_brain_server():
 
     except Exception as e:
         print(f"BRIDGE FATAL EXIT: {type(e).__name__}: {e}", flush=True)
+        traceback.print_exc()
 
     finally:
         final_agent_state = AgentState.from_agent(agent)
@@ -269,6 +271,7 @@ def run_brain_server():
         conn.close()
         server.close()
         run_visualizer(agent.memory.spatial_mem, path=path_log)
+
 
 if __name__ == "__main__":
     run_brain_server()

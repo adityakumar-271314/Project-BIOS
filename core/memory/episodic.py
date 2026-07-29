@@ -81,10 +81,11 @@ class EpisodicMemory:
                 self.stats[key].update(value)
 
     def encode(self, event: EpisodicEvent) -> None:
+        if not isinstance(event, EpisodicEvent):
+            raise TypeError(
+                f"EpisodicMemory.encode expected EpisodicEvent, got {type(event)}"
+            )
         self.archive.save(event)
-        print(
-            f"[EPISODE ENCODED] type={event.event_type} peak_sig={event.peak_significance:.2f} tick={event.peak_tick}"
-        )
 
     def export_state(self) -> dict:
         return {"tick": self._tick, "index": self.archive.index.data}

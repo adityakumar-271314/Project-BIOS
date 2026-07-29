@@ -132,8 +132,6 @@ class GoalStackManager:
                     )
                 # Fallback to Episodic/Semantic Memory layout when blind
                 food_memories = self.memory_system.recall_by_type("food_recovery")
-                print(f"Food memories recalled: ", food_memories, end="")
-
                 valid_memory = None
 
                 for memory in reversed(food_memories):

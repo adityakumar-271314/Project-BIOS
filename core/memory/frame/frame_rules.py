@@ -39,11 +39,15 @@ class FrameRules:
             tags.add("food_lost")
 
         # --- Health & Reward Signals ---
-        integrity_dmg_threshold = getattr(config, "episodic_damage_threshold", 0.05) if config else 0.05
+        integrity_dmg_threshold = (
+            getattr(config, "episodic_damage_threshold", 0.05) if config else 0.05
+        )
         if (prev.integrity - curr.integrity) >= integrity_dmg_threshold:
             tags.add("damage_taken")
 
-        food_rec_threshold = getattr(config, "episodic_food_recovery_threshold", 0.1) if config else 0.1
+        food_rec_threshold = (
+            getattr(config, "episodic_food_recovery_threshold", 0.1) if config else 0.1
+        )
         if (curr.energy - prev.energy) >= food_rec_threshold:
             tags.add("food_eaten")
 

@@ -1,6 +1,6 @@
 {
   "simulation": {
-    "world_seed": 1
+    "world_seed": 999
   },
   "body": {
     "velocity_scale": 120.0,

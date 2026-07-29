@@ -28,7 +28,13 @@ class FrameMetrics:
 
         # 1. Prediction Error (Statistical Surprise via Z-score)
         surprise_scores = []
-        for key in ["energy_delta", "integrity_delta", "stress_delta", "fear_delta", "drive_delta"]:
+        for key in [
+            "energy_delta",
+            "integrity_delta",
+            "stress_delta",
+            "fear_delta",
+            "drive_delta",
+        ]:
             if key in stats and stats[key].n >= min_samples:
                 s = stats[key]
                 effective_std = max(s.std, min_std)

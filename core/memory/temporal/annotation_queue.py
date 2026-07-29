@@ -6,7 +6,7 @@ from ..schemas import TickSnapshot
 class AnnotationQueue:
     """
     Buffers incoming raw TickSnapshots before annotation.
-    
+
     Supports a configurable tick delay to allow delayed sensor processing,
     async signal alignment, or retrospection windows prior to framing.
     """
