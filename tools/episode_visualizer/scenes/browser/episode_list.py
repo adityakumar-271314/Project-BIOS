@@ -1,4 +1,3 @@
-# tools/episode_visualizer/scenes/browser/episode_list.py
 
 import pygame
 from tools.episode_visualizer.config import (

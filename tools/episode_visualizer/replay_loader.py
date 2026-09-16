@@ -25,7 +25,6 @@ def load_metadata_from_storage(episode_folder_path: str | Path) -> dict:
 
 def load_from_storage(episode_folder_path: str | Path) -> ReplaySession:
     folder = Path(episode_folder_path)
-
     if not folder.exists() or not (folder / "episode.json").exists():
         raise ValueError(f"Corrupted or missing episode structures at {folder}")
 

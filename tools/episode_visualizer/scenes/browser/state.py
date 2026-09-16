@@ -1,4 +1,3 @@
-# tools/episode_visualizer/scenes/browser/state.py
 
 
 class BrowserState:

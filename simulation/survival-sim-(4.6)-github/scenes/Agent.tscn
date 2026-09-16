@@ -1,0 +1,60 @@
+[gd_scene format=3 uid="uid://wes1oy7p0j2f"]
+
+[ext_resource type="Script" uid="uid://5k25ydtqnpby" path="res://scripts/AgentBody.gd" id="1_7e1ma"]
+[ext_resource type="PackedScene" uid="uid://d20hitnuowcs2" path="res://scenes/UI_layer.tscn" id="2_5hfgq"]
+[ext_resource type="Texture2D" uid="uid://cgk1eapfpi4ch" path="res://Assests/black.png" id="2_u0ubg"]
+[ext_resource type="Script" uid="uid://bkynup0hbshao" path="res://scripts/BrainLink.gd" id="4_6cj2t"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_jyhfs"]
+size = Vector2(62, 62)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_5hfgq"]
+radius = 200.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_5hfgq"]
+size = Vector2(64, 64)
+
+[node name="CharacterBody2D" type="CharacterBody2D" unique_id=989377595]
+position = Vector2(576, 324)
+collision_layer = 2
+script = ExtResource("1_7e1ma")
+
+[node name="CanvasLayer" parent="." unique_id=733409247 instance=ExtResource("2_5hfgq")]
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1930465531]
+z_index = 10
+texture = ExtResource("2_u0ubg")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=2010327584]
+shape = SubResource("RectangleShape2D_jyhfs")
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=963776658]
+zoom = Vector2(2, 2)
+
+[node name="Sensors" type="Node2D" parent="." unique_id=574170296]
+
+[node name="RayCenter" type="RayCast2D" parent="Sensors" unique_id=579218187]
+target_position = Vector2(200, 0)
+
+[node name="RayLeft" type="RayCast2D" parent="Sensors" unique_id=1448801005]
+target_position = Vector2(120, -120)
+
+[node name="RayRight" type="RayCast2D" parent="Sensors" unique_id=1570531546]
+target_position = Vector2(120, 120)
+
+[node name="ProximitySensor" type="Area2D" parent="Sensors" unique_id=713510831]
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Sensors/ProximitySensor" unique_id=1678588157]
+shape = SubResource("CircleShape2D_5hfgq")
+
+[node name="BrainLink" type="Node" parent="." unique_id=895446742]
+script = ExtResource("4_6cj2t")
+
+[node name="BodySurround" type="Area2D" parent="." unique_id=1999311289]
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BodySurround" unique_id=680950823]
+shape = SubResource("RectangleShape2D_5hfgq")

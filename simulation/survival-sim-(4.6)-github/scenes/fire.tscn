@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://ciwrjd1ykp6oa"]
+
+[ext_resource type="Script" uid="uid://1ak6umlkkp3n" path="res://scripts/Hazard.gd" id="1_52nqi"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_jyhfs"]
+radius = 60.0
+
+[node name="StaticBody2D2" type="StaticBody2D" unique_id=316362836 groups=["hazard"]]
+collision_layer = 2
+collision_mask = 0
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=562773038]
+offset_top = -1.0
+offset_right = 39.0
+offset_bottom = 39.0
+color = Color(1, 0, 0, 1)
+
+[node name="Area2D" type="Area2D" parent="." unique_id=880846570]
+collision_layer = 2
+collision_mask = 0
+input_pickable = false
+script = ExtResource("1_52nqi")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=984171999]
+position = Vector2(19, 20)
+shape = SubResource("CircleShape2D_jyhfs")

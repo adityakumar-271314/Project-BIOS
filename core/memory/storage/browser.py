@@ -1,10 +1,15 @@
 from pathlib import Path
 from typing import List, Optional
 
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_ROOT = PROJECT_ROOT / "run_history"
+
 
 class EpisodeBrowser:
-
-    def __init__(self, root: Path | str = "run_history"):
+    def __init__(self, root: Path | str = DEFAULT_ROOT):
         self.root = Path(root)
 
     def list_runs(self) -> List[Path]:
@@ -59,3 +64,8 @@ class EpisodeBrowser:
         if not episodes:
             return None
         return episodes[-1]
+
+
+if __name__ == "__main__":
+    runs_list = []
+    
