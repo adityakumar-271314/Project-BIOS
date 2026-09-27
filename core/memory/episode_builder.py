@@ -97,17 +97,6 @@ class EpisodeBuilder:
                 peak_y=peak_frame.snapshot.pos_y,
                 end_x=last_snap.pos_x,
                 end_y=last_snap.pos_y,
-                max_fear=max(f.snapshot.fear for f in window_frames),
-                avg_fear=sum(f.snapshot.fear for f in window_frames)
-                / len(window_frames),
-                max_stress=max(f.snapshot.stress for f in window_frames),
-                avg_stress=sum(f.snapshot.stress for f in window_frames)
-                / len(window_frames),
-                max_drive=max(f.snapshot.drive for f in window_frames),
-                avg_drive=sum(f.snapshot.drive for f in window_frames)
-                / len(window_frames),
-                energy_delta=last_snap.energy - first_snap.energy,
-                integrity_delta=last_snap.integrity - first_snap.integrity,
                 peak_snapshot=peak_frame.snapshot,
                 key_frames=key_frames,
                 signature=signature,
@@ -313,10 +302,4 @@ class EpisodeBuilder:
             fear=snap.fear,
             drive=snap.drive,
             significance=frame.importance,
-            active_skill=snap.active_skill,
-            action_state=snap.action_state,
-            target_type=snap.target_type,
-            visible_food=snap.visible_food,
-            visible_hazards=snap.visible_hazards,
-            notes=snap.notes,
         )

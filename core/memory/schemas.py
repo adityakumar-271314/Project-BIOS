@@ -101,8 +101,7 @@ class EpisodeFrame:
 # Lightweight key frame for compression
 @dataclass(slots=True)
 class SparseFrame:
-    """Conservative sparse representation - keeps most useful fields"""
-
+    """Streamlined conservative sparse representation - retains core kinematics and vitals only."""
     tick: int
     pos_x: float
     pos_y: float
@@ -115,13 +114,6 @@ class SparseFrame:
     fear: float
     drive: float
     significance: float
-    active_skill: str | None = None
-    action_state: str | None = None
-    target_type: str | None = None
-    visible_food: int = 0
-    visible_hazards: int = 0
-    notes: str | None = None
-
 
 @dataclass(slots=True, frozen=True)
 class StateSummary:
@@ -305,29 +297,13 @@ class EpisodicEvent:
     peak_y: float
     end_x: float
     end_y: float
-    max_fear: float
-    avg_fear: float
-    max_stress: float
-    avg_stress: float
-    max_drive: float
-    avg_drive: float
-    energy_delta: float
-    integrity_delta: float
     peak_snapshot: TickSnapshot
 
-    # Storage compression change
+    # Streamlined: Redundant event-level state/delta scalars removed; delegated to signature summaries.
     key_frames: List[SparseFrame] = field(default_factory=list)
-
-    # Immutable Canonical Behavioral Signature
     signature: EpisodeSignature = field(default_factory=EpisodeSignature)
-
-    # Optional Part G Immutable Quality Evaluation
     quality: EpisodeQuality | None = None
-
-    # Optional Part F Compression Metadata
-    compression: CompressionMetadata | None = None
-
-    notes: str | None = None  # Kept as optional secondary text view
+    notes: str | None = None
 
     def to_dict(self):
         return {
@@ -339,30 +315,15 @@ class EpisodicEvent:
             "start_position": {"x": self.start_x, "y": self.start_y},
             "peak_position": {"x": self.peak_x, "y": self.peak_y},
             "end_position": {"x": self.end_x, "y": self.end_y},
-            "state": {
-                "max_fear": self.max_fear,
-                "avg_fear": self.avg_fear,
-                "max_stress": self.max_stress,
-                "avg_stress": self.avg_stress,
-                "max_drive": self.max_drive,
-                "avg_drive": self.avg_drive,
-            },
-            "deltas": {
-                "energy_delta": self.energy_delta,
-                "integrity_delta": self.integrity_delta,
-            },
             "peak_snapshot": asdict(self.peak_snapshot),
             "key_frames": [asdict(kf) for kf in self.key_frames],
             "signature": self.signature.to_dict(),
             "quality": self.quality.to_dict() if self.quality else None,
-            "compression": self.compression.to_dict() if self.compression else None,
             "notes": self.notes,
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> "EpisodicEvent":
-        state = data.get("state", {})
-        deltas = data.get("deltas", {})
         start_pos = data.get("start_position", {"x": 0, "y": 0})
         peak_pos = data.get("peak_position", {"x": 0, "y": 0})
         end_pos = data.get("end_position", {"x": 0, "y": 0})
@@ -393,13 +354,6 @@ class EpisodicEvent:
             else quality_data
         )
 
-        comp_data = data.get("compression")
-        compression = (
-            CompressionMetadata.from_dict(comp_data)
-            if isinstance(comp_data, dict)
-            else comp_data
-        )
-
         return cls(
             start_tick=data["start_tick"],
             peak_tick=data["peak_tick"],
@@ -412,19 +366,10 @@ class EpisodicEvent:
             peak_y=peak_pos["y"],
             end_x=end_pos["x"],
             end_y=end_pos["y"],
-            max_fear=state.get("max_fear", 0.0),
-            avg_fear=state.get("avg_fear", 0.0),
-            max_stress=state.get("max_stress", 0.0),
-            avg_stress=state.get("avg_stress", 0.0),
-            max_drive=state.get("max_drive", 0.0),
-            avg_drive=state.get("avg_drive", 0.0),
-            energy_delta=deltas.get("energy_delta", 0.0),
-            integrity_delta=deltas.get("integrity_delta", 0.0),
             peak_snapshot=peak_snap,
             key_frames=key_frames,
             signature=signature,
             quality=quality,
-            compression=compression,
             notes=data.get("notes"),
         )
 
