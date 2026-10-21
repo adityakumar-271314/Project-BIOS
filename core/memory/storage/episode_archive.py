@@ -3,7 +3,8 @@ from collections import OrderedDict
 from .serializer import EpisodeSerializer
 from .metadata_index import MetadataIndex
 from ..schemas import EpisodicEvent
-
+from typing import List
+import math
 
 class EpisodeArchive:
     def __init__(self, root_dir: Path | str, cache_size: int = 128):
@@ -55,14 +56,12 @@ class EpisodeArchive:
         meta = self.index.query_latest()
         return self.load(meta["id"]) if meta else None
 
-    def recall_near(
-        self, pos_x: float, pos_y: float, radius: float
-    ) -> list[EpisodicEvent]:
-        r_sq = radius * radius
-        matches = []
-        for meta in self.index.data["episodes"]:
-            dx = meta["peak_x"] - pos_x
-            dy = meta["peak_y"] - pos_y
-            if (dx * dx + dy * dy) <= r_sq:
-                matches.append(self.load(meta["id"]))
-        return matches
+    def recall_near(self, pos_x: float, pos_y: float, radius: float) -> List[EpisodicEvent]:
+        matched_ids = []
+        for meta in self.index.data.get("episodes", []):
+            px = meta.get("peak_x", 0.0)
+            py = meta.get("peak_y", 0.0)
+            dist = math.hypot(px - pos_x, py - pos_y)
+            if dist <= radius:
+                matched_ids.append(meta["episode_id"])
+        return [self.load(eid) for eid in matched_ids]

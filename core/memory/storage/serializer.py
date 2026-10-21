@@ -31,7 +31,6 @@ class EpisodeSerializer:
         folder = self.root / f"episode{episode_id:06d}"
         folder.mkdir(parents=True, exist_ok=True)
 
-        # Extract signature-derived metrics for fast-index metadata
         sig = event.signature
         metadata = {
             "episode_id": episode_id,

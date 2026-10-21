@@ -143,7 +143,7 @@ class EpisodeSignature:
     """
     Canonical, language-agnostic behavioral representation of an episode.
     Immutable once finalized. Captures identity, outcome, and importance drivers
-    without duplicating detailed frame telemetry or keyframes.
+    without duplicating detailed frame telemetry.
     """
 
     # Behavioral Identity
@@ -151,7 +151,7 @@ class EpisodeSignature:
     dominant_skill: str | None = None
     dominant_target: str | None = None
 
-    # Meaningful Transitions (Only populated if state changes occurred)
+    # Meaningful Transitions
     goal_transitions: Tuple[BehavioralTransition, ...] = ()
     skill_transitions: Tuple[BehavioralTransition, ...] = ()
     target_transitions: Tuple[BehavioralTransition, ...] = ()
@@ -166,15 +166,14 @@ class EpisodeSignature:
     max_reward_exposure: float = 0.0
     landmark_interactions: int = 0
 
-    # Retention Drivers & Descriptors (Why this episode exists)
+    # Retention Drivers & Descriptors
     primary_importance_drivers: Tuple[str, ...] = ()
     duration_ticks: int = 0
     behavioral_complexity: float = 0.0
     overall_novelty: float = 0.0
     overall_importance: float = 0.0
-
-    # Lightweight Keyframe References (Tick identifiers only)
-    keyframe_ticks: Tuple[int, ...] = ()
+    
+    # Note: keyframe_ticks removed here to avoid duplication with SparseFrame.tick
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -199,7 +198,6 @@ class EpisodeSignature:
             "behavioral_complexity": self.behavioral_complexity,
             "overall_novelty": self.overall_novelty,
             "overall_importance": self.overall_importance,
-            "keyframe_ticks": list(self.keyframe_ticks),
         }
 
     @classmethod
@@ -238,9 +236,7 @@ class EpisodeSignature:
             behavioral_complexity=data.get("behavioral_complexity", 0.0),
             overall_novelty=data.get("overall_novelty", 0.0),
             overall_importance=data.get("overall_importance", 0.0),
-            keyframe_ticks=tuple(data.get("keyframe_ticks", ())),
         )
-
 
 @dataclass(slots=True, frozen=True)
 class EpisodeQuality:
@@ -299,7 +295,6 @@ class EpisodicEvent:
     end_y: float
     peak_snapshot: TickSnapshot
 
-    # Streamlined: Redundant event-level state/delta scalars removed; delegated to signature summaries.
     key_frames: List[SparseFrame] = field(default_factory=list)
     signature: EpisodeSignature = field(default_factory=EpisodeSignature)
     quality: EpisodeQuality | None = None

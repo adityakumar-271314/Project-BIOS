@@ -193,6 +193,8 @@ class EpisodeBuilder:
         max_importance = max(f.importance for f in window)
         duration = window[-1].snapshot.tick - window[0].snapshot.tick + 1
 
+        # In core/memory/episode_builder.py (Inside _build_signature)
+
         return EpisodeSignature(
             dominant_goal=dom_goal,
             dominant_skill=dom_skill,
@@ -211,7 +213,6 @@ class EpisodeBuilder:
             behavioral_complexity=complexity,
             overall_novelty=avg_novelty,
             overall_importance=max_importance,
-            keyframe_ticks=tuple(kf.tick for kf in keyframes),
         )
 
     def _extract_key_frames(self, window: List[EpisodeFrame]) -> List[SparseFrame]:

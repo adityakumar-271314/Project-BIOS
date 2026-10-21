@@ -29,15 +29,16 @@ class EpisodeCandidateScorer:
             },
         )
 
-        # Default weights for discrete transition flags
+        # STEP 5: Downweight discrete transition flags (goal/skill/target/action changes)
+        # to prevent ordinary routine goal churn from inflating candidate scores.
         self.transition_weights: Dict[str, float] = getattr(
             config,
             "candidate_transition_weights",
             {
-                "goal_changed": 0.35,
-                "skill_changed": 0.30,
-                "target_changed": 0.30,
-                "action_changed": 0.25,
+                "goal_changed": 0.08,    # Downweighted from 0.35
+                "skill_changed": 0.08,   # Downweighted from 0.30
+                "target_changed": 0.08,  # Downweighted from 0.30
+                "action_changed": 0.06,  # Downweighted from 0.25
             },
         )
 
@@ -77,21 +78,35 @@ class EpisodeCandidateScorer:
             frame.attention_score * self.metric_weights.get("attention_score", 0.15)
         )
 
-        # 2. Combine transition flags
+        # STEP 5: Enforce corroborating consequence check for transitions during scoring
+        has_experiential_consequences = (
+            abs(frame.energy_delta) > 0.02 or
+            abs(frame.integrity_delta) > 0.01 or
+            abs(frame.stress_delta) > 0.05 or
+            abs(frame.fear_delta) > 0.05 or
+            frame.snapshot.hazard_stim > 0.1 or
+            frame.snapshot.food_stim > 0.1 or
+            frame.prediction_error > 1.0 or
+            frame.novelty > 0.3
+        )
+
+        # 2. Combine transition flags (suppress or heavily penalize if no real consequences)
         for flag, active in frame.transition_flags.items():
             if active and flag in self.transition_weights:
-                contributors[f"trans:{flag}"] = self.transition_weights[flag]
+                weight = self.transition_weights[flag]
+                if not has_experiential_consequences:
+                    weight *= 0.1  # Virtually neutralize isolated churn transitions
+                contributors[f"trans:{flag}"] = weight
 
         # 3. Combine event tags
         for tag in frame.event_tags:
             if tag in self.tag_weights:
                 contributors[f"tag:{tag}"] = self.tag_weights[tag]
             else:
-                contributors[f"tag:{tag}"] = 0.10  # fallback boost for unmapped tags
+                contributors[f"tag:{tag}"] = 0.10
 
         frame_score = sum(contributors.values())
 
-        # Determine dominant contributor for peak context tracking
         peak_reason = (
             max(contributors.items(), key=lambda x: x[1])[0]
             if contributors
