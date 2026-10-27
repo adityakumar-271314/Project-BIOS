@@ -14,74 +14,120 @@ from .schemas import (
 
 
 class EpisodeBuilder:
+    """
+    Pure computational worker for constructing EpisodicEvent instances from
+    annotated EpisodeFrame sequences and BoundaryIntervals.
+    """
     def __init__(
         self,
-        compression_ratio: float = 0.08,
-        min_keyframes: int = 5,
+        compression_ratio: float = 0.03,
+        min_keyframes: int = 3,
         change_threshold: float = 0.25,
         boundary_detector: Optional[BoundaryDetector] = None,
+        pre_peak_runway_ticks: int = 50,  # Added buffer configuration for pre-peak runway
     ):
-        """
-        Pure computational worker for constructing EpisodicEvent instances from
-        annotated EpisodeFrame sequences and BoundaryIntervals.
-        """
         self.COMPRESSION_RATIO = compression_ratio
         self.MIN_KEYFRAMES = min_keyframes
         self.CHANGE_THRESHOLD = change_threshold
         self.boundary_detector = boundary_detector or BoundaryDetector()
+        self.pre_peak_runway_ticks = pre_peak_runway_ticks
 
     def build(
         self,
         frames: List[EpisodeFrame],
         boundaries: Optional[List[BoundaryInterval]] = None,
     ) -> List[EpisodicEvent]:
-        """
-        Transforms frames into consolidated EpisodicEvents using BoundaryIntervals.
-        If boundaries are not provided, uses the BoundaryDetector to extract them.
-        """
         if not frames:
             return []
 
-        # Step 1: Obtain Boundary Intervals if not pre-computed
         if boundaries is None:
             boundaries = self.boundary_detector.detect_boundaries(frames)
 
         if not boundaries:
             return []
 
-        # Map frames by tick for fast lookup
         frame_map = {f.snapshot.tick: f for f in frames}
         sorted_ticks = sorted(frame_map.keys())
+        min_available_tick = sorted_ticks[0]
 
         episodes = []
 
-        # Step 2: Build EpisodicEvents for each validated BoundaryInterval
-        for interval in boundaries:
-            # Extract frames within [start_tick, end_tick]
+        for idx, interval in enumerate(boundaries):
+            prev_end_tick = (
+                boundaries[idx - 1].end_tick 
+                if idx > 0 
+                else min_available_tick
+            )
+
+            # 1. Preliminary window slice to locate peak frame and assess dynamics
+            prelim_frames = [
+                frame_map[t] for t in sorted_ticks 
+                if interval.start_tick <= t <= interval.end_tick
+            ]
+            if not prelim_frames:
+                continue
+            
+            peak_frame = max(prelim_frames, key=lambda f: f.importance)
+            peak_tick = peak_frame.snapshot.tick
+
+            # 2. Robust Dynamic Pre-Peak Runway (Lookback Gradient)
+            # Look backward from interval.start_tick (or peak) to find where anticipation started rising
+            # (i.e., where stress, fear, or attention were elevated above resting baseline).
+            expanded_start_tick = interval.start_tick
+            for f in reversed(sorted_ticks):
+                if f >= interval.start_tick:
+                    continue
+                if f < prev_end_tick or f < min_available_tick:
+                    break
+                
+                frame_obj = frame_map[f]
+                # If vitals/attention/prediction error show active anticipation/buildup, expand backward
+                if (frame_obj.snapshot.stress > 0.15 or 
+                    frame_obj.snapshot.fear > 0.15 or 
+                    frame_obj.prediction_error > 0.8 or 
+                    frame_obj.attention_score > 0.3):
+                    expanded_start_tick = f
+                else:
+                    # Hit baseline; stop expanding backward
+                    break
+
+            # If expansion was too minimal, guarantee a proportional runway based on event distance to peak
+            min_runway_ticks = int((peak_tick - interval.start_tick) * 0.5)
+            fallback_start = max(interval.start_tick - max(25, min_runway_ticks), prev_end_tick, min_available_tick)
+            expanded_start_tick = min(expanded_start_tick, fallback_start)
+
+            # Post-peak dynamic taper (clip trailing idle ticks where attention/importance drop)
+            trimmed_end_tick = interval.end_tick
+            for f in reversed(prelim_frames):
+                if f.snapshot.tick <= peak_frame.snapshot.tick:
+                    break
+                if f.attention_score < 0.2 and f.importance < 0.3:
+                    trimmed_end_tick = f.snapshot.tick
+                else:
+                    break
+
+            # Final window frames using dynamic asymmetric bounds
             window_frames = [
                 frame_map[t]
                 for t in sorted_ticks
-                if interval.start_tick <= t <= interval.end_tick
+                if expanded_start_tick <= t <= trimmed_end_tick
             ]
 
             if not window_frames:
                 continue
 
-            # Identify peak frame by highest importance score
+            # Re-verify peak within the final asymmetric window
             peak_frame = max(window_frames, key=lambda f: f.importance)
             first_snap = window_frames[0].snapshot
             last_snap = window_frames[-1].snapshot
 
-            # Step 2a: Density-aware keyframe selection
+            # Density-aware keyframe selection with heavy reduction
             key_frames = self._extract_key_frames(window_frames)
-
-            # Step 2b: Build immutable behavioral EpisodeSignature
             signature = self._build_signature(window_frames, key_frames)
 
-            # Construct optional secondary notes view (including boundary reasons)
             start_reasons_str = ",".join(interval.start_reasons)
             end_reasons_str = ",".join(interval.end_reasons)
-            notes_str = f"Start: [{start_reasons_str}] | End: [{end_reasons_str}]"
+            notes_str = f"Start: [{start_reasons_str}] (Asymmetric) | End: [{end_reasons_str}]"
             if peak_frame.snapshot.notes:
                 notes_str += f" | {peak_frame.snapshot.notes}"
 
@@ -105,6 +151,7 @@ class EpisodeBuilder:
             episodes.append(episode)
 
         return episodes
+
 
     def _build_signature(
         self, window: List[EpisodeFrame], keyframes: List[SparseFrame]
@@ -215,22 +262,31 @@ class EpisodeBuilder:
             overall_importance=max_importance,
         )
 
+
+
     def _extract_key_frames(self, window: List[EpisodeFrame]) -> List[SparseFrame]:
         """
-        Density-Aware Keyframe Selection.
+        Density-Aware, Dynamic Percentage-Based Keyframe Selection.
 
         Calculates initial keyframe scores based on importance, novelty, transitions,
         and candidates. Iteratively selects the highest scoring frame and applies Gaussian
         density suppression to nearby frames, encouraging diversity while preserving high-information clusters.
         """
+
         if not window:
             return []
 
         n = len(window)
-        target_count = max(self.MIN_KEYFRAMES, int(n * self.COMPRESSION_RATIO))
+
+        # Heavily reduced target budget ratios to ensure a big decrease in keyframes
+        adaptive_ratio = max(0.03, 0.10 - (0.0001 * n))
+        min_limit = max(3, int(n * 0.02))
+        max_limit = min(20, int(n * 0.10))
+        
+        target_count = int(n * adaptive_ratio)
+        target_count = max(min_limit, min(target_count, max_limit))
         target_count = min(target_count, n)
 
-        # Step 1: Compute initial multi-factor keyframe scores
         base_scores = []
         for frame in window:
             score = (
@@ -246,30 +302,24 @@ class EpisodeBuilder:
         effective_scores = list(base_scores)
         selected_indices: Set[int] = set()
 
-        # Always seed with the boundary start, end, and peak frame
         selected_indices.add(0)
         selected_indices.add(n - 1)
         peak_idx = max(range(n), key=lambda i: base_scores[i])
         selected_indices.add(peak_idx)
 
-        # Dynamic decay length scale proportional to window duration
         sigma = max(2.0, n * 0.05)
 
         def _apply_suppression(selected_i: int):
-            """Softly dampens nearby scores to encourage temporal diversity."""
             for i in range(n):
                 if i in selected_indices:
                     continue
                 dist = abs(window[i].snapshot.tick - window[selected_i].snapshot.tick)
                 penalty = math.exp(-0.5 * (dist / sigma) ** 2)
-                # Dampen score up to 60% based on proximity
                 effective_scores[i] *= 1.0 - 0.6 * penalty
 
-        # Apply suppression for initial seeds
         for idx in list(selected_indices):
             _apply_suppression(idx)
 
-        # Step 2: Iteratively select highest scoring unselected frame until target budget is reached
         while len(selected_indices) < target_count:
             best_idx = -1
             best_score = -1.0

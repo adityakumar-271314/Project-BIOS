@@ -18,8 +18,8 @@ class BoundaryDetector:
         self,
         min_duration: int = 15,
         min_separation: int = 30,
-        min_start_confidence: float = 0.4,
-        min_end_confidence: float = 0.35,
+        min_start_confidence: float = 0.61,
+        min_end_confidence: float = 0.54,
         rule_weight: float = 0.6,
         metric_weight: float = 0.4,
     ):
@@ -36,45 +36,35 @@ class BoundaryDetector:
         )
 
     def detect_boundaries(self, frames: List[EpisodeFrame]) -> List[BoundaryInterval]:
-        """
-        Detects validated episode boundaries across a window of frames.
-
-        Args:
-            frames: Chronological sequence of annotated EpisodeFrame instances.
-
-        Returns:
-            List of validated BoundaryInterval objects ready for episode construction.
-        """
         if not frames or len(frames) < 2:
             return []
 
         start_candidates: List[Dict[str, Any]] = []
         end_candidates: List[Dict[str, Any]] = []
 
-        # Iterate over frame transitions
         for i in range(1, len(frames)):
-            prev_frame = frames[i - 1]
             curr_frame = frames[i]
             curr_tick = curr_frame.snapshot.tick
 
-            # 1. Evaluate Rule Triggers
+            window_start = max(0, i - 4)
+            recent_window = frames[window_start : i + 1]
+            prev_frame = frames[i - 1]
+
             start_triggers, end_triggers = self.rules_engine.evaluate(
                 prev_frame=prev_frame,
                 curr_frame=curr_frame,
             )
 
-            # 2. Score Candidate Evidences
             start_conf, start_reasons, end_conf, end_reasons = (
                 self.scoring_engine.score_frame(
-                    prev_frame=prev_frame,
-                    curr_frame=curr_frame,
+                    recent_frames=recent_window,
                     start_triggers=start_triggers,
                     end_triggers=end_triggers,
                 )
             )
 
-            # Record candidates above noise thresholds
-            if start_conf > 0.1:
+            # STEP 1 TUNING: Lowered recording floor from 0.35 to 0.30
+            if start_conf > 0.30:
                 start_candidates.append(
                     {
                         "tick": curr_tick,
@@ -83,7 +73,7 @@ class BoundaryDetector:
                     }
                 )
 
-            if end_conf > 0.1:
+            if end_conf > 0.30:
                 end_candidates.append(
                     {
                         "tick": curr_tick,
@@ -94,7 +84,6 @@ class BoundaryDetector:
 
         max_tick = frames[-1].snapshot.tick
 
-        # 3. Validate & Pair Candidates into Hygiene-Checked Intervals
         return self.validator.filter_and_pair(
             start_candidates=start_candidates,
             end_candidates=end_candidates,

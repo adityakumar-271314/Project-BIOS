@@ -7,11 +7,10 @@ from .similarity import SignatureSimilarityEvaluator
 
 class EpisodeRefiner:
     """
-
-    Refines temporary EpisodicEvents produced by EpisodeBuilder by:
-    1. Splitting events with internal behavioral discontinuities (SplitEngine).
-    2. Merging temporally adjacent events with continuous behavioral identity (MergeEngine).
-    3. Applying dynamic percentage-based keyframe/anchor capping after full formation.
+    Refines temporary EpisodicEvents produced by EpisodeBuilder using an 
+    iterative convergence loop:
+    1. Iteratively evaluates splits and merges until structural equilibrium is reached.
+    2. Applies dynamic percentage-based keyframe/anchor capping after full stabilization.
     """
 
     def __init__(
@@ -19,8 +18,8 @@ class EpisodeRefiner:
         split_engine: Optional[SplitEngine] = None,
         merge_engine: Optional[MergeEngine] = None,
         similarity_evaluator: Optional[SignatureSimilarityEvaluator] = None,
-        min_keyframe_percentage: float = 0.05,  # e.g., at least 5% of duration ticks or min absolute
-        max_keyframe_percentage: float = 0.20,  # e.g., capped at 20% of duration ticks
+        min_keyframe_percentage: float = 0.05,
+        max_keyframe_percentage: float = 0.20,
         absolute_min_keyframes: int = 3,
         absolute_max_keyframes: int = 50,
     ):
@@ -38,28 +37,49 @@ class EpisodeRefiner:
         self,
         events: List[EpisodicEvent],
         frames: Optional[List[EpisodeFrame]] = None,
+        max_iterations: int = 3,
     ) -> List[EpisodicEvent]:
         """
-        Executes split, merge, and final dynamic keyframe capping passes on a batch of candidate episodes.
+        Executes an iterative convergence loop for split and merge passes, 
+        ensuring structural stability, followed by dynamic keyframe capping.
         """
         if not events:
             return []
 
-        # Step 1: Split multi-behavioral episodes
-        split_events: List[EpisodicEvent] = []
-        for event in events:
-            splits = self.split_engine.evaluate_splits(event, frames=frames)
-            split_events.extend(splits)
+        current_events = list(events)
 
-        if not split_events:
+        # STEP 4: Iterative Convergence Loop
+        for iteration in range(max_iterations):
+            # Capture structural signature before pass to check for convergence
+            prev_signature = [(e.start_tick, e.end_tick, e.peak_tick) for e in current_events]
+
+            # Step 1: Split multi-behavioral episodes
+            split_events: List[EpisodicEvent] = []
+            for event in current_events:
+                splits = self.split_engine.evaluate_splits(event, frames=frames)
+                split_events.extend(splits)
+
+            if not split_events:
+                current_events = []
+                break
+
+            # Step 2: Merge continuous adjacent episodes
+            merged_events = self.merge_engine.evaluate_merges(split_events, frames=frames)
+
+            # Check structural signature after merge pass
+            curr_signature = [(e.start_tick, e.end_tick, e.peak_tick) for e in merged_events]
+            current_events = merged_events
+
+            # Convergence Check: If the event boundaries haven't shifted, we've stabilized
+            if prev_signature == curr_signature:
+                break
+
+        if not current_events:
             return []
-
-        # Step 2: Merge continuous adjacent episodes
-        merged_events = self.merge_engine.evaluate_merges(split_events)
 
         # Step 3: Apply dynamic post-formation keyframe/anchor capping and thinning
         refined_events = []
-        for event in merged_events:
+        for event in current_events:
             capped_event = self._apply_dynamic_keyframe_capping(event)
             refined_events.append(capped_event)
 
@@ -75,14 +95,12 @@ class EpisodeRefiner:
 
         duration = max(1, event.end_tick - event.start_tick)
 
-        # Dynamically compute bounds as a percentage of total duration, bounded by absolute caps
         dynamic_max = int(duration * self.max_keyframe_percentage)
         allowed_max = max(self.absolute_min_keyframes, min(self.absolute_max_keyframes, dynamic_max))
 
         if len(event.key_frames) <= allowed_max:
             return event
 
-        # Thinning strategy: preserve boundaries (start/end) and high-significance keyframes
         first_frame = event.key_frames[0]
         last_frame = event.key_frames[-1]
         intermediate = event.key_frames[1:-1]

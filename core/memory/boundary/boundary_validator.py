@@ -116,11 +116,34 @@ class BoundaryValidator:
             if interval.duration < self.min_duration:
                 continue
 
-            # Rule B: Enforce minimum separation between consecutive boundaries
+            # Rule B: Enforce minimum separation or resolve severe overlaps
             if cleaned:
                 prev = cleaned[-1]
+                
+                # Check for overlap or tight proximity
+                if interval.start_tick < prev.end_tick:
+                    # Calculate overlap length
+                    overlap_ticks = prev.end_tick - interval.start_tick
+                    shorter_duration = min(prev.duration, interval.duration)
+                    
+                    # If overlap is significant (> 40% of the shorter interval) or bounds collide severely:
+                    if overlap_ticks > (0.4 * shorter_duration):
+                        # Merge or select the higher confidence interval
+                        if (interval.start_confidence + interval.end_confidence) > (prev.start_confidence + prev.end_confidence):
+                            # Replace previous with expanded merged bounds
+                            merged = BoundaryInterval(
+                                start_tick=prev.start_tick,
+                                end_tick=max(prev.end_tick, interval.end_tick),
+                                start_confidence=max(prev.start_confidence, interval.start_confidence),
+                                end_confidence=max(prev.end_confidence, interval.end_confidence),
+                                start_reasons=list(set(prev.start_reasons + interval.start_reasons)),
+                                end_reasons=list(set(prev.end_reasons + interval.end_reasons)),
+                            )
+                            cleaned[-1] = merged
+                        continue
+
+                # Rule C: Standard minimum separation check
                 if interval.start_tick - prev.start_tick < self.min_separation:
-                    # Merge or keep the higher confidence interval
                     if interval.start_confidence > prev.start_confidence:
                         cleaned[-1] = interval
                     continue
