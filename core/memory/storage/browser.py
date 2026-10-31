@@ -3,7 +3,6 @@ from typing import List, Optional
 
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_ROOT = PROJECT_ROOT / "run_history"
 
@@ -68,4 +67,3 @@ class EpisodeBrowser:
 
 if __name__ == "__main__":
     runs_list = []
-    

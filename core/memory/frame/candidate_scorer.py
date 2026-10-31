@@ -35,8 +35,8 @@ class EpisodeCandidateScorer:
             config,
             "candidate_transition_weights",
             {
-                "goal_changed": 0.08,    # Downweighted from 0.35
-                "skill_changed": 0.08,   # Downweighted from 0.30
+                "goal_changed": 0.08,  # Downweighted from 0.35
+                "skill_changed": 0.08,  # Downweighted from 0.30
                 "target_changed": 0.08,  # Downweighted from 0.30
                 "action_changed": 0.06,  # Downweighted from 0.25
             },
@@ -80,14 +80,14 @@ class EpisodeCandidateScorer:
 
         # STEP 5: Enforce corroborating consequence check for transitions during scoring
         has_experiential_consequences = (
-            abs(frame.energy_delta) > 0.02 or
-            abs(frame.integrity_delta) > 0.01 or
-            abs(frame.stress_delta) > 0.05 or
-            abs(frame.fear_delta) > 0.05 or
-            frame.snapshot.hazard_stim > 0.1 or
-            frame.snapshot.food_stim > 0.1 or
-            frame.prediction_error > 1.0 or
-            frame.novelty > 0.3
+            abs(frame.energy_delta) > 0.03
+            or abs(frame.integrity_delta) > 0.015
+            or abs(frame.stress_delta) > 0.06
+            or abs(frame.fear_delta) > 0.06
+            or frame.snapshot.hazard_stim > 0.12
+            or frame.snapshot.food_stim > 0.12
+            or frame.prediction_error > 1.1
+            or frame.novelty > 0.35
         )
 
         # 2. Combine transition flags (suppress or heavily penalize if no real consequences)
@@ -95,7 +95,9 @@ class EpisodeCandidateScorer:
             if active and flag in self.transition_weights:
                 weight = self.transition_weights[flag]
                 if not has_experiential_consequences:
-                    weight *= 0.1  # Virtually neutralize isolated churn transitions
+                    weight *= (
+                        0.05  # Near-total neutralization of isolated churn transitions
+                    )
                 contributors[f"trans:{flag}"] = weight
 
         # 3. Combine event tags

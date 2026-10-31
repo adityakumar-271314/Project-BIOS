@@ -41,7 +41,7 @@ class EpisodePipeline:
         )
 
         # 1. Pull annotated frames from buffer
-        # STEP 2: Expanded before_ticks from 300 to 600 to capture the rising pre-spike 
+        # STEP 2: Expanded before_ticks from 300 to 600 to capture the rising pre-spike
         # telemetry slope (e.g., stress/fear accumulation) leading up to the candidate event.
         frames = self.temporal_buffer.get_frame_context(
             center_tick=candidate_tick,

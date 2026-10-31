@@ -7,7 +7,7 @@ from .similarity import SignatureSimilarityEvaluator
 
 class EpisodeRefiner:
     """
-    Refines temporary EpisodicEvents produced by EpisodeBuilder using an 
+    Refines temporary EpisodicEvents produced by EpisodeBuilder using an
     iterative convergence loop:
     1. Iteratively evaluates splits and merges until structural equilibrium is reached.
     2. Applies dynamic percentage-based keyframe/anchor capping after full stabilization.
@@ -40,7 +40,7 @@ class EpisodeRefiner:
         max_iterations: int = 3,
     ) -> List[EpisodicEvent]:
         """
-        Executes an iterative convergence loop for split and merge passes, 
+        Executes an iterative convergence loop for split and merge passes,
         ensuring structural stability, followed by dynamic keyframe capping.
         """
         if not events:
@@ -51,7 +51,9 @@ class EpisodeRefiner:
         # STEP 4: Iterative Convergence Loop
         for iteration in range(max_iterations):
             # Capture structural signature before pass to check for convergence
-            prev_signature = [(e.start_tick, e.end_tick, e.peak_tick) for e in current_events]
+            prev_signature = [
+                (e.start_tick, e.end_tick, e.peak_tick) for e in current_events
+            ]
 
             # Step 1: Split multi-behavioral episodes
             split_events: List[EpisodicEvent] = []
@@ -64,10 +66,14 @@ class EpisodeRefiner:
                 break
 
             # Step 2: Merge continuous adjacent episodes
-            merged_events = self.merge_engine.evaluate_merges(split_events, frames=frames)
+            merged_events = self.merge_engine.evaluate_merges(
+                split_events, frames=frames
+            )
 
             # Check structural signature after merge pass
-            curr_signature = [(e.start_tick, e.end_tick, e.peak_tick) for e in merged_events]
+            curr_signature = [
+                (e.start_tick, e.end_tick, e.peak_tick) for e in merged_events
+            ]
             current_events = merged_events
 
             # Convergence Check: If the event boundaries haven't shifted, we've stabilized
@@ -96,7 +102,9 @@ class EpisodeRefiner:
         duration = max(1, event.end_tick - event.start_tick)
 
         dynamic_max = int(duration * self.max_keyframe_percentage)
-        allowed_max = max(self.absolute_min_keyframes, min(self.absolute_max_keyframes, dynamic_max))
+        allowed_max = max(
+            self.absolute_min_keyframes, min(self.absolute_max_keyframes, dynamic_max)
+        )
 
         if len(event.key_frames) <= allowed_max:
             return event
@@ -106,9 +114,7 @@ class EpisodeRefiner:
         intermediate = event.key_frames[1:-1]
 
         sorted_intermediate = sorted(
-            intermediate,
-            key=lambda kf: getattr(kf, "significance", 0.0),
-            reverse=True
+            intermediate, key=lambda kf: getattr(kf, "significance", 0.0), reverse=True
         )
 
         target_intermediate_count = max(0, allowed_max - 2)

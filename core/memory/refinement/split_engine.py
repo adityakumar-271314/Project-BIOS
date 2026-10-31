@@ -39,8 +39,7 @@ class SplitEngine:
             return [event]
 
         event_frames = [
-            f for f in frames
-            if event.start_tick <= f.snapshot.tick <= event.end_tick
+            f for f in frames if event.start_tick <= f.snapshot.tick <= event.end_tick
         ]
         if not event_frames:
             return [event]
@@ -51,15 +50,16 @@ class SplitEngine:
         adjusted_split_ticks = set()
         for raw_tick in raw_split_ticks:
             neighborhood = [
-                frame_map[t] for t in sorted_frame_ticks 
+                frame_map[t]
+                for t in sorted_frame_ticks
                 if abs(t - raw_tick) <= self.search_radius
             ]
             if not neighborhood:
                 continue
 
             trough_frame = min(
-                neighborhood, 
-                key=lambda f: (f.importance * 0.7) + (f.attention_score * 0.3)
+                neighborhood,
+                key=lambda f: (f.importance * 0.7) + (f.attention_score * 0.3),
             )
             adjusted_split_ticks.add(trough_frame.snapshot.tick)
 
@@ -89,7 +89,9 @@ class SplitEngine:
 
         return sub_events if sub_events else [event]
 
-    def _build_sub_episode(self, window_frames: List[EpisodeFrame]) -> List[EpisodicEvent]:
+    def _build_sub_episode(
+        self, window_frames: List[EpisodeFrame]
+    ) -> List[EpisodicEvent]:
         """Forces EpisodeBuilder to process the sub-window using a synthetic boundary interval."""
         if not window_frames:
             return []
@@ -99,6 +101,6 @@ class SplitEngine:
             start_confidence=1.0,
             end_confidence=1.0,
             start_reasons=["split_rebuild"],
-            end_reasons=["split_rebuild"]
+            end_reasons=["split_rebuild"],
         )
         return self.builder.build(window_frames, boundaries=[synthetic_interval])

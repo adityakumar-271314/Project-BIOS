@@ -1,4 +1,3 @@
-
 import pygame
 from tools.episode_visualizer.config import (
     ACCENT_BLUE,

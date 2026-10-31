@@ -54,7 +54,7 @@ class CoverageEvaluator:
             reasons.append("incomplete_continuous_summaries")
 
         # Weighted Composite Coverage Score
-        coverage = (
-            (0.4 * boundary_score) + (0.2 * summary_score) # + (0.4 * dispersion_score)
-        )
+        coverage = (0.4 * boundary_score) + (
+            0.2 * summary_score
+        )  # + (0.4 * dispersion_score)
         return round(coverage, 4), reasons

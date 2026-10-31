@@ -7,6 +7,7 @@ class BoundaryScore:
     Combines rule activations and continuous frame metrics to calculate normalized
     confidence scores (0.0 to 1.0) and consolidated evidence lists for boundary candidates.
     """
+
     def __init__(
         self,
         rule_weight: float = 0.6,
@@ -41,30 +42,28 @@ class BoundaryScore:
 
     def _has_experiential_consequences(self, recent_frames: List[EpisodeFrame]) -> bool:
         """
-        Enforces multi-frame accumulation: verifies if a transition is accompanied 
-        by sustained vital deviations or environmental changes across the recent window.
+        Rigorously verifies if a transition is backed by sustained multi-frame
+        vital deviations, environmental changes, or cognitive surprise.
         """
         if len(recent_frames) < 2:
-            return True
+            return False
 
-        # Compute cumulative or sustained deltas across the rolling window
         total_energy_delta = sum(abs(f.energy_delta) for f in recent_frames[1:])
         total_stress_delta = sum(f.stress_delta for f in recent_frames[1:])
         total_fear_delta = sum(f.fear_delta for f in recent_frames[1:])
 
-        # Sustained threshold checks instead of single-frame spikes
+        # Increased robustness thresholds to filter routine churn
         vitals_sustained = (
-            total_energy_delta > 0.04 or
-            total_stress_delta > 0.08 or
-            total_fear_delta > 0.08
+            total_energy_delta > 0.05
+            or total_stress_delta > 0.10
+            or total_fear_delta > 0.10
         )
 
-        # Environmental or novelty persistence
         env_persistent = any(
-            f.snapshot.hazard_stim > 0.15 or 
-            f.snapshot.food_stim > 0.15 or 
-            f.prediction_error > 1.2 or 
-            f.novelty > 0.35
+            f.snapshot.hazard_stim > 0.2
+            or f.snapshot.food_stim > 0.2
+            or f.prediction_error > 1.3
+            or f.novelty > 0.4
             for f in recent_frames
         )
 
@@ -77,17 +76,20 @@ class BoundaryScore:
     ) -> Tuple[float, List[str]]:
         curr_frame = recent_frames[-1]
         has_consequences = self._has_experiential_consequences(recent_frames)
-        
+
         filtered_triggers = {}
         for rule_name, score in triggers.items():
-            is_transition_rule = any(term in rule_name for term in ["goal_changed", "skill_changed", "target_changed"])
+            is_transition_rule = any(
+                term in rule_name
+                for term in ["goal_changed", "skill_changed", "target_changed"]
+            )
             if is_transition_rule and not has_consequences:
                 continue
             filtered_triggers[rule_name] = score
 
         triggers = filtered_triggers
         reasons: List[str] = list(triggers.keys())
-        
+
         if not triggers and curr_frame.importance < 0.4:
             return 0.0, []
 
@@ -118,12 +120,19 @@ class BoundaryScore:
     ) -> Tuple[float, List[str]]:
         curr_frame = recent_frames[-1]
         prev_frame = recent_frames[-2] if len(recent_frames) >= 2 else None
-        
+
         has_consequences = self._has_experiential_consequences(recent_frames)
-        
+
         filtered_triggers = {
-            r: score for r, score in triggers.items()
-            if not (any(term in r for term in ["goal_changed", "skill_changed", "target_changed"]) and not has_consequences)
+            r: score
+            for r, score in triggers.items()
+            if not (
+                any(
+                    term in r
+                    for term in ["goal_changed", "skill_changed", "target_changed"]
+                )
+                and not has_consequences
+            )
         }
         triggers = filtered_triggers
         reasons: List[str] = list(triggers.keys())

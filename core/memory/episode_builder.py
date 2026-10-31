@@ -18,6 +18,7 @@ class EpisodeBuilder:
     Pure computational worker for constructing EpisodicEvent instances from
     annotated EpisodeFrame sequences and BoundaryIntervals.
     """
+
     def __init__(
         self,
         compression_ratio: float = 0.03,
@@ -31,6 +32,14 @@ class EpisodeBuilder:
         self.CHANGE_THRESHOLD = change_threshold
         self.boundary_detector = boundary_detector or BoundaryDetector()
         self.pre_peak_runway_ticks = pre_peak_runway_ticks
+
+        # Multi-Tier Anchor Classification Weights
+        self.ANCHOR_TIER_WEIGHTS = {
+            "boundary": 1.0,  # Start and End ticks of the validated interval
+            "event_critical": 0.85,  # Damage taken, food/reward consumption, hazard entry/exit
+            "state_critical": 0.70,  # Peak stress/fear spikes, maximum prediction error / surprise
+            "trajectory_critical": 0.50,  # Spatial curvature inflection points (heading/velocity shifts)
+        }
 
     def build(
         self,
@@ -54,19 +63,18 @@ class EpisodeBuilder:
 
         for idx, interval in enumerate(boundaries):
             prev_end_tick = (
-                boundaries[idx - 1].end_tick 
-                if idx > 0 
-                else min_available_tick
+                boundaries[idx - 1].end_tick if idx > 0 else min_available_tick
             )
 
             # 1. Preliminary window slice to locate peak frame and assess dynamics
             prelim_frames = [
-                frame_map[t] for t in sorted_ticks 
+                frame_map[t]
+                for t in sorted_ticks
                 if interval.start_tick <= t <= interval.end_tick
             ]
             if not prelim_frames:
                 continue
-            
+
             peak_frame = max(prelim_frames, key=lambda f: f.importance)
             peak_tick = peak_frame.snapshot.tick
 
@@ -79,13 +87,15 @@ class EpisodeBuilder:
                     continue
                 if f < prev_end_tick or f < min_available_tick:
                     break
-                
+
                 frame_obj = frame_map[f]
                 # If vitals/attention/prediction error show active anticipation/buildup, expand backward
-                if (frame_obj.snapshot.stress > 0.15 or 
-                    frame_obj.snapshot.fear > 0.15 or 
-                    frame_obj.prediction_error > 0.8 or 
-                    frame_obj.attention_score > 0.3):
+                if (
+                    frame_obj.snapshot.stress > 0.15
+                    or frame_obj.snapshot.fear > 0.15
+                    or frame_obj.prediction_error > 0.8
+                    or frame_obj.attention_score > 0.3
+                ):
                     expanded_start_tick = f
                 else:
                     # Hit baseline; stop expanding backward
@@ -93,7 +103,11 @@ class EpisodeBuilder:
 
             # If expansion was too minimal, guarantee a proportional runway based on event distance to peak
             min_runway_ticks = int((peak_tick - interval.start_tick) * 0.5)
-            fallback_start = max(interval.start_tick - max(25, min_runway_ticks), prev_end_tick, min_available_tick)
+            fallback_start = max(
+                interval.start_tick - max(25, min_runway_ticks),
+                prev_end_tick,
+                min_available_tick,
+            )
             expanded_start_tick = min(expanded_start_tick, fallback_start)
 
             # Post-peak dynamic taper (clip trailing idle ticks where attention/importance drop)
@@ -127,7 +141,9 @@ class EpisodeBuilder:
 
             start_reasons_str = ",".join(interval.start_reasons)
             end_reasons_str = ",".join(interval.end_reasons)
-            notes_str = f"Start: [{start_reasons_str}] (Asymmetric) | End: [{end_reasons_str}]"
+            notes_str = (
+                f"Start: [{start_reasons_str}] (Asymmetric) | End: [{end_reasons_str}]"
+            )
             if peak_frame.snapshot.notes:
                 notes_str += f" | {peak_frame.snapshot.notes}"
 
@@ -143,7 +159,6 @@ class EpisodeBuilder:
                 peak_y=peak_frame.snapshot.pos_y,
                 end_x=last_snap.pos_x,
                 end_y=last_snap.pos_y,
-                peak_snapshot=peak_frame.snapshot,
                 key_frames=key_frames,
                 signature=signature,
                 notes=notes_str,
@@ -151,7 +166,6 @@ class EpisodeBuilder:
             episodes.append(episode)
 
         return episodes
-
 
     def _build_signature(
         self, window: List[EpisodeFrame], keyframes: List[SparseFrame]
@@ -262,7 +276,27 @@ class EpisodeBuilder:
             overall_importance=max_importance,
         )
 
+    def _detect_trajectory_inflections(
+        self, window: List[EpisodeFrame], threshold_rad: float = 0.35
+    ) -> Set[int]:
+        """
+        Identifies ticks where heading or velocity vectors change significantly,
+        capturing spatial turn points for precise trajectory reconstruction.
+        """
+        inflection_ticks = set()
+        for i in range(1, len(window) - 1):
+            prev_h = window[i - 1].snapshot.heading
+            curr_h = window[i].snapshot.heading
+            next_h = window[i + 1].snapshot.heading
 
+            # Calculate angular divergence
+            diff1 = abs((curr_h - prev_h + math.pi) % (2 * math.pi) - math.pi)
+            diff2 = abs((next_h - curr_h + math.pi) % (2 * math.pi) - math.pi)
+
+            if diff1 > threshold_rad or diff2 > threshold_rad:
+                inflection_ticks.add(window[i].snapshot.tick)
+
+        return inflection_ticks
 
     def _extract_key_frames(self, window: List[EpisodeFrame]) -> List[SparseFrame]:
         """
@@ -272,42 +306,57 @@ class EpisodeBuilder:
         and candidates. Iteratively selects the highest scoring frame and applies Gaussian
         density suppression to nearby frames, encouraging diversity while preserving high-information clusters.
         """
-
         if not window:
             return []
 
         n = len(window)
+        trajectory_inflections = self._detect_trajectory_inflections(window)
 
-        # Heavily reduced target budget ratios to ensure a big decrease in keyframes
-        adaptive_ratio = max(0.03, 0.10 - (0.0001 * n))
-        min_limit = max(3, int(n * 0.02))
-        max_limit = min(20, int(n * 0.10))
-        
-        target_count = int(n * adaptive_ratio)
-        target_count = max(min_limit, min(target_count, max_limit))
-        target_count = min(target_count, n)
-
+        # 1. Tiered Candidate Scoring
         base_scores = []
         for frame in window:
-            score = (
-                0.4 * frame.importance
-                + 0.2 * frame.novelty
-                + 0.2 * frame.attention_score
-                + 0.1 * frame.prediction_error
+            tick = frame.snapshot.tick
+            score = 0.0
+
+            # Event-Critical Signals
+            if any(
+                tag in frame.event_tags
+                for tag in (
+                    "damage_taken",
+                    "food_eaten",
+                    "entered_hazard",
+                    "left_hazard",
+                )
+            ):
+                score += self.ANCHOR_TIER_WEIGHTS["event_critical"]
+
+            # State-Critical Signals (Spikes in surprise or vitals)
+            if frame.prediction_error > 2.0 or frame.importance > 0.7:
+                score += self.ANCHOR_TIER_WEIGHTS["state_critical"]
+
+            # Trajectory-Critical Signals
+            if tick in trajectory_inflections:
+                score += self.ANCHOR_TIER_WEIGHTS["trajectory_critical"]
+
+            # Baseline continuous metrics contribution
+            score += (
+                0.2 * frame.importance
+                + 0.1 * frame.attention_score
+                + 0.1 * frame.novelty
             )
-            if any(frame.transition_flags.values()):
-                score += 0.15
             base_scores.append(score)
 
-        effective_scores = list(base_scores)
-        selected_indices: Set[int] = set()
-
-        selected_indices.add(0)
-        selected_indices.add(n - 1)
+        # 2. Mandatory Boundary Preservation
+        selected_indices: Set[int] = {0, n - 1}
         peak_idx = max(range(n), key=lambda i: base_scores[i])
         selected_indices.add(peak_idx)
 
-        sigma = max(2.0, n * 0.05)
+        # 3. Dynamic Budget Allocation & Suppression Iteration
+        # Compute adaptive budget based on episode length
+        target_count = max(3, min(int(n * 0.05), 15))
+
+        effective_scores = list(base_scores)
+        sigma = max(2.0, n * 0.04)
 
         def _apply_suppression(selected_i: int):
             for i in range(n):
@@ -315,23 +364,19 @@ class EpisodeBuilder:
                     continue
                 dist = abs(window[i].snapshot.tick - window[selected_i].snapshot.tick)
                 penalty = math.exp(-0.5 * (dist / sigma) ** 2)
-                effective_scores[i] *= 1.0 - 0.6 * penalty
+                effective_scores[i] *= 1.0 - 0.65 * penalty
 
         for idx in list(selected_indices):
             _apply_suppression(idx)
 
         while len(selected_indices) < target_count:
-            best_idx = -1
-            best_score = -1.0
-
-            for i in range(n):
-                if i not in selected_indices and effective_scores[i] > best_score:
-                    best_score = effective_scores[i]
-                    best_idx = i
-
-            if best_idx == -1:
+            best_idx = max(
+                (i for i in range(n) if i not in selected_indices),
+                key=lambda i: effective_scores[i],
+                default=-1,
+            )
+            if best_idx == -1 or effective_scores[best_idx] < 0.1:
                 break
-
             selected_indices.add(best_idx)
             _apply_suppression(best_idx)
 

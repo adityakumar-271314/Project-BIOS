@@ -21,12 +21,22 @@ class MergeEngine:
         self.evaluator = similarity_evaluator or SignatureSimilarityEvaluator()
         self.builder = episode_builder or EpisodeBuilder()
 
-    def _get_dynamic_threshold(self, event_a: EpisodicEvent, event_b: EpisodicEvent) -> float:
+    def _get_dynamic_threshold(
+        self, event_a: EpisodicEvent, event_b: EpisodicEvent
+    ) -> float:
         max_significance = max(event_a.peak_significance, event_b.peak_significance)
-        max_novelty = max(event_a.signature.overall_novelty, event_b.signature.overall_novelty)
-        max_hazard = max(event_a.signature.max_hazard_exposure, event_b.signature.max_hazard_exposure)
+        max_novelty = max(
+            event_a.signature.overall_novelty, event_b.signature.overall_novelty
+        )
+        max_hazard = max(
+            event_a.signature.max_hazard_exposure, event_b.signature.max_hazard_exposure
+        )
 
-        penalty = (0.15 * max_significance) + (0.10 * max_novelty) + (0.15 * max(0.0, max_hazard))
+        penalty = (
+            (0.15 * max_significance)
+            + (0.10 * max_novelty)
+            + (0.15 * max(0.0, max_hazard))
+        )
         threshold = min(0.92, self.base_similarity_threshold + penalty)
 
         # DYNAMIC PROXIMITY SCALING (Proportional to event scale rather than hardcoded ticks)
@@ -34,13 +44,13 @@ class MergeEngine:
         duration_a = event_a.end_tick - event_a.start_tick
         duration_b = event_b.end_tick - event_b.start_tick
         avg_duration = (duration_a + duration_b) / 2.0
-        
+
         # Allow gap window to scale with event size (e.g., up to 25% of average duration, bounded)
         dynamic_gap_limit = max(15, min(120, int(avg_duration * 0.25)))
 
-        same_category = (event_a.event_type == event_b.event_type)
+        same_category = event_a.event_type == event_b.event_type
         same_goal = (
-            event_a.signature.dominant_goal 
+            event_a.signature.dominant_goal
             and event_a.signature.dominant_goal == event_b.signature.dominant_goal
         )
 
@@ -51,9 +61,7 @@ class MergeEngine:
         return threshold
 
     def evaluate_merges(
-        self, 
-        events: List[EpisodicEvent], 
-        frames: Optional[List[EpisodeFrame]] = None
+        self, events: List[EpisodicEvent], frames: Optional[List[EpisodeFrame]] = None
     ) -> List[EpisodicEvent]:
         """
         Scans a chronological list of EpisodicEvent objects and iteratively merges
@@ -69,7 +77,7 @@ class MergeEngine:
 
         for next_event in sorted_events[1:]:
             gap = next_event.start_tick - curr_event.end_tick
-            
+
             # Compute dynamic gap limit proportional to the average duration of both events
             duration_a = curr_event.end_tick - curr_event.start_tick
             duration_b = next_event.end_tick - next_event.start_tick
@@ -106,15 +114,16 @@ class MergeEngine:
         return merged_events
 
     def _merge_pair(
-        self, 
-        event_a: EpisodicEvent, 
-        event_b: EpisodicEvent, 
-        frames: Optional[List[EpisodeFrame]] = None
+        self,
+        event_a: EpisodicEvent,
+        event_b: EpisodicEvent,
+        frames: Optional[List[EpisodeFrame]] = None,
     ) -> EpisodicEvent:
         """Rebuilds the unified range using EpisodeBuilder if frames are available."""
         if frames:
             unified_frames = [
-                f for f in frames 
+                f
+                for f in frames
                 if event_a.start_tick <= f.snapshot.tick <= event_b.end_tick
             ]
             if unified_frames:
@@ -124,9 +133,11 @@ class MergeEngine:
                     start_confidence=1.0,
                     end_confidence=1.0,
                     start_reasons=["merge_rebuild"],
-                    end_reasons=["merge_rebuild"]
+                    end_reasons=["merge_rebuild"],
                 )
-                built = self.builder.build(unified_frames, boundaries=[synthetic_interval])
+                built = self.builder.build(
+                    unified_frames, boundaries=[synthetic_interval]
+                )
                 if built:
                     return built[0]
 
@@ -144,9 +155,7 @@ class MergeEngine:
             combined_keyframes_map[t] for t in sorted(combined_keyframes_map.keys())
         ]
 
-        merged_signature = self._merge_signatures(
-            event_a.signature, event_b.signature
-        )
+        merged_signature = self._merge_signatures(event_a.signature, event_b.signature)
         merged_notes = f"{event_a.notes or ''} | {event_b.notes or ''}".strip(" |")
 
         return EpisodicEvent(

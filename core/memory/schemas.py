@@ -102,6 +102,7 @@ class EpisodeFrame:
 @dataclass(slots=True)
 class SparseFrame:
     """Streamlined conservative sparse representation - retains core kinematics and vitals only."""
+
     tick: int
     pos_x: float
     pos_y: float
@@ -114,6 +115,7 @@ class SparseFrame:
     fear: float
     drive: float
     significance: float
+
 
 @dataclass(slots=True, frozen=True)
 class StateSummary:
@@ -172,7 +174,7 @@ class EpisodeSignature:
     behavioral_complexity: float = 0.0
     overall_novelty: float = 0.0
     overall_importance: float = 0.0
-    
+
     # Note: keyframe_ticks removed here to avoid duplication with SparseFrame.tick
 
     def to_dict(self) -> Dict[str, Any]:
@@ -238,6 +240,7 @@ class EpisodeSignature:
             overall_importance=data.get("overall_importance", 0.0),
         )
 
+
 @dataclass(slots=True, frozen=True)
 class EpisodeQuality:
     """
@@ -293,12 +296,17 @@ class EpisodicEvent:
     peak_y: float
     end_x: float
     end_y: float
-    peak_snapshot: TickSnapshot
 
     key_frames: List[SparseFrame] = field(default_factory=list)
     signature: EpisodeSignature = field(default_factory=EpisodeSignature)
     quality: EpisodeQuality | None = None
+    compression: CompressionMetadata | None = None
     notes: str | None = None
+
+    @property
+    def peak_frame(self) -> Optional[SparseFrame]:
+        """Derives the peak frame directly from keyframes without duplicating storage."""
+        return next((kf for kf in self.key_frames if kf.tick == self.peak_tick), None)
 
     def to_dict(self):
         return {
@@ -310,10 +318,11 @@ class EpisodicEvent:
             "start_position": {"x": self.start_x, "y": self.start_y},
             "peak_position": {"x": self.peak_x, "y": self.peak_y},
             "end_position": {"x": self.end_x, "y": self.end_y},
-            "peak_snapshot": asdict(self.peak_snapshot),
+            # REMOVED: "peak_snapshot": asdict(self.peak_snapshot),
             "key_frames": [asdict(kf) for kf in self.key_frames],
             "signature": self.signature.to_dict(),
             "quality": self.quality.to_dict() if self.quality else None,
+            "compression": self.compression.to_dict() if self.compression else None,
             "notes": self.notes,
         }
 
@@ -322,13 +331,6 @@ class EpisodicEvent:
         start_pos = data.get("start_position", {"x": 0, "y": 0})
         peak_pos = data.get("peak_position", {"x": 0, "y": 0})
         end_pos = data.get("end_position", {"x": 0, "y": 0})
-
-        peak_snap_data = data.get("peak_snapshot")
-        peak_snap = (
-            TickSnapshot(**peak_snap_data)
-            if isinstance(peak_snap_data, dict)
-            else peak_snap_data
-        )
 
         raw_key_frames = data.get("key_frames", [])
         key_frames = [
@@ -349,6 +351,13 @@ class EpisodicEvent:
             else quality_data
         )
 
+        compression_data = data.get("compression")
+        compression = (
+            CompressionMetadata.from_dict(compression_data)
+            if isinstance(compression_data, dict)
+            else compression_data
+        )
+
         return cls(
             start_tick=data["start_tick"],
             peak_tick=data["peak_tick"],
@@ -361,10 +370,10 @@ class EpisodicEvent:
             peak_y=peak_pos["y"],
             end_x=end_pos["x"],
             end_y=end_pos["y"],
-            peak_snapshot=peak_snap,
             key_frames=key_frames,
             signature=signature,
             quality=quality,
+            compression=compression,
             notes=data.get("notes"),
         )
 

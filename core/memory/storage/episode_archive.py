@@ -6,6 +6,7 @@ from ..schemas import EpisodicEvent
 from typing import List
 import math
 
+
 class EpisodeArchive:
     def __init__(self, root_dir: Path | str, cache_size: int = 128):
         self.root = Path(root_dir)
@@ -56,7 +57,9 @@ class EpisodeArchive:
         meta = self.index.query_latest()
         return self.load(meta["id"]) if meta else None
 
-    def recall_near(self, pos_x: float, pos_y: float, radius: float) -> List[EpisodicEvent]:
+    def recall_near(
+        self, pos_x: float, pos_y: float, radius: float
+    ) -> List[EpisodicEvent]:
         matched_ids = []
         for meta in self.index.data.get("episodes", []):
             px = meta.get("peak_x", 0.0)
