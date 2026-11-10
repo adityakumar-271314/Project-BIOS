@@ -1,5 +1,6 @@
 from pathlib import Path
 import math
+import json
 from core.memory.storage.loader import EpisodeLoader
 from core.memory.reconstruction.reconstruct import EpisodeReconstructor
 from tools.episode_visualizer.replay_session import ReplaySession, ReplayTick
@@ -7,20 +8,44 @@ from tools.episode_visualizer.raw_extractor import RawTelemetryExtractor
 
 
 def load_metadata_from_storage(episode_folder_path: str | Path) -> dict:
-    """Fast-load only the lightweight metadata for UI previews and filtering."""
+    """Fast-load or dynamically synthesize lightweight metadata for UI previews and filtering."""
     folder = Path(episode_folder_path)
+    
+    # 1. Backward compatibility for v1 runs
     metadata_file = folder / "metadata.json"
+    if metadata_file.exists():
+        try:
+            with open(metadata_file, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
 
-    if not metadata_file.exists():
+    # 2. v2 schema support: synthesize metadata dynamically from episode.json
+    episode_file = folder / "episode.json"
+    if not episode_file.exists():
         return {}
 
     try:
-        import json
+        with open(episode_file, "r") as f:
+            data = json.load(f)
 
-        with open(metadata_file, "r") as f:
-            return json.load(f)
+        folder_name = folder.name
+        episode_id = int(folder_name.replace("episode", "")) if folder_name.startswith("episode") else 0
+        sig = data.get("signature", {})
+
+        return {
+            "episode_id": episode_id,
+            "event_type": data.get("event_type", "unknown"),
+            "start_tick": data.get("start_tick", 0),
+            "peak_tick": data.get("peak_tick", 0),
+            "end_tick": data.get("end_tick", 0),
+            "peak_significance": data.get("peak_significance", 0.0),
+            "landmark_interactions": sig.get("landmark_interactions", 0),
+            "goal_transitions": len(sig.get("goal_transitions", [])),
+            "skill_transitions": len(sig.get("skill_transitions", [])),
+        }
     except Exception:
-        return {}  # Return empty or handle gracefully if file is corrupted
+        return {}
 
 
 def load_from_storage(episode_folder_path: str | Path) -> ReplaySession:
@@ -35,7 +60,6 @@ def load_from_storage(episode_folder_path: str | Path) -> ReplaySession:
     run_dir = folder.parent.parent  # Move up past 'episodes/' to 'runXXXXXX/'
     telemetry_file = run_dir / "telemetry.json"
     if not telemetry_file.exists():
-        # Fallback to .jsonl if telemetry uses line-delimited json format
         telemetry_file = run_dir / "telemetry.jsonl"
 
     extractor = RawTelemetryExtractor(telemetry_file)
@@ -61,7 +85,6 @@ def load_from_storage(episode_folder_path: str | Path) -> ReplaySession:
         min_x, max_x = min(min_x, x), max(max_x, x)
         min_y, max_y = min(min_y, y), max(max_y, y)
 
-        # Calculate drift if corresponding raw data point exists
         drift_val = 0.0
         if idx < len(raw_path_list):
             raw_x, raw_y = raw_path_list[idx]
@@ -84,7 +107,6 @@ def load_from_storage(episode_folder_path: str | Path) -> ReplaySession:
             )
         )
 
-    # Bind extracted raw telemetry collections directly into the visual session
     session = ReplaySession(
         name=f"Episode: {episodic_event.event_type} ({episodic_event.start_tick}-{episodic_event.end_tick})",
         episode_id=f"{episodic_event.start_tick}",

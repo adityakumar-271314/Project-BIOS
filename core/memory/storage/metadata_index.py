@@ -15,7 +15,7 @@ class MetadataIndex:
 
     def save(self):
         with open(self.path, "w") as f:
-            json.dump(self.data, f, indent=4)
+            json.dump(self.data, f, separators=(",", ":"))
 
     def add(self, meta: dict):
         self.data["episodes"].append(meta)
