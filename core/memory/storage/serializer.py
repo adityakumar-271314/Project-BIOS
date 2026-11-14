@@ -15,7 +15,9 @@ class EpisodeSerializer:
         if not self.manifest_path.exists():
             # Initialize with schema version 2 (compact, de-duplicated storage layout)
             with open(self.manifest_path, "w") as f:
-                json.dump({"version": 2, "next_episode_id": 1}, f, separators=(",", ":"))
+                json.dump(
+                    {"version": 2, "next_episode_id": 1}, f, separators=(",", ":")
+                )
         else:
             # Check and migrate legacy v1 manifests to v2 automatically
             with open(self.manifest_path, "r+") as f:

@@ -5,7 +5,7 @@ from ..schemas import EpisodicEvent
 class NoveltyEvaluator:
     """
     Evaluates episode novelty based on rare signature configurations,
-    unusual behavioral drivers, and non-standard outcomes.
+    unusual behavioral drivers, and non-standard outcome statuses.
     """
 
     def __init__(self, common_drivers_baseline: Optional[Set[str]] = None):
@@ -22,7 +22,6 @@ class NoveltyEvaluator:
         reasons = []
         sig = event.signature
 
-        # 1. Driver-based Novelty
         drivers = set(sig.primary_importance_drivers)
         rare_drivers = drivers - self.common_drivers_baseline
         driver_novelty = min(1.0, len(rare_drivers) * 0.35)
@@ -30,10 +29,8 @@ class NoveltyEvaluator:
         if "integrity_change" in rare_drivers or "hazard_exposure" in rare_drivers:
             reasons.append("high_impact_driver_present")
 
-        # 2. Behavioral Complexity & Transition Novelty
-        complexity_novelty = min(1.0, sig.behavioral_complexity * 2.0)
+        macro_novelty = min(1.0, len(sig.macro_transitions) * 0.25)
 
-        # 3. Overall Batch/History Novelty Comparison
         history_novelty = 0.5
         if history:
             unique_goals = {
@@ -43,15 +40,8 @@ class NoveltyEvaluator:
                 history_novelty += 0.4
                 reasons.append("unseen_dominant_goal")
 
-        # Composite Novelty Score
         novelty = (
-            (0.4 * driver_novelty)
-            + (0.3 * complexity_novelty)
-            + (0.3 * history_novelty)
+            (0.4 * driver_novelty) + (0.3 * macro_novelty) + (0.3 * history_novelty)
         )
-
-        # Blend with event's internal overall novelty metric if present
-        if sig.overall_novelty > 0:
-            novelty = 0.6 * novelty + 0.4 * sig.overall_novelty
 
         return round(min(1.0, max(0.0, novelty)), 4), reasons

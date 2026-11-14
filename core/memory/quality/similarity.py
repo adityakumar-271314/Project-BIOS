@@ -13,62 +13,53 @@ class SignatureSimilarityEvaluator:
     def __init__(
         self,
         parameter_manager: Optional[AdaptiveParameterManager] = None,
-        goal_weight: float = 0.35,
-        skill_weight: float = 0.25,
-        target_weight: float = 0.20,
+        goal_weight: float = 0.30,
+        skill_weight: float = 0.20,
+        target_weight: float = 0.15,
+        outcome_weight: float = 0.15,
+        spatial_weight: float = 0.10,
         resource_weight: float = 0.10,
-        emotion_weight: float = 0.10,
     ):
         self.param_manager = parameter_manager or AdaptiveParameterManager()
         self.goal_weight = goal_weight
         self.skill_weight = skill_weight
         self.target_weight = target_weight
+        self.outcome_weight = outcome_weight
+        self.spatial_weight = spatial_weight
         self.resource_weight = resource_weight
-        self.emotion_weight = emotion_weight
 
     def check_interruption(
-        self, 
-        sig_a: EpisodeSignature, 
+        self,
+        sig_a: EpisodeSignature,
         sig_b: EpisodeSignature,
-        override_params: Optional[AdaptiveParameters] = None
+        override_params: Optional[AdaptiveParameters] = None,
     ) -> bool:
-        """
-        Determines whether a genuine semantic interruption occurred between two episodes
-        using dynamic rolling thresholds for hazards and resource integrity drops.
-        """
-        params = override_params or self.param_manager.get_adaptive_parameters(
-            current_complexity=max(sig_a.behavioral_complexity, sig_b.behavioral_complexity)
-        )
+        params = override_params or self.param_manager.get_adaptive_parameters()
 
-        # 1. Dynamic Hazard Exposure / Threat Spikes (Z-Score derived)
+        # 1. Hazard threshold / Threat Spikes
         if (
             sig_a.max_hazard_exposure > params.interruption_hazard_thresh
             or sig_b.max_hazard_exposure > params.interruption_hazard_thresh
         ):
             return True
 
-        # 2. Dynamic Major Integrity Discontinuity (e.g., severe damage / combat)
-        integrity_a = sig_a.resource_summaries.get("integrity")
-        integrity_b = sig_b.resource_summaries.get("integrity")
-        if integrity_a and integrity_b:
-            if (
-                abs(integrity_a.net_change) > params.interruption_integrity_drop
-                or abs(integrity_b.net_change) > params.interruption_integrity_drop
-            ):
-                return True
+        # 2. Major integrity discontinuity via net resource deltas
+        integrity_change_b = sig_b.net_resource_deltas.get("integrity", 0.0)
+        if abs(integrity_change_b) > params.interruption_integrity_drop:
+            return True
 
-        # 3. Explicit Behavioral Shift Drivers
+        # 3. Outcome status shift (e.g. Completed -> Interrupted/Failed)
+        if sig_a.outcome_status != sig_b.outcome_status:
+            return True
+
+        # 4. Landmark / Spatial context shift
+        if sig_a.nearest_landmark_id != sig_b.nearest_landmark_id:
+            return True
+
+        # 5. Explicit Behavioral Shift Drivers
         if (
             "hazard_exposure" in sig_b.primary_importance_drivers
             or "integrity_change" in sig_b.primary_importance_drivers
-        ):
-            return True
-
-        # 4. Abrupt Dominant Goal Replacement (when both are explicitly set)
-        if (
-            sig_a.dominant_goal
-            and sig_b.dominant_goal
-            and sig_a.dominant_goal != sig_b.dominant_goal
         ):
             return True
 
@@ -77,27 +68,25 @@ class SignatureSimilarityEvaluator:
     def compute_similarity(
         self, sig_a: EpisodeSignature, sig_b: EpisodeSignature
     ) -> float:
-        """
-        Computes a normalized similarity score in range [0.0, 1.0] across behavioral
-        identities and continuous metric bounds.
-        """
         goal_sim = self._categorical_sim(sig_a.dominant_goal, sig_b.dominant_goal)
         skill_sim = self._categorical_sim(sig_a.dominant_skill, sig_b.dominant_skill)
         target_sim = self._categorical_sim(sig_a.dominant_target, sig_b.dominant_target)
+        outcome_sim = 1.0 if sig_a.outcome_status == sig_b.outcome_status else 0.0
+        spatial_sim = (
+            1.0 if sig_a.nearest_landmark_id == sig_b.nearest_landmark_id else 0.5
+        )
 
         resource_sim = self._compare_summaries(
             sig_a.resource_summaries, sig_b.resource_summaries
-        )
-        emotion_sim = self._compare_summaries(
-            sig_a.emotion_summaries, sig_b.emotion_summaries
         )
 
         total_score = (
             self.goal_weight * goal_sim
             + self.skill_weight * skill_sim
             + self.target_weight * target_sim
+            + self.outcome_weight * outcome_sim
+            + self.spatial_weight * spatial_sim
             + self.resource_weight * resource_sim
-            + self.emotion_weight * emotion_sim
         )
 
         return max(0.0, min(1.0, total_score))

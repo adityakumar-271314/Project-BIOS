@@ -1,11 +1,7 @@
-# BEFORE / AFTER modification for core/memory/episode_pipeline.py
 from typing import List, Optional, Tuple, Dict, Any
-from .episode_builder import EpisodeBuilder
+from .episode_builder.builder import EpisodeBuilder
 from .boundary.boundary_detector import BoundaryDetector
-# REMOVED: from .refinement.episode_refiner import EpisodeRefiner
 from .quality.episode_quality import EpisodeQualityEvaluator
-# REMOVED: from .hierarchy.hierarchy_builder import HierarchyBuilder
-# REMOVED: from .schemas import EpisodicEvent, EpisodeNode, EpisodeHierarchy
 
 
 class EpisodePipeline:
@@ -27,10 +23,12 @@ class EpisodePipeline:
 
     def process_candidate(self, candidate_tick: int) -> Dict[str, Any]:
         """
-        Runs retrospective boundary detection, episode construction, 
+        Runs retrospective boundary detection, episode construction,
         and quality evaluation.
         """
-        print(f"[PIPELINE] Retrospective boundary detection & build for tick {candidate_tick}")
+        print(
+            f"[PIPELINE] Retrospective boundary detection & build for tick {candidate_tick}"
+        )
 
         # Pull annotated frames from buffer
         frames = self.temporal_buffer.get_frame_context(

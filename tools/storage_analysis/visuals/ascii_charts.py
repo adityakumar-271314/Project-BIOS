@@ -4,7 +4,7 @@ from typing import List, Dict, Any, Tuple
 
 class AsciiCharts:
     """
-    Renders clean, interpretable ASCII-based charts, distributions, 
+    Renders clean, interpretable ASCII-based charts, distributions,
     and data tables for terminal-based episodic memory analysis.
     """
 
@@ -15,7 +15,9 @@ class AsciiCharts:
         return f"\n{border}\n{padded_title}\n{border}"
 
     @staticmethod
-    def render_bar_chart(data: Dict[str, float | int], title: str = "", max_bar_width: int = 35) -> str:
+    def render_bar_chart(
+        data: Dict[str, float | int], title: str = "", max_bar_width: int = 35
+    ) -> str:
         """Renders a horizontal bar chart mapping category names to numerical values."""
         if not data:
             return "No data available for chart."
@@ -25,7 +27,7 @@ class AsciiCharts:
             lines.append(f"\n--- {title} ---")
 
         max_val = max(data.values()) if data.values() else 1.0
-        max_val = max(max_val, 1.0) # Prevent division by zero
+        max_val = max(max_val, 1.0)  # Prevent division by zero
 
         # Find max key length for clean alignment
         max_key_len = max(len(str(k)) for k in data.keys())
@@ -39,14 +41,16 @@ class AsciiCharts:
         return "\n".join(lines)
 
     @staticmethod
-    def render_histogram(values: List[float | int], bins: int = 5, title: str = "Distribution Histogram") -> str:
+    def render_histogram(
+        values: List[float | int], bins: int = 5, title: str = "Distribution Histogram"
+    ) -> str:
         """Renders a frequency distribution histogram for continuous or discrete metrics."""
         if not values:
             return f"\n--- {title} ---\nNo values available."
 
         min_val = min(values)
         max_val = max(values)
-        
+
         if min_val == max_val:
             return f"\n--- {title} ---\nAll values are identical: {min_val} (Count: {len(values)})"
 
@@ -99,15 +103,23 @@ class AsciiCharts:
             lines.append(f"\n{title}")
 
         lines.append(separator)
-        
+
         # Header row
-        header_str = "|" + "|".join([str(h).center(w + 2) for h, w in zip(headers, col_widths)]) + "|"
+        header_str = (
+            "|"
+            + "|".join([str(h).center(w + 2) for h, w in zip(headers, col_widths)])
+            + "|"
+        )
         lines.append(header_str)
         lines.append(separator)
 
         # Data rows
         for row in rows:
-            row_str = "|" + "|".join([str(val).ljust(w + 2) for val, w in zip(row, col_widths)]) + "|"
+            row_str = (
+                "|"
+                + "|".join([str(val).ljust(w + 2) for val, w in zip(row, col_widths)])
+                + "|"
+            )
             lines.append(row_str)
 
         lines.append(separator)

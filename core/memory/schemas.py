@@ -98,10 +98,56 @@ class EpisodeFrame:
     change_mask: Dict[str, bool] = field(default_factory=dict)
 
 
-# Lightweight key frame for compression
+class SpatialEntityType(str, Enum):
+    LANDMARK = "landmark"
+    FOOD_PATCH = "food_patch"
+    HAZARD_ZONE = "hazard_zone"
+
+
+@dataclass(slots=True, frozen=True)
+class SpatialContextReference:
+    """Lightweight reference to a nearby or interacting spatial entity or stimulus zone for a keyframe."""
+
+    entity_type: SpatialEntityType
+    pos_x: float
+    pos_y: float
+    entity_id: int | str | None = None
+    intensity: float = 0.0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "entity_type": (
+                self.entity_type.value
+                if isinstance(self.entity_type, Enum)
+                else self.entity_type
+            ),
+            "pos_x": self.pos_x,
+            "pos_y": self.pos_y,
+            "entity_id": self.entity_id,
+            "intensity": self.intensity,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "SpatialContextReference":
+        if not data:
+            return cls(entity_type=SpatialEntityType.LANDMARK, pos_x=0.0, pos_y=0.0)
+        raw_type = data.get("entity_type", SpatialEntityType.LANDMARK.value)
+        try:
+            entity_type = SpatialEntityType(raw_type)
+        except ValueError:
+            entity_type = SpatialEntityType.LANDMARK
+        return cls(
+            entity_type=entity_type,
+            pos_x=data.get("pos_x", 0.0),
+            pos_y=data.get("pos_y", 0.0),
+            entity_id=data.get("entity_id"),
+            intensity=data.get("intensity", 0.0),
+        )
+
+
 @dataclass(slots=True)
 class SparseFrame:
-    """Streamlined conservative sparse representation - retains core kinematics and vitals only."""
+    """Streamlined conservative sparse representation - retains core kinematics, vitals, and spatial context."""
 
     tick: int
     pos_x: float
@@ -115,6 +161,71 @@ class SparseFrame:
     fear: float
     drive: float
     significance: float
+    spatial_context: Tuple[SpatialContextReference, ...] = ()
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        d["spatial_context"] = [
+            sc.to_dict() if hasattr(sc, "to_dict") else sc
+            for sc in self.spatial_context
+        ]
+        return d
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "SparseFrame":
+        if not data:
+            return cls(
+                tick=0,
+                pos_x=0.0,
+                pos_y=0.0,
+                vel_x=0.0,
+                vel_y=0.0,
+                heading=0.0,
+                energy=0.0,
+                integrity=0.0,
+                stress=0.0,
+                fear=0.0,
+                drive=0.0,
+                significance=0.0,
+            )
+        sc_data = data.get("spatial_context", [])
+        return cls(
+            tick=data.get("tick", 0),
+            pos_x=data.get("pos_x", 0.0),
+            pos_y=data.get("pos_y", 0.0),
+            vel_x=data.get("vel_x", 0.0),
+            vel_y=data.get("vel_y", 0.0),
+            heading=data.get("heading", 0.0),
+            energy=data.get("energy", 0.0),
+            integrity=data.get("integrity", 0.0),
+            stress=data.get("stress", 0.0),
+            fear=data.get("fear", 0.0),
+            drive=data.get("drive", 0.0),
+            significance=data.get("significance", 0.0),
+            spatial_context=tuple(
+                SpatialContextReference.from_dict(sc) for sc in sc_data
+            ),
+        )
+
+
+class OutcomeStatus(str, Enum):
+    """Qualitative outcome categories for an episodic event."""
+
+    COMPLETED = "completed"
+    INTERRUPTED = "interrupted"
+    FAILED = "failed"
+    TIMEOUT = "timeout"
+    ABORTED = "aborted"
+    UNKNOWN = "unknown"
+
+
+@dataclass(slots=True, frozen=True)
+class MacroTransition:
+    """Captures a significant macro behavioral shift (milestone) without storing tick-level noise."""
+
+    from_state: str | None
+    to_state: str | None
+    transition_type: str  # "goal", "skill", or "target"
 
 
 @dataclass(slots=True, frozen=True)
@@ -132,60 +243,54 @@ class StateSummary:
 
 
 @dataclass(slots=True, frozen=True)
-class BehavioralTransition:
-    """Captures a meaningful state shift without storing telemetry."""
-
-    tick: int
-    from_state: str | None
-    to_state: str | None
-
-
-@dataclass(slots=True, frozen=True)
 class EpisodeSignature:
     """
     Canonical, language-agnostic behavioral representation of an episode.
-    Immutable once finalized. Captures identity, outcome, and importance drivers
-    without duplicating detailed frame telemetry.
+    Immutable once finalized. Captures identity, outcome, spatial context, and
+    importance drivers without duplicating detailed frame telemetry.
     """
 
-    # Behavioral Identity
+    # Composite Behavioral Identity
     dominant_goal: str | None = None
     dominant_skill: str | None = None
     dominant_target: str | None = None
+    semantic_event_type: str | None = None
 
-    # Meaningful Transitions
-    goal_transitions: Tuple[BehavioralTransition, ...] = ()
-    skill_transitions: Tuple[BehavioralTransition, ...] = ()
-    target_transitions: Tuple[BehavioralTransition, ...] = ()
+    # Compressed Milestone / Macro Transitions (Replacing bloated raw transition lists)
+    macro_transitions: Tuple[MacroTransition, ...] = ()
 
-    # Outcome & Summaries
-    outcome_completed: bool = False
+    # Outcome & Consequence Representation (Replacing binary outcome_completed)
+    outcome_status: OutcomeStatus = OutcomeStatus.UNKNOWN
+    net_resource_deltas: Dict[str, float] = field(default_factory=dict)
+    peak_emotions: Dict[str, float] = field(default_factory=dict)
     resource_summaries: Dict[str, StateSummary] = field(default_factory=dict)
     emotion_summaries: Dict[str, StateSummary] = field(default_factory=dict)
 
-    # Environment Summary
+    # Environment & Spatial Context Reference
     max_hazard_exposure: float = 0.0
     max_reward_exposure: float = 0.0
     landmark_interactions: int = 0
+    nearest_landmark_id: int | None = None
+    environmental_exposure_flags: Tuple[str, ...] = ()
 
-    # Retention Drivers & Descriptors
+    # Retention Drivers & Descriptors (Score metrics like novelty/complexity removed to prevent duplication)
     primary_importance_drivers: Tuple[str, ...] = ()
     duration_ticks: int = 0
-    behavioral_complexity: float = 0.0
-    overall_novelty: float = 0.0
-    overall_importance: float = 0.0
-
-    # Note: keyframe_ticks removed here to avoid duplication with SparseFrame.tick
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "dominant_goal": self.dominant_goal,
             "dominant_skill": self.dominant_skill,
             "dominant_target": self.dominant_target,
-            "goal_transitions": [asdict(t) for t in self.goal_transitions],
-            "skill_transitions": [asdict(t) for t in self.skill_transitions],
-            "target_transitions": [asdict(t) for t in self.target_transitions],
-            "outcome_completed": self.outcome_completed,
+            "semantic_event_type": self.semantic_event_type,
+            "macro_transitions": [asdict(t) for t in self.macro_transitions],
+            "outcome_status": (
+                self.outcome_status.value
+                if isinstance(self.outcome_status, Enum)
+                else self.outcome_status
+            ),
+            "net_resource_deltas": dict(self.net_resource_deltas),
+            "peak_emotions": dict(self.peak_emotions),
             "resource_summaries": {
                 k: asdict(v) for k, v in self.resource_summaries.items()
             },
@@ -195,31 +300,34 @@ class EpisodeSignature:
             "max_hazard_exposure": self.max_hazard_exposure,
             "max_reward_exposure": self.max_reward_exposure,
             "landmark_interactions": self.landmark_interactions,
+            "nearest_landmark_id": self.nearest_landmark_id,
+            "environmental_exposure_flags": list(self.environmental_exposure_flags),
             "primary_importance_drivers": list(self.primary_importance_drivers),
             "duration_ticks": self.duration_ticks,
-            "behavioral_complexity": self.behavioral_complexity,
-            "overall_novelty": self.overall_novelty,
-            "overall_importance": self.overall_importance,
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "EpisodeSignature":
         if not data:
             return cls()
+
+        outcome_raw = data.get("outcome_status", OutcomeStatus.UNKNOWN.value)
+        try:
+            outcome_status = OutcomeStatus(outcome_raw)
+        except ValueError:
+            outcome_status = OutcomeStatus.UNKNOWN
+
         return cls(
             dominant_goal=data.get("dominant_goal"),
             dominant_skill=data.get("dominant_skill"),
             dominant_target=data.get("dominant_target"),
-            goal_transitions=tuple(
-                BehavioralTransition(**t) for t in data.get("goal_transitions", [])
+            semantic_event_type=data.get("semantic_event_type"),
+            macro_transitions=tuple(
+                MacroTransition(**t) for t in data.get("macro_transitions", [])
             ),
-            skill_transitions=tuple(
-                BehavioralTransition(**t) for t in data.get("skill_transitions", [])
-            ),
-            target_transitions=tuple(
-                BehavioralTransition(**t) for t in data.get("target_transitions", [])
-            ),
-            outcome_completed=data.get("outcome_completed", False),
+            outcome_status=outcome_status,
+            net_resource_deltas=dict(data.get("net_resource_deltas", {})),
+            peak_emotions=dict(data.get("peak_emotions", {})),
             resource_summaries={
                 k: StateSummary(**v)
                 for k, v in data.get("resource_summaries", {}).items()
@@ -231,13 +339,14 @@ class EpisodeSignature:
             max_hazard_exposure=data.get("max_hazard_exposure", 0.0),
             max_reward_exposure=data.get("max_reward_exposure", 0.0),
             landmark_interactions=data.get("landmark_interactions", 0),
+            nearest_landmark_id=data.get("nearest_landmark_id"),
+            environmental_exposure_flags=tuple(
+                data.get("environmental_exposure_flags", ())
+            ),
             primary_importance_drivers=tuple(
                 data.get("primary_importance_drivers", ())
             ),
             duration_ticks=data.get("duration_ticks", 0),
-            behavioral_complexity=data.get("behavioral_complexity", 0.0),
-            overall_novelty=data.get("overall_novelty", 0.0),
-            overall_importance=data.get("overall_importance", 0.0),
         )
 
 

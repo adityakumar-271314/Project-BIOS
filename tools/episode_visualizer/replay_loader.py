@@ -10,7 +10,7 @@ from tools.episode_visualizer.raw_extractor import RawTelemetryExtractor
 def load_metadata_from_storage(episode_folder_path: str | Path) -> dict:
     """Fast-load or dynamically synthesize lightweight metadata for UI previews and filtering."""
     folder = Path(episode_folder_path)
-    
+
     # 1. Backward compatibility for v1 runs
     metadata_file = folder / "metadata.json"
     if metadata_file.exists():
@@ -30,7 +30,11 @@ def load_metadata_from_storage(episode_folder_path: str | Path) -> dict:
             data = json.load(f)
 
         folder_name = folder.name
-        episode_id = int(folder_name.replace("episode", "")) if folder_name.startswith("episode") else 0
+        episode_id = (
+            int(folder_name.replace("episode", ""))
+            if folder_name.startswith("episode")
+            else 0
+        )
         sig = data.get("signature", {})
 
         return {

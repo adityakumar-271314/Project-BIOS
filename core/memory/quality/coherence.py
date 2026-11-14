@@ -5,13 +5,12 @@ from ..schemas import EpisodicEvent
 
 class CoherenceEvaluator:
     """
-    Evaluates how behaviorally unified and continuous an episode is.
-    Penalizes high transition density and state oscillations.
+    Evaluates how behaviorally unified and continuous an episode is using compressed macro-transitions.
     """
 
     def __init__(
         self,
-        max_allowed_transition_rate: float = 0.05,  # 1 transition per 20 ticks baseline
+        max_allowed_transition_rate: float = 0.05,
         oscillation_penalty_weight: float = 0.4,
     ):
         self.max_allowed_transition_rate = max_allowed_transition_rate
@@ -22,32 +21,20 @@ class CoherenceEvaluator:
         sig = event.signature
         duration = max(1, sig.duration_ticks)
 
-        total_transitions = (
-            len(sig.goal_transitions)
-            + len(sig.skill_transitions)
-            + len(sig.target_transitions)
-        )
+        total_macro_transitions = len(sig.macro_transitions)
 
-        # 1. Transition Density Penalty
-        transition_rate = total_transitions / duration
+        # 1. Macro-Transition Density Penalty
+        transition_rate = total_macro_transitions / duration
         if transition_rate > self.max_allowed_transition_rate:
-            reasons.append("high_transition_density")
+            reasons.append("high_macro_transition_density")
 
-        # Exponential decay for transition frequency penalty
         density_score = math.exp(
             -2.0 * max(0.0, transition_rate - self.max_allowed_transition_rate)
         )
 
-        # 2. Oscillation Detection (e.g. A -> B -> A state switching)
-        oscillation_count = 0
-        oscillation_count += self._count_oscillations(
-            [t.to_state for t in sig.goal_transitions if t.to_state]
-        )
-        oscillation_count += self._count_oscillations(
-            [t.to_state for t in sig.skill_transitions if t.to_state]
-        )
-        oscillation_count += self._count_oscillations(
-            [t.to_state for t in sig.target_transitions if t.to_state]
+        # 2. Oscillation Detection across macro transitions
+        oscillation_count = self._count_oscillations(
+            [t.to_state for t in sig.macro_transitions if t.to_state]
         )
 
         oscillation_penalty = 0.0
@@ -57,9 +44,9 @@ class CoherenceEvaluator:
                 1.0, oscillation_count * self.oscillation_penalty_weight
             )
 
-        # 3. Composite Coherence Score
         coherence = max(0.0, density_score * (1.0 - oscillation_penalty))
 
+        # Composite identity check
         if not sig.dominant_goal and not sig.dominant_skill:
             coherence *= 0.8
             reasons.append("missing_dominant_behavior")
@@ -67,7 +54,6 @@ class CoherenceEvaluator:
         return round(coherence, 4), reasons
 
     def _count_oscillations(self, states: List[str]) -> int:
-        """Detects ping-pong state sequences like A -> B -> A."""
         if len(states) < 3:
             return 0
         oscillations = 0

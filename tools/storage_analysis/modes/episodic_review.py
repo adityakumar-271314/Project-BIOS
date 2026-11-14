@@ -31,7 +31,7 @@ class EpisodicReviewMode:
             choice = input("\nEnter run number: ").strip()
             if choice == "0":
                 break
-            
+
             try:
                 idx = int(choice) - 1
                 if 0 <= idx < len(runs):
@@ -44,28 +44,47 @@ class EpisodicReviewMode:
     def _inspect_run(self, run_path: Path):
         summary = self.loader.get_run_summary(run_path)
         episodes = summary.get("episodes", [])
-        
+
         if not episodes:
             print(f"\n[!] No episodes found in run: {summary['run_name']}")
             return
 
         while True:
-            print(AsciiCharts.render_header(f"RUN: {summary['run_name']} ({len(episodes)} Episodes)"))
-            
-            headers = ["No.", "Episode Folder", "Event Type", "Duration", "Keyframes", "Size (Bytes)"]
+            print(
+                AsciiCharts.render_header(
+                    f"RUN: {summary['run_name']} ({len(episodes)} Episodes)"
+                )
+            )
+
+            headers = [
+                "No.",
+                "Episode Folder",
+                "Event Type",
+                "Duration",
+                "Keyframes",
+                "Size (Bytes)",
+            ]
             rows = []
             for i, ep in enumerate(episodes):
-                rows.append([
-                    i + 1,
-                    ep["episode_dir"],
-                    ep["event_type"],
-                    f"{ep['duration_ticks']:,}",
-                    ep["keyframe_count"],
-                    f"{ep['file_size_bytes']:,}"
-                ])
-            
-            print(AsciiCharts.render_table(headers, rows, title="Recorded Episodes Manifest"))
-            print("\nEnter episode number to view deep telemetry/metadata details, or [0] to go back.")
+                rows.append(
+                    [
+                        i + 1,
+                        ep["episode_dir"],
+                        ep["event_type"],
+                        f"{ep['duration_ticks']:,}",
+                        ep["keyframe_count"],
+                        f"{ep['file_size_bytes']:,}",
+                    ]
+                )
+
+            print(
+                AsciiCharts.render_table(
+                    headers, rows, title="Recorded Episodes Manifest"
+                )
+            )
+            print(
+                "\nEnter episode number to view deep telemetry/metadata details, or [0] to go back."
+            )
 
             choice = input("\nEnter episode number: ").strip()
             if choice == "0":
@@ -90,11 +109,11 @@ class EpisodicReviewMode:
             ("End Tick", f"{ep['end_tick']:,}"),
             ("Duration", f"{ep['duration_ticks']:,} ticks"),
             ("Keyframe Count", ep["keyframe_count"]),
-            ("Peak Significance", f"{ep['peak_significance']:.4f}")
+            ("Peak Significance", f"{ep['peak_significance']:.4f}"),
         ]
-        
+
         for label, val in details:
             print(f"  • {label.ljust(20)}: {val}")
         print("=" * 60)
-        
+
         input("\nPress [Enter] to return to episode list...")

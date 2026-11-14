@@ -22,7 +22,9 @@ class StorageDataLoader:
             return runs
 
         # If root itself is a run containing an episodes/ folder
-        if (self.root_dir / "episodes").exists() or (self.root_dir / "manifest.json").exists():
+        if (self.root_dir / "episodes").exists() or (
+            self.root_dir / "manifest.json"
+        ).exists():
             runs.append(self.root_dir)
         else:
             for sub_dir in sorted(self.root_dir.iterdir()):
@@ -85,14 +87,16 @@ class StorageDataLoader:
                     data = json.load(f)
                     start = data.get("start_tick", 0)
                     end = data.get("end_tick", 0)
-                    details.update({
-                        "start_tick": start,
-                        "end_tick": end,
-                        "duration_ticks": max(0, end - start),
-                        "keyframe_count": len(data.get("key_frames", [])),
-                        "event_type": data.get("event_type", "unknown"),
-                        "peak_significance": data.get("peak_significance", 0.0),
-                    })
+                    details.update(
+                        {
+                            "start_tick": start,
+                            "end_tick": end,
+                            "duration_ticks": max(0, end - start),
+                            "keyframe_count": len(data.get("key_frames", [])),
+                            "event_type": data.get("event_type", "unknown"),
+                            "peak_significance": data.get("peak_significance", 0.0),
+                        }
+                    )
             except Exception:
                 pass
 
@@ -102,15 +106,17 @@ class StorageDataLoader:
         run_path = Path(run_path)
         ep_dir = self._get_episodes_dir(run_path)
         manifest = self.load_run_manifest(run_path)
-        
+
         manifest_path = ep_dir / "manifest.json"
         index_path = ep_dir / "metadata_index.json"
 
         manifest_bytes = manifest_path.stat().st_size if manifest_path.exists() else 0
         index_bytes = index_path.stat().st_size if index_path.exists() else 0
 
-        episode_dirs = sorted([d for d in ep_dir.iterdir() if d.is_dir() and d.name.startswith("episode")])
-        
+        episode_dirs = sorted(
+            [d for d in ep_dir.iterdir() if d.is_dir() and d.name.startswith("episode")]
+        )
+
         episodes_data = [self.load_episode_details(d) for d in episode_dirs]
         total_payload_bytes = sum(e["file_size_bytes"] for e in episodes_data)
 
@@ -127,9 +133,13 @@ class StorageDataLoader:
             "total_run_bytes": manifest_bytes + index_bytes + total_payload_bytes,
             "max_episode_bytes": max(sizes) if sizes else 0,
             "min_episode_bytes": min(sizes) if sizes else 0,
-            "avg_episode_bytes": round(total_payload_bytes / len(sizes), 2) if sizes else 0.0,
+            "avg_episode_bytes": (
+                round(total_payload_bytes / len(sizes), 2) if sizes else 0.0
+            ),
             "max_duration_ticks": max(durations) if durations else 0,
             "min_duration_ticks": min(durations) if durations else 0,
-            "avg_duration_ticks": round(sum(durations) / len(durations), 2) if durations else 0.0,
+            "avg_duration_ticks": (
+                round(sum(durations) / len(durations), 2) if durations else 0.0
+            ),
             "episodes": episodes_data,
         }

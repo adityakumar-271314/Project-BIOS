@@ -28,9 +28,15 @@ class StorageAnalysisCLI:
         while True:
             print(AsciiCharts.render_header("EPISODIC MEMORY STORAGE ANALYSIS SUITE"))
             print("Select an analysis mode:")
-            print("  [1] Episodic Review Mode (Browse runs & inspect episode telemetry)")
-            print("  [2] Single Run Deep-Dive Analysis (Aggregates, size & length distributions)")
-            print("  [3] Multi-Run Range Analysis [X - Y] (Comparative scalability trends)")
+            print(
+                "  [1] Episodic Review Mode (Browse runs & inspect episode telemetry)"
+            )
+            print(
+                "  [2] Single Run Deep-Dive Analysis (Aggregates, size & length distributions)"
+            )
+            print(
+                "  [3] Multi-Run Range Analysis [X - Y] (Comparative scalability trends)"
+            )
             print("  [0] Exit Tool")
 
             choice = input("\nEnter selection [0-3]: ").strip()

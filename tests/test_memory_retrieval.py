@@ -64,7 +64,7 @@ def test_context_lookup():
     assert ticks == [3, 4, 5, 6, 7]
 
 
-from core.memory.episode_builder import EpisodeBuilder
+from core.memory.episode_builder.builder import EpisodeBuilder
 
 
 def test_builder_returns_empty_without_peak():

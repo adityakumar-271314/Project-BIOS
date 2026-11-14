@@ -5,7 +5,7 @@ from .episodic import EpisodicMemory
 from .event_delay import EventDelayQueue
 from .episode_pipeline import EpisodePipeline
 from .boundary.boundary_detector import BoundaryDetector
-from .schemas import EpisodeCandidate
+from .schemas import EpisodeCandidate, EpisodicEvent
 from .temporal.temporal_buffer import TemporalBuffer
 from .temporal.annotation_queue import AnnotationQueue
 from .frame.frame_annotator import FrameAnnotator
@@ -111,7 +111,9 @@ class MemorySystem:
         for candidate in ready_candidates:
             candidate_tick = candidate.tick if hasattr(candidate, "tick") else candidate
             result = self.pipeline.process_candidate(candidate_tick)
-            episodes = result.get("events", []) # Updated to match simplified dictionary return
+            episodes = result.get(
+                "events", []
+            )  # Updated to match simplified dictionary return
             for episode in episodes:
                 if not any(
                     e["peak_tick"] == episode.peak_tick
@@ -280,3 +282,61 @@ class MemorySystem:
         }
         nearby = self.recall_near(pos_x=pos_x, pos_y=pos_y, radius=radius)
         return [event for event in nearby if event.event_type in danger_types]
+
+    def recall_by_behavior(
+        self,
+        dominant_goal: Optional[str] = None,
+        dominant_skill: Optional[str] = None,
+        limit: int = 10,
+    ) -> List[EpisodicEvent]:
+        """Recalls episodes matching specific behavioral goal and/or skill signatures."""
+        matched = []
+        for m in self.episodic.archive.index.data.get("episodes", []):
+            event = self.episodic.archive.load(m["id"])
+            if event and event.signature:
+                match_goal = (
+                    dominant_goal is None
+                    or event.signature.dominant_goal == dominant_goal
+                )
+                match_skill = (
+                    dominant_skill is None
+                    or event.signature.dominant_skill == dominant_skill
+                )
+                if match_goal and match_skill:
+                    matched.append(event)
+                    if len(matched) >= limit:
+                        break
+        return matched
+
+    def recall_by_outcome(
+        self, outcome_status: str, limit: int = 10
+    ) -> List[EpisodicEvent]:
+        """Recalls episodes matching a specific qualitative outcome status (e.g. 'completed', 'interrupted', 'failed')."""
+        matched = []
+        for m in self.episodic.archive.index.data.get("episodes", []):
+            event = self.episodic.archive.load(m["id"])
+            if event and event.signature:
+                status = event.signature.outcome_status
+                status_str = status.value if hasattr(status, "value") else str(status)
+                if status_str == outcome_status:
+                    matched.append(event)
+                    if len(matched) >= limit:
+                        break
+        return matched
+
+    def recall_near_landmark(
+        self, landmark_id: int, limit: int = 10
+    ) -> List[EpisodicEvent]:
+        """Recalls episodes associated with a specific nearest landmark ID."""
+        matched = []
+        for m in self.episodic.archive.index.data.get("episodes", []):
+            event = self.episodic.archive.load(m["id"])
+            if (
+                event
+                and event.signature
+                and event.signature.nearest_landmark_id == landmark_id
+            ):
+                matched.append(event)
+                if len(matched) >= limit:
+                    break
+        return matched

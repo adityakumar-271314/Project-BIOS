@@ -2,8 +2,10 @@ import math
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 
+
 class RunningStats:
     """Tracks running mean, variance, and standard deviation for streaming telemetry."""
+
     def __init__(self):
         self.n = 0
         self.mean = 0.0
@@ -28,6 +30,7 @@ class RunningStats:
 @dataclass(slots=True)
 class AdaptiveParameters:
     """Container for current dynamic operational parameters."""
+
     search_radius: int
     min_split_duration: int
     interruption_hazard_thresh: float
@@ -68,9 +71,7 @@ class AdaptiveParameterManager:
                 self.stats[key].update(value)
 
     def get_adaptive_parameters(
-        self, 
-        current_complexity: float = 0.5,
-        current_velocity: float = 0.0
+        self, current_complexity: float = 0.5, current_velocity: float = 0.0
     ) -> AdaptiveParameters:
         """
         Computes dynamic operational parameters scaled to current behavioral tempo
@@ -80,7 +81,9 @@ class AdaptiveParameterManager:
         base_radius = 12
         vel_std = self.stats["velocity"].std or 1.0
         vel_factor = min(2.0, max(0.5, current_velocity / vel_std))
-        dynamic_radius = int(base_radius * vel_factor * (1.0 + 0.5 * current_complexity))
+        dynamic_radius = int(
+            base_radius * vel_factor * (1.0 + 0.5 * current_complexity)
+        )
         search_radius = max(6, min(30, dynamic_radius))
 
         # 2. Adaptive Minimum Split Duration (proportional to historical event duration mean)
