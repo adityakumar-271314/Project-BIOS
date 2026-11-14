@@ -300,13 +300,7 @@ class EpisodicEvent:
     key_frames: List[SparseFrame] = field(default_factory=list)
     signature: EpisodeSignature = field(default_factory=EpisodeSignature)
     quality: EpisodeQuality | None = None
-    compression: CompressionMetadata | None = None
     notes: str | None = None
-
-    @property
-    def peak_frame(self) -> Optional[SparseFrame]:
-        """Derives the peak frame directly from keyframes without duplicating storage."""
-        return next((kf for kf in self.key_frames if kf.tick == self.peak_tick), None)
 
     def to_dict(self):
         return {
@@ -318,64 +312,11 @@ class EpisodicEvent:
             "start_position": {"x": self.start_x, "y": self.start_y},
             "peak_position": {"x": self.peak_x, "y": self.peak_y},
             "end_position": {"x": self.end_x, "y": self.end_y},
-            # REMOVED: "peak_snapshot": asdict(self.peak_snapshot),
             "key_frames": [asdict(kf) for kf in self.key_frames],
             "signature": self.signature.to_dict(),
             "quality": self.quality.to_dict() if self.quality else None,
-            "compression": self.compression.to_dict() if self.compression else None,
             "notes": self.notes,
         }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "EpisodicEvent":
-        start_pos = data.get("start_position", {"x": 0, "y": 0})
-        peak_pos = data.get("peak_position", {"x": 0, "y": 0})
-        end_pos = data.get("end_position", {"x": 0, "y": 0})
-
-        raw_key_frames = data.get("key_frames", [])
-        key_frames = [
-            SparseFrame(**kf) if isinstance(kf, dict) else kf for kf in raw_key_frames
-        ]
-
-        sig_data = data.get("signature", {})
-        signature = (
-            EpisodeSignature.from_dict(sig_data)
-            if isinstance(sig_data, dict)
-            else sig_data
-        )
-
-        quality_data = data.get("quality")
-        quality = (
-            EpisodeQuality.from_dict(quality_data)
-            if isinstance(quality_data, dict)
-            else quality_data
-        )
-
-        compression_data = data.get("compression")
-        compression = (
-            CompressionMetadata.from_dict(compression_data)
-            if isinstance(compression_data, dict)
-            else compression_data
-        )
-
-        return cls(
-            start_tick=data["start_tick"],
-            peak_tick=data["peak_tick"],
-            end_tick=data["end_tick"],
-            event_type=data["event_type"],
-            peak_significance=data["peak_significance"],
-            start_x=start_pos["x"],
-            start_y=start_pos["y"],
-            peak_x=peak_pos["x"],
-            peak_y=peak_pos["y"],
-            end_x=end_pos["x"],
-            end_y=end_pos["y"],
-            key_frames=key_frames,
-            signature=signature,
-            quality=quality,
-            compression=compression,
-            notes=data.get("notes"),
-        )
 
 
 @dataclass(slots=True)

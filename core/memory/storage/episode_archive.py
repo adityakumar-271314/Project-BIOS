@@ -17,10 +17,8 @@ class EpisodeArchive:
         self.cache_size = cache_size
 
     def save(self, event: EpisodicEvent) -> int:
-        # Persist full episode data to disk using compact serializer
         episode_id = self.serializer.save(event)
 
-        # Streamlined minimal index metadata (scalar navigation primitives only)
         meta = {
             "id": episode_id,
             "event_type": event.event_type,
@@ -30,8 +28,6 @@ class EpisodeArchive:
             "peak_y": event.peak_y,
         }
         self.index.add(meta)
-
-        # Cache live instance
         self._cache_put(episode_id, event)
         return episode_id
 

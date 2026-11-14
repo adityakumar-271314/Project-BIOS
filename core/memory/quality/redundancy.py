@@ -1,6 +1,6 @@
 from typing import Tuple, List, Optional
 from ..schemas import EpisodicEvent
-from ..refinement.similarity import SignatureSimilarityEvaluator
+from .similarity import SignatureSimilarityEvaluator
 
 
 class RedundancyEvaluator:

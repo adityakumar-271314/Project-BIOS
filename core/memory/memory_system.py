@@ -1,6 +1,5 @@
 from pathlib import Path
 from typing import Optional, Any, List, Dict
-
 from .spatial_memory.core import SpatialMemory
 from .episodic import EpisodicMemory
 from .event_delay import EventDelayQueue
@@ -112,7 +111,7 @@ class MemorySystem:
         for candidate in ready_candidates:
             candidate_tick = candidate.tick if hasattr(candidate, "tick") else candidate
             result = self.pipeline.process_candidate(candidate_tick)
-            episodes = result["events"]
+            episodes = result.get("events", []) # Updated to match simplified dictionary return
             for episode in episodes:
                 if not any(
                     e["peak_tick"] == episode.peak_tick

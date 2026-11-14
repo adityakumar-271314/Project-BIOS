@@ -1,10 +1,11 @@
+# BEFORE / AFTER modification for core/memory/episode_pipeline.py
 from typing import List, Optional, Tuple, Dict, Any
 from .episode_builder import EpisodeBuilder
 from .boundary.boundary_detector import BoundaryDetector
-from .refinement.episode_refiner import EpisodeRefiner
+# REMOVED: from .refinement.episode_refiner import EpisodeRefiner
 from .quality.episode_quality import EpisodeQualityEvaluator
-from .hierarchy.hierarchy_builder import HierarchyBuilder
-from .schemas import EpisodicEvent, EpisodeNode, EpisodeHierarchy
+# REMOVED: from .hierarchy.hierarchy_builder import HierarchyBuilder
+# REMOVED: from .schemas import EpisodicEvent, EpisodeNode, EpisodeHierarchy
 
 
 class EpisodePipeline:
@@ -14,69 +15,45 @@ class EpisodePipeline:
         temporal_buffer,
         boundary_detector: Optional[BoundaryDetector] = None,
         episode_builder: Optional[EpisodeBuilder] = None,
-        refiner: Optional[EpisodeRefiner] = None,
         quality_evaluator: Optional[EpisodeQualityEvaluator] = None,
-        hierarchy_builder: Optional[HierarchyBuilder] = None,
     ):
         self.boundary_detector = boundary_detector or BoundaryDetector()
         self.builder = episode_builder or EpisodeBuilder(
             boundary_detector=self.boundary_detector
         )
-        self.refiner = refiner or EpisodeRefiner()
         self.quality_evaluator = quality_evaluator or EpisodeQualityEvaluator()
-        self.hierarchy_builder = hierarchy_builder or HierarchyBuilder()
         self.temporal_buffer = temporal_buffer
         self.episodic_memory = episodic_memory
 
     def process_candidate(self, candidate_tick: int) -> Dict[str, Any]:
         """
-        Runs retrospective boundary detection, episode construction, refinement,
-        quality evaluation, and Part D hierarchy building.
-
-        Returns a dictionary containing finalized episodes alongside structural
-        hierarchy nodes and aggregated hierarchy containers.
+        Runs retrospective boundary detection, episode construction, 
+        and quality evaluation.
         """
-        print(
-            f"[PIPELINE] Retrospective boundary detection & build for tick {candidate_tick}"
-        )
+        print(f"[PIPELINE] Retrospective boundary detection & build for tick {candidate_tick}")
 
-        # 1. Pull annotated frames from buffer
-        # STEP 2: Expanded before_ticks from 300 to 600 to capture the rising pre-spike
-        # telemetry slope (e.g., stress/fear accumulation) leading up to the candidate event.
+        # Pull annotated frames from buffer
         frames = self.temporal_buffer.get_frame_context(
             center_tick=candidate_tick,
             before_ticks=600,
             after_ticks=180,
         )
         if not frames:
-            return {"events": [], "nodes": [], "hierarchies": []}
+            return {"events": []}
 
-        # 2. Run boundary detection pipeline to extract clean intervals
+        # 1. Run boundary detection pipeline to extract clean intervals
         boundaries = self.boundary_detector.detect_boundaries(frames)
 
-        # 3. Build initial candidate events from detected boundaries
+        # 2. Build initial candidate events from detected boundaries
         raw_episodes = self.builder.build(frames, boundaries=boundaries)
         if not raw_episodes:
-            return {"events": [], "nodes": [], "hierarchies": []}
+            return {"events": []}
 
-        # 4. Refine candidate events (Split & Merge post-processing)
-        finalized_episodes = self.refiner.refine(events=raw_episodes, frames=frames)
-        if not finalized_episodes:
-            return {"events": [], "nodes": [], "hierarchies": []}
-
-        # 5. Evaluate quality metrics (Part G analysis pass)
+        # 3. Evaluate quality metrics
         quality_evaluated_episodes = self.quality_evaluator.evaluate_batch(
-            events=finalized_episodes
-        )
-
-        # 6. Build Part D Hierarchy (Group -> Mission -> Narrative)
-        nodes, hierarchies = self.hierarchy_builder.build_hierarchy(
-            events=quality_evaluated_episodes,
-            hierarchy_id_prefix=f"candidate_{candidate_tick}",
+            events=raw_episodes
         )
 
         return {
             "events": quality_evaluated_episodes,
-            "nodes": nodes,
-            "hierarchies": hierarchies,
         }
