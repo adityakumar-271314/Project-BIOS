@@ -1,8 +1,11 @@
 from __future__ import annotations
 import math
 from pathlib import Path
+from typing import List, Optional
 from .schemas import EpisodicEvent
 from .storage.episode_archive import EpisodeArchive
+from .episode_hierarchy.retriever import HierarchyRetriever
+
 
 """
 Episodic Memory System.
@@ -39,6 +42,11 @@ class RunningStats:
 
 
 class EpisodicMemory:
+    """
+    Episodic Memory System.
+    Encodes emotionally salient and statistically surprising experiences into sparse autobiographical memories,
+    backed by a multi-tier hierarchical index and zero-load retrieval[cite: 1].
+    """
     def __init__(self, config):
         self.cfg = config
         self._tick = 0
@@ -75,7 +83,6 @@ class EpisodicMemory:
         self._tick += 1
 
     def update_stats(self, deltas: dict) -> None:
-        """Causal execution principle: Updates running statistics with frame deltas."""
         for key, value in deltas.items():
             if key in self.stats:
                 self.stats[key].update(value)
@@ -87,14 +94,47 @@ class EpisodicMemory:
             )
         self.archive.save(event)
 
-    def export_state(self) -> dict:
-        return {"tick": self._tick, "index": self.archive.index.data}
+    def retrieve_top_down(
+        self,
+        target_goal: Optional[str] = None,
+        target_skill: Optional[str] = None,
+        nearest_landmark_id: Optional[int] = None,
+        min_quality: float = 0.25,
+        top_k: int = 5
+    ) -> List[EpisodicEvent]:
+        """
+        Executes zero-load top-down coarse-to-fine retrieval and loads full episode payloads 
+        strictly for the final top-ranked candidates[cite: 1].
+        """
+        retriever = HierarchyRetriever(
+            graph_state=self.archive.hierarchy_index.graph_state,
+            metadata_index_data=self.archive.index.data
+        )
+        ranked_episode_ids = retriever.zero_load_retrieve_candidates(
+            target_goal=target_goal,
+            target_skill=target_skill,
+            nearest_landmark_id=nearest_landmark_id,
+            min_quality=min_quality,
+            top_k=top_k
+        )
+        return [self.archive.load(eid) for eid in ranked_episode_ids]
+
+    export_state = lambda self: {
+        "tick": self._tick,
+        "index": self.archive.index.data,
+        "hierarchy": self.archive.hierarchy_index.graph_state.to_dict()
+    }
 
     def import_state(self, data: dict) -> None:
         self._tick = data.get("tick", 0)
         if "index" in data:
             self.archive.index.data = data["index"]
             self.archive.index.save()
+        if "hierarchy" in data:
+            from .schemas import HierarchyGraphState
+            self.archive.hierarchy_index.graph_state = HierarchyGraphState.from_dict(data["hierarchy"])
+            self.archive.hierarchy_manager.graph_state = self.archive.hierarchy_index.graph_state
+            self.archive.hierarchy_index.save()
 
     def get_events(self) -> tuple[EpisodicEvent, ...]:
         episodes_meta = self.archive.index.data["episodes"]

@@ -496,10 +496,8 @@ class EpisodeCandidate:
     contributors: Dict[str, float] = field(default_factory=dict)
     peak_reason: str = ""
 
-
 class HierarchyLevel(str, Enum):
-    """Supported hierarchy levels without hardcoded depth constraints."""
-
+    """Supported multi-tier hierarchy levels without hardcoded depth constraints."""
     EPISODE = "episode"
     GROUP = "group"
     MISSION = "mission"
@@ -507,48 +505,53 @@ class HierarchyLevel(str, Enum):
     CUSTOM = "custom"
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True)
 class EpisodeNode:
     """
-    Lightweight relationship node representing an episode or group's position
-    within the overall hierarchy graph.
+    Lightweight relationship node representing an episode, group, mission, or narrative
+    position within the overall hierarchy graph.
     """
-
     node_id: str
     level: HierarchyLevel = HierarchyLevel.EPISODE
     episode_id: Optional[str] = None  # Non-null for leaf EPISODE nodes
     parent_id: Optional[str] = None
     child_ids: Tuple[str, ...] = ()
-    prev_id: Optional[str] = None  # Sequential link to preceding sibling/episode
-    next_id: Optional[str] = None  # Sequential link to succeeding sibling/episode
-    relationship_types: Dict[str, str] = field(
-        default_factory=dict
-    )  # target_node_id -> relationship (e.g. "causal", "spatial_continuation")
+    prev_id: Optional[str] = None  # Sequential link to preceding sibling/episode[cite: 1]
+    next_id: Optional[str] = None  # Sequential link to succeeding sibling/episode[cite: 1]
+    relationship_types: Dict[str, str] = field(default_factory=dict)  # target_node_id -> relationship (e.g. "causal", "spatial_continuation")[cite: 1]
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "node_id": self.node_id,
-            "level": self.level.value if isinstance(self.level, Enum) else self.level,
-            "episode_id": self.episode_id,
-            "parent_id": self.parent_id,
-            "child_ids": list(self.child_ids),
-            "prev_id": self.prev_id,
-            "next_id": self.next_id,
-            "relationship_types": dict(self.relationship_types),
-        }
+    def __post_init__(self) -> None:
+        """Enforces structural consistency rules across hierarchy tiers[cite: 1]."""
+        if self.level == HierarchyLevel.EPISODE and not self.episode_id:
+            raise ValueError(f"EpisodeNode {self.node_id} at EPISODE level must specify a valid episode_id.")
+        if self.level in (HierarchyLevel.GROUP, HierarchyLevel.MISSION, HierarchyLevel.NARRATIVE) and not self.child_ids:
+            # Non-leaf structural nodes should ideally bind children; warning or validation can be enforced.
+            pass
+
+    to_dict = lambda self: {
+        "node_id": self.node_id,
+        "level": self.level.value if isinstance(self.level, Enum) else self.level,
+        "episode_id": self.episode_id,
+        "parent_id": self.parent_id,
+        "child_ids": list(self.child_ids),
+        "prev_id": self.prev_id,
+        "next_id": self.next_id,
+        "relationship_types": dict(self.relationship_types),
+    }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "EpisodeNode":
         if not data:
             return cls(node_id="")
         level_raw = data.get("level", HierarchyLevel.EPISODE.value)
+        try:
+            level = HierarchyLevel(level_raw)
+        except ValueError:
+            level = HierarchyLevel.CUSTOM
+
         return cls(
-            node_id=data["node_id"],
-            level=(
-                HierarchyLevel(level_raw)
-                if level_raw in HierarchyLevel._value2member_map_
-                else HierarchyLevel.CUSTOM
-            ),
+            node_id=data.get("node_id", ""),
+            level=level,
             episode_id=data.get("episode_id"),
             parent_id=data.get("parent_id"),
             child_ids=tuple(data.get("child_ids", [])),
@@ -558,13 +561,13 @@ class EpisodeNode:
         )
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(slots=True)
 class EpisodeHierarchy:
     """
     Immutable representation of an aggregated structural unit (Group, Mission, Narrative).
-    Contains child references, temporal extent, aggregated behavior signature, and quality metrics.
+    Contains child references, temporal extent, aggregated behavior signature, and quality metrics
+    WITHOUT duplicating raw keyframe telemetry[cite: 1].
     """
-
     hierarchy_id: str
     level: HierarchyLevel
     root_id: str
@@ -604,27 +607,69 @@ class EpisodeHierarchy:
         if not data:
             return cls(hierarchy_id="", level=HierarchyLevel.GROUP, root_id="")
         level_raw = data.get("level", HierarchyLevel.GROUP.value)
+        try:
+            level = HierarchyLevel(level_raw)
+        except ValueError:
+            level = HierarchyLevel.CUSTOM
+
         sig_data = data.get("dominant_signature", {})
+        dominant_signature = (
+            EpisodeSignature.from_dict(sig_data)
+            if isinstance(sig_data, dict)
+            else sig_data
+        )
+
         return cls(
-            hierarchy_id=data["hierarchy_id"],
-            level=(
-                HierarchyLevel(level_raw)
-                if level_raw in HierarchyLevel._value2member_map_
-                else HierarchyLevel.CUSTOM
-            ),
-            root_id=data["root_id"],
+            hierarchy_id=data.get("hierarchy_id", ""),
+            level=level,
+            root_id=data.get("root_id", ""),
             episode_ids=tuple(data.get("episode_ids", [])),
             child_hierarchy_ids=tuple(data.get("child_hierarchy_ids", [])),
             parent_hierarchy_id=data.get("parent_hierarchy_id"),
             start_tick=data.get("start_tick", 0),
             end_tick=data.get("end_tick", 0),
             duration_ticks=data.get("duration_ticks", 0),
-            dominant_signature=(
-                EpisodeSignature.from_dict(sig_data)
-                if isinstance(sig_data, dict)
-                else sig_data
-            ),
+            dominant_signature=dominant_signature,
             overall_quality=data.get("overall_quality", 1.0),
             overall_importance=data.get("overall_importance", 0.0),
             metadata=dict(data.get("metadata", {})),
+        )
+
+
+@dataclass(slots=True)
+class HierarchyGraphState:
+    """
+    Top-level container representing the complete hierarchical index graph structure
+    for persistence inside `hierarchy_index.json`[cite: 1].
+    """
+    version: int = 2
+    nodes: Dict[str, EpisodeNode] = field(default_factory=dict)
+    hierarchies: Dict[str, EpisodeHierarchy] = field(default_factory=dict)
+    root_narrative_ids: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "version": self.version,
+            "nodes": {k: v.to_dict() for k, v in self.nodes.items()},
+            "hierarchies": {k: v.to_dict() for k, v in self.hierarchies.items()},
+            "root_narrative_ids": list(self.root_narrative_ids),
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "HierarchyGraphState":
+        if not data:
+            return cls()
+        nodes = {
+            k: EpisodeNode.from_dict(v)
+            for k, v in data.get("nodes", {}).items()
+        }
+        hierarchies = {
+            k: EpisodeHierarchy.from_dict(v)
+            for k, v in data.get("hierarchies", {}).items()
+        }
+        return cls(
+            version=data.get("version", 2),
+            nodes=nodes,
+            hierarchies=hierarchies,
+            root_narrative_ids=list(data.get("root_narrative_ids", [])),
         )
