@@ -11,13 +11,19 @@ from .config import EpisodeBuilderConfig
 
 
 class SignatureBuilder:
-    """Constructs high-level behavioral identities, macro-transitions, resource summaries, and qualitative outcomes."""
+    """
+    Constructs high-level behavioral identities, macro-transitions, resource summaries, 
+    qualitative outcomes, and macro-level spatial descriptors.
+    """
 
     def __init__(self, config: EpisodeBuilderConfig):
         self.config = config
 
     def build(self, window: List[EpisodeFrame]) -> EpisodeSignature:
-        """Synthesizes an EpisodeSignature summary from a validated window of episode frames."""
+        """
+        Synthesizes an EpisodeSignature summary from a validated window of episode frames, 
+        distilling frame-level spatial interactions into macro-level descriptors.
+        """
         if not window:
             return EpisodeSignature()
 
@@ -110,6 +116,7 @@ class SignatureBuilder:
             "drive": _summarize([f.snapshot.drive for f in window]),
         }
 
+        # --- Spatial Signature Aggregation ---
         max_hazard = max((f.snapshot.hazard_stim for f in window), default=0.0)
         max_reward = max((f.snapshot.food_stim for f in window), default=0.0)
         landmarks = max((f.snapshot.visible_landmarks for f in window), default=0)
@@ -120,6 +127,7 @@ class SignatureBuilder:
         nearest_landmark_id = (
             Counter(target_ids).most_common(1)[0][0] if target_ids else None
         )
+        
         env_flags = set()
         if max_hazard > 0.5:
             env_flags.add("high_hazard_zone")

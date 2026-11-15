@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from ..schemas import EpisodicEvent
 from ..schemas import EpisodeQuality
 from .coherence import CoherenceEvaluator
@@ -48,40 +48,27 @@ class EpisodeQualityEvaluator:
         event: EpisodicEvent,
         neighbors: Optional[List[EpisodicEvent]] = None,
         history: Optional[List[EpisodicEvent]] = None,
-    ) -> EpisodeQuality:
+    ) -> Tuple[EpisodeQuality, List[str]]:
         """
-        Evaluates a single EpisodicEvent and returns its EpisodeQuality score.
+        Evaluates a single EpisodicEvent, returning its EpisodeQuality and ephemeral diagnostic reasons.
         """
         all_reasons: List[str] = []
 
-        # 1. Coherence
         coherence, coherence_reasons = self.coherence_evaluator.evaluate(event)
         all_reasons.extend(coherence_reasons)
 
-        # 2. Coverage
         coverage, coverage_reasons = self.coverage_evaluator.evaluate(event)
         all_reasons.extend(coverage_reasons)
 
-        # 3. Redundancy (against neighbors)
-        redundancy, redundancy_reasons = self.redundancy_evaluator.evaluate(
-            event, neighbors=neighbors
-        )
+        redundancy, redundancy_reasons = self.redundancy_evaluator.evaluate(event, neighbors=neighbors)
         all_reasons.extend(redundancy_reasons)
 
-        # 4. Novelty (against history/batch)
-        novelty, novelty_reasons = self.novelty_evaluator.evaluate(
-            event, history=history
-        )
+        novelty, novelty_reasons = self.novelty_evaluator.evaluate(event, history=history)
         all_reasons.extend(novelty_reasons)
 
-        # 5. Recall Usefulness (gated by coherence)
-        recall_usefulness, recall_reasons = self.recall_evaluator.evaluate(
-            event, coherence_score=coherence
-        )
+        recall_usefulness, recall_reasons = self.recall_evaluator.evaluate(event, coherence_score=coherence)
         all_reasons.extend(recall_reasons)
 
-        # 6. Overall Composite Quality Score
-        # High redundancy penalizes overall quality: (1.0 - redundancy)
         overall_quality = (
             (self.coherence_weight * coherence)
             + (self.coverage_weight * coverage)
@@ -91,35 +78,12 @@ class EpisodeQualityEvaluator:
         )
         overall_quality = round(min(1.0, max(0.0, overall_quality)), 4)
 
-        return EpisodeQuality(
+        quality = EpisodeQuality(
             coherence=coherence,
             coverage=coverage,
             redundancy=redundancy,
             novelty=novelty,
             recall_usefulness=recall_usefulness,
             overall_quality=overall_quality,
-            reasons=tuple(sorted(set(all_reasons))),
         )
-
-    def evaluate_batch(
-        self,
-        events: List[EpisodicEvent],
-        history: Optional[List[EpisodicEvent]] = None,
-    ) -> List[EpisodicEvent]:
-        """
-        Evaluates and attaches EpisodeQuality to a sequence of EpisodicEvents.
-        Performs in-place quality annotation of events in the batch.
-        """
-        if not events:
-            return []
-
-        for event in events:
-            # Use current batch as neighbors for redundancy check
-            quality = self.evaluate_episode(
-                event=event,
-                neighbors=events,
-                history=history,
-            )
-            event.quality = quality
-
-        return events
+        return quality, all_reasons

@@ -1,13 +1,12 @@
 from __future__ import annotations
 import json
-import os
 from pathlib import Path
 from core.vector import Vector2
 from .models import LandmarkRecord, GridCell
 
 
 class PersistenceManager:
-    """Manages reading and writing state to disk."""
+    """Manages reading and writing authoritative spatial state to disk independently."""
 
     @staticmethod
     def export_state(
@@ -42,4 +41,4 @@ class PersistenceManager:
         file_path.parent.mkdir(parents=True, exist_ok=True)
         with file_path.open("w", encoding="utf-8") as f:
             json.dump(state, f, indent=4)
-        print(f"Semantic memory state saved to {file_path.resolve()}")
+        print(f"Authoritative spatial memory state saved to {file_path.resolve()}")

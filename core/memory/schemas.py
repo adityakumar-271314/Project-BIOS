@@ -353,18 +353,15 @@ class EpisodeSignature:
 @dataclass(slots=True, frozen=True)
 class EpisodeQuality:
     """
-    Immutable quality metrics for an EpisodicEvent.
-    Evaluates behavioral coherence, boundary coverage, redundancy against neighbors,
-    behavioral novelty, and future recall usefulness.
+    Immutable, lightweight quality metrics for an EpisodicEvent.
+    Serves as an operational signal for retention, ranking, and validation.
     """
-
     coherence: float = 1.0
     coverage: float = 1.0
     redundancy: float = 0.0
     novelty: float = 0.0
     recall_usefulness: float = 1.0
     overall_quality: float = 1.0
-    reasons: Tuple[str, ...] = field(default_factory=tuple)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -374,7 +371,6 @@ class EpisodeQuality:
             "novelty": self.novelty,
             "recall_usefulness": self.recall_usefulness,
             "overall_quality": self.overall_quality,
-            "reasons": list(self.reasons),
         }
 
     @classmethod
@@ -388,7 +384,6 @@ class EpisodeQuality:
             novelty=data.get("novelty", 0.0),
             recall_usefulness=data.get("recall_usefulness", 1.0),
             overall_quality=data.get("overall_quality", 1.0),
-            reasons=tuple(data.get("reasons", [])),
         )
 
 
@@ -427,6 +422,45 @@ class EpisodicEvent:
             "notes": self.notes,
         }
 
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "EpisodicEvent":
+        if not data:
+            return cls(
+                start_tick=0, peak_tick=0, end_tick=0, event_type="",
+                peak_significance=0.0, start_x=0.0, start_y=0.0,
+                peak_x=0.0, peak_y=0.0, end_x=0.0, end_y=0.0
+            )
+        
+        start_pos = data.get("start_position", {})
+        peak_pos = data.get("peak_position", {})
+        end_pos = data.get("end_position", {})
+
+        kf_data = data.get("key_frames", [])
+        key_frames = [SparseFrame.from_dict(kf) for kf in kf_data]
+
+        sig_data = data.get("signature", {})
+        signature = EpisodeSignature.from_dict(sig_data) if isinstance(sig_data, dict) else sig_data
+
+        qual_data = data.get("quality")
+        quality = EpisodeQuality.from_dict(qual_data) if qual_data else None
+
+        return cls(
+            start_tick=data.get("start_tick", 0),
+            peak_tick=data.get("peak_tick", 0),
+            end_tick=data.get("end_tick", 0),
+            event_type=data.get("event_type", ""),
+            peak_significance=data.get("peak_significance", 0.0),
+            start_x=start_pos.get("x", 0.0),
+            start_y=start_pos.get("y", 0.0),
+            peak_x=peak_pos.get("x", 0.0),
+            peak_y=peak_pos.get("y", 0.0),
+            end_x=end_pos.get("x", 0.0),
+            end_y=end_pos.get("y", 0.0),
+            key_frames=key_frames,
+            signature=signature,
+            quality=quality,
+            notes=data.get("notes"),
+        )
 
 @dataclass(slots=True)
 class ReconstructedTick:

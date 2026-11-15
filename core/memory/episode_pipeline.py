@@ -24,13 +24,10 @@ class EpisodePipeline:
     def process_candidate(self, candidate_tick: int) -> Dict[str, Any]:
         """
         Runs retrospective boundary detection, episode construction,
-        and quality evaluation.
+        quality filtering, and operational signal annotation.
         """
-        print(
-            f"[PIPELINE] Retrospective boundary detection & build for tick {candidate_tick}"
-        )
+        print(f"[PIPELINE] Retrospective boundary detection & build for tick {candidate_tick}")
 
-        # Pull annotated frames from buffer
         frames = self.temporal_buffer.get_frame_context(
             center_tick=candidate_tick,
             before_ticks=600,
@@ -39,19 +36,27 @@ class EpisodePipeline:
         if not frames:
             return {"events": []}
 
-        # 1. Run boundary detection pipeline to extract clean intervals
+        # 1. Boundary Detection
         boundaries = self.boundary_detector.detect_boundaries(frames)
 
-        # 2. Build initial candidate events from detected boundaries
+        # 2. Episode Construction
         raw_episodes = self.builder.build(frames, boundaries=boundaries)
         if not raw_episodes:
             return {"events": []}
 
-        # 3. Evaluate quality metrics
-        quality_evaluated_episodes = self.quality_evaluator.evaluate_batch(
-            events=raw_episodes
-        )
+        # 3. Quality Evaluation & Operational Gating
+        valid_events = []
+        for event in raw_episodes:
+            quality, reasons = self.quality_evaluator.evaluate_episode(event, neighbors=raw_episodes)
+            event.quality = quality
+
+            # Operational Filter: Reject bad construction or extreme redundancy/low quality
+            if quality.coherence < 0.3 or quality.coverage < 0.4 or quality.overall_quality < 0.25:
+                print(f"[PIPELINE] Dropping low-quality episode at start tick {event.start_tick}. Reasons: {reasons}")
+                continue
+
+            valid_events.append(event)
 
         return {
-            "events": quality_evaluated_episodes,
+            "events": valid_events,
         }
