@@ -496,176 +496,107 @@ class EpisodeCandidate:
     contributors: Dict[str, float] = field(default_factory=dict)
     peak_reason: str = ""
 
-class HierarchyLevel(str, Enum):
-    """Supported multi-tier hierarchy levels without hardcoded depth constraints."""
-    EPISODE = "episode"
-    GROUP = "group"
-    MISSION = "mission"
-    NARRATIVE = "narrative"
-    CUSTOM = "custom"
-
-
-@dataclass(slots=True)
-class EpisodeNode:
-    """
-    Lightweight relationship node representing an episode, group, mission, or narrative
-    position within the overall hierarchy graph.
-    """
+@dataclass(slots=True, frozen=True)
+class EpisodeMeta:
+    """Lean metadata descriptor stored in the unified index for zero-load filtering."""
+    id: int
     node_id: str
-    level: HierarchyLevel = HierarchyLevel.EPISODE
-    episode_id: Optional[str] = None  # Non-null for leaf EPISODE nodes
-    parent_id: Optional[str] = None
-    child_ids: Tuple[str, ...] = ()
-    prev_id: Optional[str] = None  # Sequential link to preceding sibling/episode[cite: 1]
-    next_id: Optional[str] = None  # Sequential link to succeeding sibling/episode[cite: 1]
-    relationship_types: Dict[str, str] = field(default_factory=dict)  # target_node_id -> relationship (e.g. "causal", "spatial_continuation")[cite: 1]
-
-    def __post_init__(self) -> None:
-        """Enforces structural consistency rules across hierarchy tiers[cite: 1]."""
-        if self.level == HierarchyLevel.EPISODE and not self.episode_id:
-            raise ValueError(f"EpisodeNode {self.node_id} at EPISODE level must specify a valid episode_id.")
-        if self.level in (HierarchyLevel.GROUP, HierarchyLevel.MISSION, HierarchyLevel.NARRATIVE) and not self.child_ids:
-            # Non-leaf structural nodes should ideally bind children; warning or validation can be enforced.
-            pass
-
-    to_dict = lambda self: {
-        "node_id": self.node_id,
-        "level": self.level.value if isinstance(self.level, Enum) else self.level,
-        "episode_id": self.episode_id,
-        "parent_id": self.parent_id,
-        "child_ids": list(self.child_ids),
-        "prev_id": self.prev_id,
-        "next_id": self.next_id,
-        "relationship_types": dict(self.relationship_types),
-    }
+    event_type: str
+    start_tick: int
+    end_tick: int
+    peak_tick: int
+    peak_significance: float
+    peak_x: float
+    peak_y: float
+    dominant_goal: str | None = None
+    dominant_skill: str | None = None
+    outcome_status: str = "unknown"
+    overall_quality: float = 1.0
+    nearest_landmark_id: int | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "EpisodeNode":
-        if not data:
-            return cls(node_id="")
-        level_raw = data.get("level", HierarchyLevel.EPISODE.value)
-        try:
-            level = HierarchyLevel(level_raw)
-        except ValueError:
-            level = HierarchyLevel.CUSTOM
+    def from_event(cls, event: "EpisodicEvent", episode_id: int | None = None) -> "EpisodeMeta":
+        eid = episode_id if episode_id is not None else getattr(event, "id", event.start_tick)
+        raw_outcome = event.signature.outcome_status
+        outcome_val = raw_outcome.value if hasattr(raw_outcome, "value") else str(raw_outcome)
 
         return cls(
-            node_id=data.get("node_id", ""),
-            level=level,
-            episode_id=data.get("episode_id"),
-            parent_id=data.get("parent_id"),
-            child_ids=tuple(data.get("child_ids", [])),
-            prev_id=data.get("prev_id"),
-            next_id=data.get("next_id"),
-            relationship_types=dict(data.get("relationship_types", {})),
+            id=eid,
+            node_id=f"episode_{eid:06d}",
+            event_type=event.event_type,
+            start_tick=event.start_tick,
+            end_tick=event.end_tick,
+            peak_tick=event.peak_tick,
+            peak_significance=event.peak_significance,
+            peak_x=event.peak_x,
+            peak_y=event.peak_y,
+            dominant_goal=event.signature.dominant_goal,
+            dominant_skill=event.signature.dominant_skill,
+            outcome_status=outcome_val,
+            overall_quality=event.quality.overall_quality if event.quality else 1.0,
+            nearest_landmark_id=event.signature.nearest_landmark_id,
         )
 
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
 
-@dataclass(slots=True)
-class EpisodeHierarchy:
-    """
-    Immutable representation of an aggregated structural unit (Group, Mission, Narrative).
-    Contains child references, temporal extent, aggregated behavior signature, and quality metrics
-    WITHOUT duplicating raw keyframe telemetry[cite: 1].
-    """
-    hierarchy_id: str
-    level: HierarchyLevel
-    root_id: str
-    episode_ids: Tuple[str, ...] = ()
-    child_hierarchy_ids: Tuple[str, ...] = ()
-    parent_hierarchy_id: Optional[str] = None
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "EpisodeMeta":
+        return cls(
+            id=data.get("id", 0),
+            node_id=data.get("node_id", ""),
+            event_type=data.get("event_type", ""),
+            start_tick=data.get("start_tick", 0),
+            end_tick=data.get("end_tick", 0),
+            peak_tick=data.get("peak_tick", 0),
+            peak_significance=data.get("peak_significance", 0.0),
+            peak_x=data.get("peak_x", 0.0),
+            peak_y=data.get("peak_y", 0.0),
+            dominant_goal=data.get("dominant_goal"),
+            dominant_skill=data.get("dominant_skill"),
+            outcome_status=data.get("outcome_status", "unknown"),
+            overall_quality=data.get("overall_quality", 1.0),
+            nearest_landmark_id=data.get("nearest_landmark_id"),
+        )
 
-    start_tick: int = 0
-    end_tick: int = 0
-    duration_ticks: int = 0
-
-    dominant_signature: EpisodeSignature = field(default_factory=EpisodeSignature)
+@dataclass(slots=True, frozen=True)
+class LazyGroupSummary:
+    """Lightweight cluster of contiguous episodes synthesized asynchronously or on-demand."""
+    group_id: str
+    episode_ids: Tuple[str, ...]
+    start_tick: int
+    end_tick: int
+    dominant_goal: str | None = None
+    dominant_skill: str | None = None
+    nearest_landmark_id: int | None = None
     overall_quality: float = 1.0
-    overall_importance: float = 0.0
 
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    @property
+    def duration_ticks(self) -> int:
+        return self.end_tick - self.start_tick + 1
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "hierarchy_id": self.hierarchy_id,
-            "level": self.level.value if isinstance(self.level, Enum) else self.level,
-            "root_id": self.root_id,
+            "group_id": self.group_id,
             "episode_ids": list(self.episode_ids),
-            "child_hierarchy_ids": list(self.child_hierarchy_ids),
-            "parent_hierarchy_id": self.parent_hierarchy_id,
             "start_tick": self.start_tick,
             "end_tick": self.end_tick,
             "duration_ticks": self.duration_ticks,
-            "dominant_signature": self.dominant_signature.to_dict(),
+            "dominant_goal": self.dominant_goal,
+            "dominant_skill": self.dominant_skill,
+            "nearest_landmark_id": self.nearest_landmark_id,
             "overall_quality": self.overall_quality,
-            "overall_importance": self.overall_importance,
-            "metadata": dict(self.metadata),
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "EpisodeHierarchy":
-        if not data:
-            return cls(hierarchy_id="", level=HierarchyLevel.GROUP, root_id="")
-        level_raw = data.get("level", HierarchyLevel.GROUP.value)
-        try:
-            level = HierarchyLevel(level_raw)
-        except ValueError:
-            level = HierarchyLevel.CUSTOM
-
-        sig_data = data.get("dominant_signature", {})
-        dominant_signature = (
-            EpisodeSignature.from_dict(sig_data)
-            if isinstance(sig_data, dict)
-            else sig_data
-        )
-
+    def from_dict(cls, data: Dict[str, Any]) -> "LazyGroupSummary":
         return cls(
-            hierarchy_id=data.get("hierarchy_id", ""),
-            level=level,
-            root_id=data.get("root_id", ""),
-            episode_ids=tuple(data.get("episode_ids", [])),
-            child_hierarchy_ids=tuple(data.get("child_hierarchy_ids", [])),
-            parent_hierarchy_id=data.get("parent_hierarchy_id"),
+            group_id=data.get("group_id", ""),
+            episode_ids=tuple(data.get("episode_ids", ())),
             start_tick=data.get("start_tick", 0),
             end_tick=data.get("end_tick", 0),
-            duration_ticks=data.get("duration_ticks", 0),
-            dominant_signature=dominant_signature,
+            dominant_goal=data.get("dominant_goal"),
+            dominant_skill=data.get("dominant_skill"),
+            nearest_landmark_id=data.get("nearest_landmark_id"),
             overall_quality=data.get("overall_quality", 1.0),
-            overall_importance=data.get("overall_importance", 0.0),
-            metadata=dict(data.get("metadata", {})),
-        )
-
-
-@dataclass(slots=True)
-class HierarchyGraphState:
-    """
-    Top-level container representing the clean multi-tier group/mission/narrative index graph
-    for persistence inside hierarchy_index.json[cite: 1].
-    """
-    version: int = 2
-    hierarchies: Dict[str, EpisodeHierarchy] = field(default_factory=dict)
-    nodes: Dict[str, Any] = field(default_factory=dict)  # Retained optionally for type safety and compatibility
-    root_narrative_ids: List[str] = field(default_factory=list)
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "version": self.version,
-            "hierarchies": {k: v.to_dict() for k, v in self.hierarchies.items()},
-            "nodes": dict(self.nodes),
-            "root_narrative_ids": list(self.root_narrative_ids),
-        }
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "HierarchyGraphState":
-        if not data:
-            return cls()
-        hierarchies = {
-            k: EpisodeHierarchy.from_dict(v)
-            for k, v in data.get("hierarchies", {}).items()
-        }
-        return cls(
-            version=data.get("version", 2),
-            hierarchies=hierarchies,
-            nodes=dict(data.get("nodes", {})),
-            root_narrative_ids=list(data.get("root_narrative_ids", [])),
         )
