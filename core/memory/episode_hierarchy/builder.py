@@ -1,73 +1,58 @@
 from __future__ import annotations
-from typing import List, Dict, Any, Optional
-from ..schemas import EpisodicEvent, EpisodeNode, EpisodeHierarchy, HierarchyLevel, HierarchyGraphState
+from typing import Optional
+from ..schemas import EpisodicEvent, HierarchyLevel, HierarchyGraphState
 from .config import HierarchyConfig
-from .verifier import RelationshipVerifier
 from .aggregator import SummaryAggregator
 
 class HierarchyManager:
     """
-    Manages incremental bottom-up clustering (Episode -> Group -> Mission -> Narrative)
-    and graph state maintenance for persistence in hierarchy_index.json[cite: 1].
+    Manages true multi-episode clustering (Group -> Mission -> Narrative) without
+    bloating indices with redundant 1:1 leaf episode nodes[cite: 1].
     """
     def __init__(self, config: Optional[HierarchyConfig] = None):
         self.config = config or HierarchyConfig()
-        self.verifier = RelationshipVerifier(self.config)
         self.graph_state = HierarchyGraphState()
-        self._episode_counter = 0
+        self._active_group_id: Optional[str] = None
 
-    def add_episode(self, event: EpisodicEvent, quality_score: float = 1.0, importance_score: float = 0.0) -> str:
-        self._episode_counter += 1
-        episode_id_str = f"episode_{self._episode_counter:06d}"
-        node_id = f"node_ep_{self._episode_counter:06d}"
-
-        # 1. Verify links with previous node if present
-        prev_node_id = list(self.graph_state.nodes.keys())[-1] if self.graph_state.nodes else None
-        prev_node = self.graph_state.nodes.get(prev_node_id) if prev_node_id else None
-
-        relationship_types: Dict[str, str] = {}
-        prev_id: Optional[str] = prev_node_id
-        next_id: Optional[str] = None
-
-        if prev_node and prev_node.episode_id:
-            # Retrieve previous event summary or maintain links
-            prev_id = prev_node.node_id
-            prev_node_updated = EpisodeNode(
-                node_id=prev_node.node_id,
-                level=prev_node.level,
-                episode_id=prev_node.episode_id,
-                parent_id=prev_node.parent_id,
-                child_ids=prev_node.child_ids,
-                prev_id=prev_node.prev_id,
-                next_id=node_id,
-                relationship_types=prev_node.relationship_types
-            )
-            self.graph_state.nodes[prev_node.node_id] = prev_node_updated
-
-        # Create Episode Node
-        ep_node = EpisodeNode(
-            node_id=node_id,
-            level=HierarchyLevel.EPISODE,
-            episode_id=episode_id_str,
-            prev_id=prev_id,
-            next_id=next_id,
-            relationship_types=relationship_types
-        )
-        self.graph_state.nodes[node_id] = ep_node
-
-        # 2. Assign to Group, Mission, Narrative hierarchy tiers
-        self._cluster_into_hierarchies(event, node_id, quality_score, importance_score)
-        return node_id
-
-    def _cluster_into_hierarchies(self, event: EpisodicEvent, node_id: str, quality: float, importance: float) -> None:
-        group_id = f"group_{len(self.graph_state.hierarchies) + 1:04d}"
+    def add_episode(self, event: EpisodicEvent, episode_id_str: str, quality_score: float = 1.0, importance_score: float = 0.0) -> None:
+        """
+        Conditionally clusters the incoming episode into the active group or spawns a new group 
+        only when contextual boundaries shift.
+        """
+        active_group = self.graph_state.hierarchies.get(self._active_group_id) if self._active_group_id else None
         
-        hierarchy_unit = SummaryAggregator.create_hierarchy_unit(
-            hierarchy_id=group_id,
-            level=HierarchyLevel.GROUP,
-            root_id=group_id,
-            events=[event],
-            qualities=[quality],
-            importances=[importance]
-        )
-        self.graph_state.hierarchies[group_id] = hierarchy_unit
+        should_merge = False
+        if active_group:
+            sig = active_group.dominant_signature
+            same_goal = (sig.dominant_goal is None or sig.dominant_goal == event.signature.dominant_goal)
+            same_landmark = (sig.nearest_landmark_id is None or sig.nearest_landmark_id == event.signature.nearest_landmark_id)
+            within_temporal_window = (event.start_tick - active_group.end_tick) <= self.config.max_group_temporal_gap
+            
+            if same_goal and (same_landmark or within_temporal_window):
+                should_merge = True
+
+        if should_merge and active_group:
+            # Append episode reference to existing group and update span bounds
+            updated_episode_ids = list(active_group.episode_ids) + [episode_id_str]
+            updated_end_tick = max(active_group.end_tick, event.end_tick)
+            updated_duration = updated_end_tick - active_group.start_tick + 1
+            
+            active_group.episode_ids = tuple(updated_episode_ids)
+            active_group.end_tick = updated_end_tick
+            active_group.duration_ticks = updated_duration
+        else:
+            # Spawn a new Group container only on contextual breaks
+            group_id = f"group_{len(self.graph_state.hierarchies) + 1:04d}"
+            new_group = SummaryAggregator.create_hierarchy_unit(
+                hierarchy_id=group_id,
+                level=HierarchyLevel.GROUP,
+                root_id=group_id,
+                events=[event],
+                qualities=[quality_score],
+                importances=[importance_score]
+            )
+            # Override episode_ids to use the clean string identifier (e.g. "episode_000001")
+            new_group.episode_ids = (episode_id_str,)
+            
+            self.graph_state.hierarchies[group_id] = new_group
+            self._active_group_id = group_id

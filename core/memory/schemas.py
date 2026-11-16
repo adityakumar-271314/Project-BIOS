@@ -639,19 +639,19 @@ class EpisodeHierarchy:
 @dataclass(slots=True)
 class HierarchyGraphState:
     """
-    Top-level container representing the complete hierarchical index graph structure
-    for persistence inside `hierarchy_index.json`[cite: 1].
+    Top-level container representing the clean multi-tier group/mission/narrative index graph
+    for persistence inside hierarchy_index.json[cite: 1].
     """
     version: int = 2
-    nodes: Dict[str, EpisodeNode] = field(default_factory=dict)
     hierarchies: Dict[str, EpisodeHierarchy] = field(default_factory=dict)
+    nodes: Dict[str, Any] = field(default_factory=dict)  # Retained optionally for type safety and compatibility
     root_narrative_ids: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "version": self.version,
-            "nodes": {k: v.to_dict() for k, v in self.nodes.items()},
             "hierarchies": {k: v.to_dict() for k, v in self.hierarchies.items()},
+            "nodes": dict(self.nodes),
             "root_narrative_ids": list(self.root_narrative_ids),
         }
 
@@ -659,17 +659,13 @@ class HierarchyGraphState:
     def from_dict(cls, data: Dict[str, Any]) -> "HierarchyGraphState":
         if not data:
             return cls()
-        nodes = {
-            k: EpisodeNode.from_dict(v)
-            for k, v in data.get("nodes", {}).items()
-        }
         hierarchies = {
             k: EpisodeHierarchy.from_dict(v)
             for k, v in data.get("hierarchies", {}).items()
         }
         return cls(
             version=data.get("version", 2),
-            nodes=nodes,
             hierarchies=hierarchies,
+            nodes=dict(data.get("nodes", {})),
             root_narrative_ids=list(data.get("root_narrative_ids", [])),
         )

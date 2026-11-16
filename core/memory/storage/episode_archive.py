@@ -2,8 +2,6 @@ from pathlib import Path
 from collections import OrderedDict
 from .serializer import EpisodeSerializer
 from .metadata_index import MetadataIndex
-from .hierarchy_index import HierarchyIndex
-from ..episode_hierarchy.builder import HierarchyManager
 from ..schemas import EpisodicEvent
 from typing import List
 import math
@@ -11,31 +9,31 @@ import math
 
 class EpisodeArchive:
     """
-    Manages isolated episode payload serialization (`episode.json`), compact metadata indices,
-    and multi-tier hierarchy graph persistence (`hierarchy_index.json`).
+    Manages isolated episode payload serialization (`episode.json`) and a single
+    unified metadata/hierarchy index (`memory_index.json`), removing multi-file redundancy.
     """
     def __init__(self, root_dir: Path | str, cache_size: int = 128):
         self.root = Path(root_dir)
         self.root.mkdir(parents=True, exist_ok=True)
         self.serializer = EpisodeSerializer(root=self.root)
-        self.index = MetadataIndex(self.root / "metadata_index.json")
-        self.hierarchy_index = HierarchyIndex(self.root / "hierarchy_index.json")
-        self.hierarchy_manager = HierarchyManager()
         
-        # Load existing hierarchy state into manager if present
-        if self.hierarchy_index.graph_state.nodes:
-            self.hierarchy_manager.graph_state = self.hierarchy_index.graph_state
-
+        # Unified index combining episodes and optional group/hierarchy summaries
+        self.index = MetadataIndex(self.root / "memory_index.json")
+        
         self.cache = OrderedDict()
         self.cache_size = cache_size
 
     def save(self, event: EpisodicEvent) -> int:
-        # 1. Save raw episode payload exclusively in episodes/episode0000XX/episode.json
+        """
+        Saves episode payload and appends lean metadata strictly to the unified index.
+        Synchronous hierarchy graph building has been removed from the write path.
+        """
         episode_id = self.serializer.save(event)
+        episode_id_str = f"episode_{episode_id:06d}"
 
-        # 2. Add compact descriptor to metadata index
         meta = {
             "id": episode_id,
+            "node_id": episode_id_str,
             "event_type": event.event_type,
             "start_tick": event.start_tick,
             "end_tick": event.end_tick,
@@ -47,18 +45,15 @@ class EpisodeArchive:
             "dominant_skill": event.signature.dominant_skill,
             "outcome_status": event.signature.outcome_status.value if hasattr(event.signature.outcome_status, "value") else event.signature.outcome_status,
             "overall_quality": event.quality.overall_quality if event.quality else 1.0,
+            "nearest_landmark_id": event.signature.nearest_landmark_id,
         }
+        
+        # Append to unified index and save atomically
         self.index.add(meta)
-
-        # 3. Incrementally link into multi-tier hierarchy and persist hierarchy_index.json
-        quality_score = event.quality.overall_quality if event.quality else 1.0
-        importance_score = event.peak_significance
-        self.hierarchy_manager.add_episode(event, quality_score=quality_score, importance_score=importance_score)
-        self.hierarchy_index.update_from_state(self.hierarchy_manager.graph_state)
 
         self._cache_put(episode_id, event)
         return episode_id
-
+    
     def load(self, episode_id: int) -> EpisodicEvent:
         if episode_id in self.cache:
             self.cache.move_to_end(episode_id)

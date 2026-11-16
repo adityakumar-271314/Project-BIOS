@@ -103,12 +103,13 @@ class EpisodicMemory:
         top_k: int = 5
     ) -> List[EpisodicEvent]:
         """
-        Executes zero-load top-down coarse-to-fine retrieval and loads full episode payloads 
-        strictly for the final top-ranked candidates[cite: 1].
+        Executes zero-load top-down coarse-to-fine retrieval over the unified memory index
+        and loads full episode payloads strictly for the final top-ranked candidates.
         """
+        from core.memory.episode_hierarchy.retriever import HierarchyRetriever
+        
         retriever = HierarchyRetriever(
-            graph_state=self.archive.hierarchy_index.graph_state,
-            metadata_index_data=self.archive.index.data
+            unified_index_data=self.archive.index.data
         )
         ranked_episode_ids = retriever.zero_load_retrieve_candidates(
             target_goal=target_goal,
@@ -126,15 +127,34 @@ class EpisodicMemory:
     }
 
     def import_state(self, data: dict) -> None:
+        """
+        Imports memory state into the unified index store, supporting 
+        both flat metadata and asynchronous/cached hierarchy summaries.
+        """
         self._tick = data.get("tick", 0)
+        
+        # Handle unified index payload import
         if "index" in data:
             self.archive.index.data = data["index"]
             self.archive.index.save()
+        elif "unified_index" in data:
+            self.archive.index.data = data["unified_index"]
+            self.archive.index.save()
+            
+        # Backward compatibility / fallback: if legacy 'hierarchy' data is passed in state,
+        # map it cleanly into the unified index's 'hierarchies' field without separate files.
         if "hierarchy" in data:
-            from .schemas import HierarchyGraphState
-            self.archive.hierarchy_index.graph_state = HierarchyGraphState.from_dict(data["hierarchy"])
-            self.archive.hierarchy_manager.graph_state = self.archive.hierarchy_index.graph_state
-            self.archive.hierarchy_index.save()
+            hierarchy_dict = data["hierarchy"]
+            # If it's a serialized graph state object or dict, extract hierarchies safely
+            if hasattr(hierarchy_dict, "to_dict"):
+                hierarchies_data = hierarchy_dict.to_dict().get("hierarchies", {})
+            elif isinstance(hierarchy_dict, dict):
+                hierarchies_data = hierarchy_dict.get("hierarchies", hierarchy_dict)
+            else:
+                hierarchies_data = {}
+                
+            self.archive.index.data["hierarchies"] = hierarchies_data
+            self.archive.index.save()
 
     def get_events(self) -> tuple[EpisodicEvent, ...]:
         episodes_meta = self.archive.index.data["episodes"]
