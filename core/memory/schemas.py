@@ -424,6 +424,11 @@ class EpisodicEvent:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "EpisodicEvent":
+        # episode.json may use the compact column layout ("kf"); expand it so ANY reader that
+        # parses the file directly (not only EpisodeArchive) still sees key_frames.
+        if data:
+            from .storage.payload_codec import unpack
+            data = unpack(data)
         if not data:
             return cls(
                 start_tick=0, peak_tick=0, end_tick=0, event_type="",
@@ -498,9 +503,13 @@ class EpisodeCandidate:
 
 @dataclass(slots=True, frozen=True)
 class EpisodeMeta:
-    """Lean metadata descriptor stored in the unified index for zero-load filtering."""
+    """
+    Lean per-episode descriptor stored in the metadata index (one JSONL row per episode).
+    The episode id is the archive id (the number in episodeNNNNNN/); it is mandatory,
+    there is no fallback to start_tick any more. The run id lives in the index header
+    (it is the runXXXX folder name), so rows do not repeat it.
+    """
     id: int
-    node_id: str
     event_type: str
     start_tick: int
     end_tick: int
@@ -510,19 +519,24 @@ class EpisodeMeta:
     peak_y: float
     dominant_goal: str | None = None
     dominant_skill: str | None = None
+    dominant_target: str | None = None
     outcome_status: str = "unknown"
     overall_quality: float = 1.0
     nearest_landmark_id: int | None = None
+    max_hazard_exposure: float = 0.0
+
+    @property
+    def node_id(self) -> str:
+        return f"episode_{self.id:06d}"
 
     @classmethod
-    def from_event(cls, event: "EpisodicEvent", episode_id: int | None = None) -> "EpisodeMeta":
-        eid = episode_id if episode_id is not None else getattr(event, "id", event.start_tick)
+    def from_event(cls, event: "EpisodicEvent", episode_id: int) -> "EpisodeMeta":
+        if episode_id is None:
+            raise ValueError("EpisodeMeta.from_event requires the archive episode id")
         raw_outcome = event.signature.outcome_status
         outcome_val = raw_outcome.value if hasattr(raw_outcome, "value") else str(raw_outcome)
-
         return cls(
-            id=eid,
-            node_id=f"episode_{eid:06d}",
+            id=int(episode_id),
             event_type=event.event_type,
             start_tick=event.start_tick,
             end_tick=event.end_tick,
@@ -532,19 +546,24 @@ class EpisodeMeta:
             peak_y=event.peak_y,
             dominant_goal=event.signature.dominant_goal,
             dominant_skill=event.signature.dominant_skill,
+            dominant_target=event.signature.dominant_target,
             outcome_status=outcome_val,
             overall_quality=event.quality.overall_quality if event.quality else 1.0,
             nearest_landmark_id=event.signature.nearest_landmark_id,
+            max_hazard_exposure=event.signature.max_hazard_exposure,
         )
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        for k, v in d.items():
+            if isinstance(v, float):
+                d[k] = round(v, 4)
+        return d
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "EpisodeMeta":
         return cls(
-            id=data.get("id", 0),
-            node_id=data.get("node_id", ""),
+            id=data["id"],
             event_type=data.get("event_type", ""),
             start_tick=data.get("start_tick", 0),
             end_tick=data.get("end_tick", 0),
@@ -554,49 +573,9 @@ class EpisodeMeta:
             peak_y=data.get("peak_y", 0.0),
             dominant_goal=data.get("dominant_goal"),
             dominant_skill=data.get("dominant_skill"),
+            dominant_target=data.get("dominant_target"),
             outcome_status=data.get("outcome_status", "unknown"),
             overall_quality=data.get("overall_quality", 1.0),
             nearest_landmark_id=data.get("nearest_landmark_id"),
-        )
-
-@dataclass(slots=True, frozen=True)
-class LazyGroupSummary:
-    """Lightweight cluster of contiguous episodes synthesized asynchronously or on-demand."""
-    group_id: str
-    episode_ids: Tuple[str, ...]
-    start_tick: int
-    end_tick: int
-    dominant_goal: str | None = None
-    dominant_skill: str | None = None
-    nearest_landmark_id: int | None = None
-    overall_quality: float = 1.0
-
-    @property
-    def duration_ticks(self) -> int:
-        return self.end_tick - self.start_tick + 1
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "group_id": self.group_id,
-            "episode_ids": list(self.episode_ids),
-            "start_tick": self.start_tick,
-            "end_tick": self.end_tick,
-            "duration_ticks": self.duration_ticks,
-            "dominant_goal": self.dominant_goal,
-            "dominant_skill": self.dominant_skill,
-            "nearest_landmark_id": self.nearest_landmark_id,
-            "overall_quality": self.overall_quality,
-        }
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "LazyGroupSummary":
-        return cls(
-            group_id=data.get("group_id", ""),
-            episode_ids=tuple(data.get("episode_ids", ())),
-            start_tick=data.get("start_tick", 0),
-            end_tick=data.get("end_tick", 0),
-            dominant_goal=data.get("dominant_goal"),
-            dominant_skill=data.get("dominant_skill"),
-            nearest_landmark_id=data.get("nearest_landmark_id"),
-            overall_quality=data.get("overall_quality", 1.0),
+            max_hazard_exposure=data.get("max_hazard_exposure", 0.0),
         )

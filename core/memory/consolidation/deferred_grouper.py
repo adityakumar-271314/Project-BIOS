@@ -1,46 +1,68 @@
+"""
+DeferredGrouper: the consolidation SCHEDULER. Holds a queue of episode ids and decides when
+to hand them to the hierarchy; it contains no grouping logic and no storage code.
+
+  * Episodes are staged by ID the moment EpisodicMemory.encode() saves them (subscription),
+    so queue ids can never disagree with archive ids.
+  * It talks to EpisodicMemory (stable object) and looks up the archive/hierarchy at call
+    time, so swapping run folders cannot leave it writing into an orphaned index.
+  * maybe_flush(): flush when calm (safe) OR when overdue (too many pending / too old), so
+    consolidation can never starve; each flush is capped by a per-call budget.
+  * finalize(): flush everything and persist; call it at run end / checkpoint.
+"""
 from __future__ import annotations
+from dataclasses import dataclass
 from typing import List, Optional
-from ..schemas import EpisodicEvent, EpisodeMeta
-from ..episode_hierarchy.grouper import LazyGrouper
+
+
+@dataclass(slots=True)
+class ConsolidationPolicy:
+    max_pending: int = 16
+    max_staleness_ticks: int = 1200
+    budget_per_flush: int = 32
 
 
 class DeferredGrouper:
-    """
-    Staging queue and batch flush worker for hierarchy groups. Accepts EpisodicEvents,
-    strips them to lean EpisodeMeta descriptors, and passes them to LazyGrouper 
-    when commanded by the pipeline.
-    """
-    def __init__(self, metadata_index, grouper: Optional[LazyGrouper] = None):
-        self.metadata_index = metadata_index
-        self.grouper = grouper or LazyGrouper()
-        self.staging_queue: List[EpisodeMeta] = []
+    def __init__(self, episodic_memory, policy: Optional[ConsolidationPolicy] = None):
+        self.memory = episodic_memory
+        self.policy = policy or ConsolidationPolicy()
+        self._queue: List[int] = []
+        episodic_memory.subscribe_encoded(self.stage)
 
-    def stage_episode(self, event: EpisodicEvent, episode_id: Optional[int] = None) -> None:
-        meta = EpisodeMeta.from_event(event, episode_id=episode_id)
-        self.staging_queue.append(meta)
+    def stage(self, episode_id: int) -> None:
+        if episode_id not in self._queue:
+            self._queue.append(episode_id)
+
+    @property
+    def pending_count(self) -> int:
+        return len(self._queue)
 
     @property
     def has_pending(self) -> bool:
-        return len(self.staging_queue) > 0
+        return bool(self._queue)
 
-    def flush_groups(self) -> int:
-        """Executes batch grouping on staged items and flushes to the unified index."""
-        if not self.staging_queue:
+    def is_overdue(self, now_tick: int) -> bool:
+        if not self._queue:
+            return False
+        if len(self._queue) >= self.policy.max_pending:
+            return True
+        oldest = self.memory.meta(self._queue[0])
+        return bool(oldest) and (now_tick - oldest.get("end_tick", now_tick)) >= self.policy.max_staleness_ticks
+
+    def maybe_flush(self, safe: bool, now_tick: int) -> int:
+        if not self._queue:
             return 0
+        if safe or self.is_overdue(now_tick):
+            return self.flush(self.policy.budget_per_flush)
+        return 0
 
-        existing_hierarchies = self.metadata_index.data.get("hierarchies", {})
-        next_idx = len(existing_hierarchies) + 1
+    def flush(self, budget: Optional[int] = None) -> int:
+        batch = self._queue if budget is None else self._queue[:budget]
+        ids = list(batch)
+        del self._queue[: len(ids)]
+        return self.memory.consolidate(ids) if ids else 0
 
-        new_groups = self.grouper.cluster(
-            episodes=self.staging_queue,
-            start_index=next_idx,
-            prefix="group",
-        )
-
-        for gid, summary in new_groups.items():
-            existing_hierarchies[gid] = summary.to_dict()
-
-        count = len(self.staging_queue)
-        self.staging_queue.clear()
-        self.metadata_index.update_hierarchies(existing_hierarchies)
-        return count
+    def finalize(self) -> int:
+        total = self.flush(None)
+        self.memory.save_hierarchy()
+        return total
