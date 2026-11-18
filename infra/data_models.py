@@ -130,6 +130,45 @@ class SensorPacket:
             "is_real_data": self.is_real_data,
         }
 
+    @classmethod
+    def from_dict(cls, data: dict) -> "SensorPacket":
+        accel_data = data.get("accel", {})
+        objects = [
+            SensedObject(
+                id=int(obj.get("id", -1)),
+                type=str(obj.get("type", "unknown")),
+                dist=float(obj.get("dist", 0.0)),
+                angle=float(obj.get("angle", 0.0)),
+            )
+            for obj in data.get("sensed_objects", [])
+        ]
+        normals = [
+            Vector2(
+                x=float(n.get("x", 0.0)),
+                y=float(n.get("y", 0.0)),
+            )
+            for n in data.get("collision_normals", [])
+        ]
+        return cls(
+            delta=float(data.get("delta", 0.016)),
+            accel=Vector2(
+                x=float(accel_data.get("x", 0.0)),
+                y=float(accel_data.get("y", 0.0)),
+            ),
+            ray_c=float(data.get("ray_c", 1.0)),
+            ray_l=float(data.get("ray_l", 1.0)),
+            ray_r=float(data.get("ray_r", 1.0)),
+            current_rotation=float(data.get("current_rotation", 0.0)),
+            is_stuck=bool(data.get("is_stuck", False)),
+            hazard_stim=float(data.get("hazard_stim", 0.0)),
+            food_stim=float(data.get("food_stim", 0.0)),
+            real_pos_x=float(data.get("real_pos_x", 0.0)),
+            real_pos_y=float(data.get("real_pos_y", 0.0)),
+            collision_normals=normals,
+            sensed_objects=objects,
+            is_real_data=bool(data.get("is_real_data", True)),
+        )
+
 
 # =========================================================
 # MOTOR OUTPUT
