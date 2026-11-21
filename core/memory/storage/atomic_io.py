@@ -1,4 +1,5 @@
 """Crash-safe file helpers: write to a temp file, fsync, then atomically replace."""
+
 from __future__ import annotations
 import json
 import os

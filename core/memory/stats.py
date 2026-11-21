@@ -1,4 +1,5 @@
 """Online statistics used to judge what counts as 'normal' experience (Welford)."""
+
 from __future__ import annotations
 import math
 from typing import Dict
@@ -25,7 +26,13 @@ class RunningStats:
         return math.sqrt(self.variance)
 
 
-STAT_KEYS = ("energy_delta", "integrity_delta", "stress_delta", "fear_delta", "drive_delta")
+STAT_KEYS = (
+    "energy_delta",
+    "integrity_delta",
+    "stress_delta",
+    "fear_delta",
+    "drive_delta",
+)
 
 
 def new_stats_bank() -> Dict[str, RunningStats]:

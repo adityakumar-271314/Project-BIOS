@@ -8,6 +8,7 @@ File layout (runXXXX/episodes/memory_index.jsonl):
     line 1  : {"_header":true,"version":3,"run_id":"run0003"}
     line 2+ : one EpisodeMeta dict per line (append = O(1), a crash loses at most one line)
 """
+
 from __future__ import annotations
 import bisect
 import json
@@ -28,7 +29,9 @@ def derive_run_id(root: Path) -> str:
 
 
 class MetadataIndex:
-    def __init__(self, root: Path | str, run_id: Optional[str] = None, cell_size: float = 100.0):
+    def __init__(
+        self, root: Path | str, run_id: Optional[str] = None, cell_size: float = 100.0
+    ):
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
         self.path = self.root / "memory_index.jsonl"
@@ -36,10 +39,10 @@ class MetadataIndex:
         self.run_id = run_id or derive_run_id(self.root)
         self.cell_size = cell_size
 
-        self.rows: List[Dict[str, Any]] = []          # sorted by id
-        self._ids: List[int] = []                     # parallel to rows
+        self.rows: List[Dict[str, Any]] = []  # sorted by id
+        self._ids: List[int] = []  # parallel to rows
         self.by_id: Dict[int, Dict[str, Any]] = {}
-        self._starts: List[Tuple[int, int]] = []      # (start_tick, id), sorted
+        self._starts: List[Tuple[int, int]] = []  # (start_tick, id), sorted
         self._cells: Dict[Tuple[int, int], List[int]] = {}
         self.max_duration = 0
         self.max_significance = 0.0
@@ -49,8 +52,10 @@ class MetadataIndex:
 
     # ---------- persistence ----------
     def _header(self) -> str:
-        return json.dumps({"_header": True, "version": INDEX_VERSION, "run_id": self.run_id},
-                          separators=(",", ":"))
+        return json.dumps(
+            {"_header": True, "version": INDEX_VERSION, "run_id": self.run_id},
+            separators=(",", ":"),
+        )
 
     def load(self) -> None:
         if self.path.exists():
@@ -93,10 +98,14 @@ class MetadataIndex:
                 row = {k: v for k, v in row.items() if k != "node_id"}
                 self._index_row(row)
         self._rewrite()
-        os.replace(self.legacy_path, self.legacy_path.with_name("memory_index.json.legacy.bak"))
+        os.replace(
+            self.legacy_path, self.legacy_path.with_name("memory_index.json.legacy.bak")
+        )
 
     def _rewrite(self) -> None:
-        lines = [self._header()] + [json.dumps(r, separators=(",", ":")) for r in self.rows]
+        lines = [self._header()] + [
+            json.dumps(r, separators=(",", ":")) for r in self.rows
+        ]
         atomic_write_text(self.path, "\n".join(lines) + "\n")
 
     def reset(self) -> None:
@@ -133,7 +142,9 @@ class MetadataIndex:
         start, end = row.get("start_tick", 0), row.get("end_tick", 0)
         bisect.insort(self._starts, (start, eid))
         self.max_duration = max(self.max_duration, end - start)
-        self.max_significance = max(self.max_significance, row.get("peak_significance", 0.0))
+        self.max_significance = max(
+            self.max_significance, row.get("peak_significance", 0.0)
+        )
         self.latest_tick = max(self.latest_tick, end)
         cell = self._cell(row.get("peak_x", 0.0), row.get("peak_y", 0.0))
         self._cells.setdefault(cell, []).append(eid)
@@ -149,7 +160,7 @@ class MetadataIndex:
         return self.by_id.get(episode_id)
 
     def rows_after(self, episode_id: int) -> List[Dict[str, Any]]:
-        return self.rows[bisect.bisect_right(self._ids, episode_id):]
+        return self.rows[bisect.bisect_right(self._ids, episode_id) :]
 
     def overlapping(self, t0: int, t1: int) -> List[Dict[str, Any]]:
         """Rows whose [start_tick, end_tick] intersects [t0, t1]."""
@@ -170,10 +181,17 @@ class MetadataIndex:
         if (cx1 - cx0 + 1) * (cy1 - cy0 + 1) > max(len(self.rows), 1):
             candidates = self.rows
         else:
-            candidates = [self.by_id[i] for cx in range(cx0, cx1 + 1)
-                          for cy in range(cy0, cy1 + 1) for i in self._cells.get((cx, cy), ())]
-        hit = [r for r in candidates
-               if math.hypot(r.get("peak_x", 0.0) - x, r.get("peak_y", 0.0) - y) <= radius]
+            candidates = [
+                self.by_id[i]
+                for cx in range(cx0, cx1 + 1)
+                for cy in range(cy0, cy1 + 1)
+                for i in self._cells.get((cx, cy), ())
+            ]
+        hit = [
+            r
+            for r in candidates
+            if math.hypot(r.get("peak_x", 0.0) - x, r.get("peak_y", 0.0) - y) <= radius
+        ]
         return sorted(hit, key=lambda r: r["id"])
 
     def query_latest(self) -> Optional[Dict[str, Any]]:
@@ -182,7 +200,9 @@ class MetadataIndex:
     def query_recent(self, limit: int) -> List[Dict[str, Any]]:
         return self.rows[-limit:] if self.rows else []
 
-    def query_by_type(self, event_type: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    def query_by_type(
+        self, event_type: str, limit: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
         matches = [r for r in self.rows if r.get("event_type") == event_type]
         return matches[-limit:] if limit else matches
 

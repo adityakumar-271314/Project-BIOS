@@ -60,13 +60,19 @@ class EpisodeQualityEvaluator:
         coverage, coverage_reasons = self.coverage_evaluator.evaluate(event)
         all_reasons.extend(coverage_reasons)
 
-        redundancy, redundancy_reasons = self.redundancy_evaluator.evaluate(event, neighbors=neighbors)
+        redundancy, redundancy_reasons = self.redundancy_evaluator.evaluate(
+            event, neighbors=neighbors
+        )
         all_reasons.extend(redundancy_reasons)
 
-        novelty, novelty_reasons = self.novelty_evaluator.evaluate(event, history=history)
+        novelty, novelty_reasons = self.novelty_evaluator.evaluate(
+            event, history=history
+        )
         all_reasons.extend(novelty_reasons)
 
-        recall_usefulness, recall_reasons = self.recall_evaluator.evaluate(event, coherence_score=coherence)
+        recall_usefulness, recall_reasons = self.recall_evaluator.evaluate(
+            event, coherence_score=coherence
+        )
         all_reasons.extend(recall_reasons)
 
         overall_quality = (

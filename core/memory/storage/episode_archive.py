@@ -5,6 +5,7 @@ Role: save/load episodes, keep the two in sync, repair drift, de-duplicate re-de
 position recall. It does NOT group episodes (that is episode_hierarchy) and does NOT decide
 when to consolidate (that is consolidation).
 """
+
 from __future__ import annotations
 from collections import OrderedDict
 from pathlib import Path
@@ -69,7 +70,11 @@ class EpisodeArchive:
             rdur = max(1, r1 - r0 + 1)
             inter = min(t1, r1) - max(t0, r0) + 1
             union = dur + rdur - inter
-            if inter > 0 and inter / union >= self.dedupe_iou and dur <= rdur * self.dedupe_growth:
+            if (
+                inter > 0
+                and inter / union >= self.dedupe_iou
+                and dur <= rdur * self.dedupe_growth
+            ):
                 return row["id"]
         return None
 
@@ -92,7 +97,9 @@ class EpisodeArchive:
         meta = self.index.query_latest()
         return self.load(meta["id"]) if meta else None
 
-    def recall_near(self, pos_x: float, pos_y: float, radius: float) -> List[EpisodicEvent]:
+    def recall_near(
+        self, pos_x: float, pos_y: float, radius: float
+    ) -> List[EpisodicEvent]:
         return [self.load(r["id"]) for r in self.index.near(pos_x, pos_y, radius)]
 
     # ---------- repair ----------

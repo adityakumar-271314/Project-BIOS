@@ -11,6 +11,7 @@ score() in [0,1] = weighted agreement over the dimensions known on BOTH sides, w
   * missing-data handling: unknown dimensions are skipped, not counted as matches (so
     None == None is NOT a match), and sparse comparisons are discounted.
 """
+
 from __future__ import annotations
 import math
 from dataclasses import dataclass
@@ -20,12 +21,21 @@ CATEGORICAL = ("goal", "skill", "event_type", "target", "outcome", "landmark")
 
 # Same-kind episodes recurring over time (schemas, retrieval)
 EPISODE_WEIGHTS: Dict[str, float] = {
-    "goal": 0.25, "skill": 0.15, "event_type": 0.10, "target": 0.05,
-    "outcome": 0.10, "landmark": 0.15, "space": 0.15, "hazard": 0.05,
+    "goal": 0.25,
+    "skill": 0.15,
+    "event_type": 0.10,
+    "target": 0.05,
+    "outcome": 0.10,
+    "landmark": 0.15,
+    "space": 0.15,
+    "hazard": 0.05,
 }
 # Consecutive episodes belonging to the same activity (bouts): outcome/event type may change
 BOUT_WEIGHTS: Dict[str, float] = {
-    "goal": 0.45, "skill": 0.20, "landmark": 0.20, "space": 0.15,
+    "goal": 0.45,
+    "skill": 0.20,
+    "landmark": 0.20,
+    "space": 0.15,
 }
 
 
@@ -80,7 +90,9 @@ class SimilarityEngine:
                 return True
         return False
 
-    def score(self, a: EpisodeFeatures, b: EpisodeFeatures, penalize_missing: bool = True) -> float:
+    def score(
+        self, a: EpisodeFeatures, b: EpisodeFeatures, penalize_missing: bool = True
+    ) -> float:
         if self.vetoed(a, b):
             return 0.0
         num = den = 0.0

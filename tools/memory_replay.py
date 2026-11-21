@@ -79,14 +79,30 @@ EPISODE_DIR_RE = re.compile(r"^episode\d+$")
 
 # Keys SensorPacket.to_dict() always writes
 PACKET_KEYS = (
-    "delta", "accel", "ray_c", "ray_l", "ray_r", "current_rotation", "is_stuck",
-    "hazard_stim", "food_stim", "real_pos_x", "real_pos_y",
-    "collision_normals", "sensed_objects", "is_real_data",
+    "delta",
+    "accel",
+    "ray_c",
+    "ray_l",
+    "ray_r",
+    "current_rotation",
+    "is_stuck",
+    "hazard_stim",
+    "food_stim",
+    "real_pos_x",
+    "real_pos_y",
+    "collision_normals",
+    "sensed_objects",
+    "is_real_data",
 )
 VITAL_KEYS = ("energy", "integrity", "stress", "fear", "drive")
 CONTEXT_KEYS = (
-    "goal_name", "goal_priority", "active_skill",
-    "target_type", "target_id", "target_x", "target_y",
+    "goal_name",
+    "goal_priority",
+    "active_skill",
+    "target_type",
+    "target_id",
+    "target_x",
+    "target_y",
 )
 POS_TOLERANCE = 1e-6
 WARN_CAP = 10
@@ -157,7 +173,9 @@ def normalize_run_token(token: str) -> str:
 def list_runs(source_root: Path) -> List[Path]:
     if not source_root.is_dir():
         return []
-    return sorted(p for p in source_root.iterdir() if p.is_dir() and p.name.startswith("run"))
+    return sorted(
+        p for p in source_root.iterdir() if p.is_dir() and p.name.startswith("run")
+    )
 
 
 def describe_run(run_dir: Path) -> str:
@@ -184,7 +202,9 @@ def choose_run_interactively(source_root: Path) -> Path:
                 f"Select list number (1-{len(runs)}) or type a run folder name: "
             ).strip()
         except EOFError:
-            raise SystemExit("[ERROR] No run selected (no interactive input available).")
+            raise SystemExit(
+                "[ERROR] No run selected (no interactive input available)."
+            )
         if raw.isdigit() and 1 <= int(raw) <= len(runs):
             return runs[int(raw) - 1]
         candidate = source_root / raw
@@ -200,7 +220,9 @@ def resolve_run(run_arg: Optional[str], source_root: Path) -> Path:
     run_dir = source_root / name
     if not run_dir.is_dir():
         known = ", ".join(p.name for p in list_runs(source_root)) or "none"
-        raise SystemExit(f"[ERROR] Run folder not found: {run_dir}\n        Available: {known}")
+        raise SystemExit(
+            f"[ERROR] Run folder not found: {run_dir}\n        Available: {known}"
+        )
     return run_dir
 
 
@@ -399,12 +421,17 @@ def read_context(obj: Dict[str, Any]) -> Tuple[Any, Any, Any, bool]:
     goal_name = src.get("goal_name")
     goal = None
     if goal_name is not None:
-        goal = SimpleNamespace(name=goal_name, priority=to_float(src.get("goal_priority")) or 0.0)
+        goal = SimpleNamespace(
+            name=goal_name, priority=to_float(src.get("goal_priority")) or 0.0
+        )
 
     skill = src.get("active_skill")
 
     target = None
-    if any(src.get(k) is not None for k in ("target_type", "target_id", "target_x", "target_y")):
+    if any(
+        src.get(k) is not None
+        for k in ("target_type", "target_id", "target_x", "target_y")
+    ):
         target = SimpleNamespace(
             type=src.get("target_type"),
             id=src.get("target_id"),
@@ -412,6 +439,7 @@ def read_context(obj: Dict[str, Any]) -> Tuple[Any, Any, Any, bool]:
             y=src.get("target_y"),
         )
     return goal, skill, target, True
+
 
 # --------------------------------------------------------------------------- #
 # MemorySystem construction
@@ -455,8 +483,12 @@ class ReplayStats:
     total_ticks: int = 0  # replay.json records read (valid + corrupt)
     successful_frames: int = 0
     error_frames: int = 0
-    degraded_frames: int = 0  # fed, but telemetry missing/invalid -> vitals carried forward
-    partial_packets: int = 0  # fed, but some sensor_packet keys were missing (defaults used)
+    degraded_frames: int = (
+        0  # fed, but telemetry missing/invalid -> vitals carried forward
+    )
+    partial_packets: int = (
+        0  # fed, but some sensor_packet keys were missing (defaults used)
+    )
     fallback_packets: int = 0  # recorded with is_real_data == False (bridge error live)
     missing_ticks: int = 0  # gaps in the recorded tick sequence
     tick_regressions: int = 0  # tick <= previous tick (duplicates / session restarts)
@@ -490,7 +522,9 @@ class Fidelity:
         self.compared += 1
         pos = sm.internal_pos
         err = max(abs(pos.x - px), abs(pos.y - py))
-        self.max_pos_err = max(self.max_pos_err, err) if err == err else self.max_pos_err
+        self.max_pos_err = (
+            max(self.max_pos_err, err) if err == err else self.max_pos_err
+        )
         if not (err <= POS_TOLERANCE):  # also catches NaN
             self.pos_mismatch += 1
             if self.first_pos_mismatch_tick is None:
@@ -523,7 +557,7 @@ def run_replay(
     telemetry_path: Path,
     args: argparse.Namespace,
     warner: Warner,
-    path_log: Optional[List[Vector2]] = None
+    path_log: Optional[List[Vector2]] = None,
 ) -> Tuple[ReplayStats, Fidelity]:
     stats = ReplayStats()
     fidelity = Fidelity()
@@ -569,11 +603,18 @@ def run_replay(
             if problem is not None or packet is None or not is_int(tick):
                 stats.error_frames += 1
                 consecutive_errors += 1
-                stats.max_consecutive_errors = max(stats.max_consecutive_errors, consecutive_errors)
-                warner.warn("bad_frame", f"replay.json line {line_no}: {problem} - frame skipped")
+                stats.max_consecutive_errors = max(
+                    stats.max_consecutive_errors, consecutive_errors
+                )
+                warner.warn(
+                    "bad_frame",
+                    f"replay.json line {line_no}: {problem} - frame skipped",
+                )
                 if consecutive_errors >= args.max_consecutive_errors:
                     stats.aborted = True
-                    print(f"[ERROR] {consecutive_errors} consecutive bad frames - aborting replay.")
+                    print(
+                        f"[ERROR] {consecutive_errors} consecutive bad frames - aborting replay."
+                    )
                     break
                 continue
 
@@ -595,7 +636,9 @@ def run_replay(
             elif tick > prev_tick + 1:
                 gap = tick - prev_tick - 1
                 stats.missing_ticks += gap
-                warner.warn("tick_gap", f"{gap} tick(s) missing between {prev_tick} and {tick}")
+                warner.warn(
+                    "tick_gap", f"{gap} tick(s) missing between {prev_tick} and {tick}"
+                )
             prev_tick = tick
             stats.last_tick = tick
 
@@ -616,7 +659,10 @@ def run_replay(
                     f"tick {tick}: no usable telemetry row - vitals carried forward",
                 )
             else:
-                if stats.successful_frames + stats.error_frames == 0 and stats.first_tick != 1:
+                if (
+                    stats.successful_frames + stats.error_frames == 0
+                    and stats.first_tick != 1
+                ):
                     # Continued run: true body state at this tick is unknown, so seed
                     # it from telemetry instead of the fresh-run initial values.
                     if path_log is not None:
@@ -643,13 +689,19 @@ def run_replay(
             except Exception as exc:
                 stats.error_frames += 1
                 consecutive_errors += 1
-                stats.max_consecutive_errors = max(stats.max_consecutive_errors, consecutive_errors)
-                warner.warn("update_error", f"tick {tick}: MemorySystem.update raised {exc!r}")
+                stats.max_consecutive_errors = max(
+                    stats.max_consecutive_errors, consecutive_errors
+                )
+                warner.warn(
+                    "update_error", f"tick {tick}: MemorySystem.update raised {exc!r}"
+                )
                 if consecutive_errors == 1 and warner.counts["update_error"] == 1:
                     traceback.print_exc()
                 if consecutive_errors >= args.max_consecutive_errors:
                     stats.aborted = True
-                    print(f"[ERROR] {consecutive_errors} consecutive update errors - aborting replay.")
+                    print(
+                        f"[ERROR] {consecutive_errors} consecutive update errors - aborting replay."
+                    )
                     break
                 continue
 
@@ -726,31 +778,44 @@ def verify_artifacts(out_dir: Path) -> Tuple[List[ArtifactCheck], List[str]]:
     ep_dir = ctx.episodes_dir
     episode_dirs: List[Path] = []
     if ep_dir.is_dir():
-        episode_dirs = sorted(p for p in ep_dir.iterdir() if p.is_dir() and EPISODE_DIR_RE.match(p.name))
+        episode_dirs = sorted(
+            p for p in ep_dir.iterdir() if p.is_dir() and EPISODE_DIR_RE.match(p.name)
+        )
     n_eps = len(episode_dirs)
     if not ep_dir.is_dir():
         checks.append(ArtifactCheck("encoded episodes", str(ep_dir), "MISSING"))
     elif n_eps == 0:
         checks.append(
-            ArtifactCheck("encoded episodes", str(ep_dir), "EMPTY", "0 episode folders", expected=True)
+            ArtifactCheck(
+                "encoded episodes",
+                str(ep_dir),
+                "EMPTY",
+                "0 episode folders",
+                expected=True,
+            )
         )
     else:
         bad = [
             p.name
             for p in episode_dirs
-            if not (p / "episode.json").is_file() or (p / "episode.json").stat().st_size == 0
+            if not (p / "episode.json").is_file()
+            or (p / "episode.json").stat().st_size == 0
         ]
         if bad:
             checks.append(
                 ArtifactCheck(
-                    "encoded episodes", str(ep_dir), "MISSING",
+                    "encoded episodes",
+                    str(ep_dir),
+                    "MISSING",
                     f"{n_eps} folders, but episode.json missing/empty in: {', '.join(bad[:5])}"
                     + (" ..." if len(bad) > 5 else ""),
                 )
             )
         else:
             checks.append(
-                ArtifactCheck("encoded episodes", str(ep_dir), "OK", f"{n_eps} episode folder(s)")
+                ArtifactCheck(
+                    "encoded episodes", str(ep_dir), "OK", f"{n_eps} episode folder(s)"
+                )
             )
 
     # --- manifest.json --------------------------------------------------------
@@ -763,10 +828,18 @@ def verify_artifacts(out_dir: Path) -> Tuple[List[ArtifactCheck], List[str]]:
     else:
         data, err = _load_json(mf)
         if err or not isinstance(data, dict) or not is_int(data.get("next_episode_id")):
-            checks.append(ArtifactCheck(MANIFEST_NAME, str(mf), "INVALID", err or "no next_episode_id"))
+            checks.append(
+                ArtifactCheck(
+                    MANIFEST_NAME, str(mf), "INVALID", err or "no next_episode_id"
+                )
+            )
         else:
             next_id = data["next_episode_id"]
-            checks.append(ArtifactCheck(MANIFEST_NAME, str(mf), "OK", f"next_episode_id={next_id}"))
+            checks.append(
+                ArtifactCheck(
+                    MANIFEST_NAME, str(mf), "OK", f"next_episode_id={next_id}"
+                )
+            )
 
     # --- unified metadata / hierarchy index -----------------------------------
     ix = ep_dir / INDEX_NAME
@@ -775,7 +848,9 @@ def verify_artifacts(out_dir: Path) -> Tuple[List[ArtifactCheck], List[str]]:
         if n_eps == 0:
             checks.append(
                 ArtifactCheck(
-                    INDEX_NAME, str(ix), "MISSING",
+                    INDEX_NAME,
+                    str(ix),
+                    "MISSING",
                     "expected: the index is only created on the first episode / hierarchy write",
                     expected=True,
                 )
@@ -786,24 +861,38 @@ def verify_artifacts(out_dir: Path) -> Tuple[List[ArtifactCheck], List[str]]:
         checks.append(ArtifactCheck(INDEX_NAME, str(ix), "EMPTY"))
     else:
         data, err = _load_json(ix)
-        if err or not isinstance(data, dict) or not isinstance(data.get("episodes"), list):
-            checks.append(ArtifactCheck(INDEX_NAME, str(ix), "INVALID", err or "no 'episodes' list"))
+        if (
+            err
+            or not isinstance(data, dict)
+            or not isinstance(data.get("episodes"), list)
+        ):
+            checks.append(
+                ArtifactCheck(
+                    INDEX_NAME, str(ix), "INVALID", err or "no 'episodes' list"
+                )
+            )
         else:
             index_count = len(data["episodes"])
             hier = data.get("hierarchies")
             n_groups = len(hier) if isinstance(hier, dict) else 0
             checks.append(
                 ArtifactCheck(
-                    INDEX_NAME, str(ix), "OK",
+                    INDEX_NAME,
+                    str(ix),
+                    "OK",
                     f"{index_count} episode entries, {n_groups} hierarchy group(s)",
                 )
             )
 
     # --- consistency cross-checks --------------------------------------------
     if next_id is not None and next_id - 1 != n_eps:
-        notes.append(f"manifest next_episode_id-1 ({next_id - 1}) != episode folders ({n_eps})")
+        notes.append(
+            f"manifest next_episode_id-1 ({next_id - 1}) != episode folders ({n_eps})"
+        )
     if index_count is not None and index_count != n_eps:
-        notes.append(f"index lists {index_count} episodes but {n_eps} episode folders exist")
+        notes.append(
+            f"index lists {index_count} episodes but {n_eps} episode folders exist"
+        )
     if (ep_dir / "memory_index.json.tmp").exists():
         notes.append("stray memory_index.json.tmp found (an atomic index write failed)")
     legacy = ep_dir / "hierarchy_index.json"
@@ -850,9 +939,13 @@ def print_summary(
         print("Data quality notes     : " + "; ".join(shown))
     print(f"Elapsed                : {stats.elapsed_s:.1f}s")
     if stats.context_frames == 0:
-        print("Agent context          : NOT recorded in this run (goal/skill/target = None)")
+        print(
+            "Agent context          : NOT recorded in this run (goal/skill/target = None)"
+        )
     else:
-        print(f"Agent context          : {stats.context_frames}/{stats.total_ticks} frames carried goal/skill/target")
+        print(
+            f"Agent context          : {stats.context_frames}/{stats.total_ticks} frames carried goal/skill/target"
+        )
     if stats.aborted:
         print("[ERROR] Replay was ABORTED early (too many consecutive errors).")
     if stats.interrupted:
@@ -878,7 +971,9 @@ def print_summary(
                 f"grid-cell-count mismatches: {fidelity.grid_mismatch}"
             )
         if fidelity.pos_mismatch:
-            print("       (config.json may differ from the one used when the run was recorded)")
+            print(
+                "       (config.json may differ from the one used when the run was recorded)"
+            )
 
     print("\nArtifact verification:")
     for c in checks:
@@ -934,21 +1029,39 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Replay a recorded BIOS run through MemorySystem (offline, read-only on run_history)."
     )
-    p.add_argument("-r", "--run", help="Run id (e.g. 1) or folder name (e.g. run000001). Omit for a picker.")
+    p.add_argument(
+        "-r",
+        "--run",
+        help="Run id (e.g. 1) or folder name (e.g. run000001). Omit for a picker.",
+    )
     p.add_argument("--source-root", default=str(PROJECT_ROOT / SOURCE_DIRNAME))
     p.add_argument("--output-root", default=str(PROJECT_ROOT / OUTPUT_DIRNAME))
     p.add_argument("--config", default=str(PROJECT_ROOT / "config.json"))
-    p.add_argument("--tag", help="Optional label appended to the output folder (run000001_<tag>).")
-    p.add_argument("--limit", type=int, default=0, help="Replay only the first N ticks (debugging).")
     p.add_argument(
-        "--body-alignment", choices=("lag1", "same"), default="lag1",
+        "--tag", help="Optional label appended to the output folder (run000001_<tag>)."
+    )
+    p.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="Replay only the first N ticks (debugging).",
+    )
+    p.add_argument(
+        "--body-alignment",
+        choices=("lag1", "same"),
+        default="lag1",
         help="lag1: memory sees the previous tick's post-update body values (matches agent.tick order). "
-             "same: use this tick's telemetry body values.",
+        "same: use this tick's telemetry body values.",
     )
     p.add_argument("--max-consecutive-errors", type=int, default=50)
-    p.add_argument("--progress-every", type=int, default=5000, help="0 disables progress lines.")
-    p.add_argument("--visualize", action="store_true",
-               help="Open the spatial memory visualizer after the replay finishes.")
+    p.add_argument(
+        "--progress-every", type=int, default=5000, help="0 disables progress lines."
+    )
+    p.add_argument(
+        "--visualize",
+        action="store_true",
+        help="Open the spatial memory visualizer after the replay finishes.",
+    )
     return p.parse_args(argv)
 
 
@@ -961,7 +1074,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     run_dir = resolve_run(args.run, source_root)
     src = RunContext(run_dir=run_dir)
     if not src.replay.is_file() or src.replay.stat().st_size == 0:
-        raise SystemExit(f"[ERROR] {src.replay} is missing or empty - nothing to replay.")
+        raise SystemExit(
+            f"[ERROR] {src.replay} is missing or empty - nothing to replay."
+        )
     if not src.telemetry.is_file():
         raise SystemExit(
             f"[ERROR] {src.telemetry} is missing. Body/emotion values come from telemetry; "
@@ -996,7 +1111,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         )
 
     path_log: Optional[List[Vector2]] = [] if args.visualize else None
-    stats, fidelity = run_replay(memory, cfg, src.replay, src.telemetry, args, warner, path_log)
+    stats, fidelity = run_replay(
+        memory, cfg, src.replay, src.telemetry, args, warner, path_log
+    )
 
     try:
         memory.shutdown_and_save(storage_path=str(dst.spatial_memory))
@@ -1034,7 +1151,17 @@ def main(argv: Optional[List[str]] = None) -> int:
     except OSError as exc:
         print(f"[WARN] could not write {SUMMARY_FILENAME}: {exc}")
 
-    print_summary(out_dir, run_dir, stats, fidelity, checks, notes, source_unchanged, changes, result)
+    print_summary(
+        out_dir,
+        run_dir,
+        stats,
+        fidelity,
+        checks,
+        notes,
+        source_unchanged,
+        changes,
+        result,
+    )
     if args.visualize:
         try:
             run_visualizer(memory.spatial_mem, path=path_log)

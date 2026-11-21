@@ -9,6 +9,7 @@ rest of the agent uses. No algorithms live here:
 
 Each run owns one folder (runXXXX/episodes); the run id is that folder's name.
 """
+
 from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
@@ -16,7 +17,10 @@ from typing import Any, Callable, Dict, List, Optional
 from .episode_hierarchy.engine import HierarchyEngine
 from .episode_hierarchy.retriever import HierarchyRetriever, RecallQuery
 from .schemas import EpisodicEvent
-from .stats import RunningStats, new_stats_bank  # noqa: F401  (RunningStats re-exported)
+from .stats import (
+    RunningStats,
+    new_stats_bank,
+)  # noqa: F401  (RunningStats re-exported)
 from .storage.episode_archive import EpisodeArchive
 
 
@@ -32,7 +36,9 @@ class EpisodicMemory:
     def _open(self, root: Path) -> None:
         self.archive = EpisodeArchive(root_dir=root)
         self.hierarchy = HierarchyEngine(root, run_id=self.archive.run_id)
-        self.hierarchy.catch_up(self.archive.index)   # repairs missing/old hierarchy files
+        self.hierarchy.catch_up(
+            self.archive.index
+        )  # repairs missing/old hierarchy files
         self.hierarchy.save()
 
     @property
@@ -43,7 +49,9 @@ class EpisodicMemory:
         """callback(episode_id) fires for every newly stored episode (not for duplicates)."""
         self._listeners.append(callback)
 
-    def initialize_run_state(self, continuation: bool, episodes_dir: Path | str | None = None) -> None:
+    def initialize_run_state(
+        self, continuation: bool, episodes_dir: Path | str | None = None
+    ) -> None:
         if episodes_dir:
             self._open(Path(episodes_dir))
         if not continuation:
@@ -62,7 +70,9 @@ class EpisodicMemory:
     # ---------- write ----------
     def encode(self, event: EpisodicEvent) -> Optional[int]:
         if not isinstance(event, EpisodicEvent):
-            raise TypeError(f"EpisodicMemory.encode expected EpisodicEvent, got {type(event)}")
+            raise TypeError(
+                f"EpisodicMemory.encode expected EpisodicEvent, got {type(event)}"
+            )
         episode_id, created = self.archive.save_ex(event)
         if created:
             for callback in self._listeners:
@@ -92,11 +102,22 @@ class EpisodicMemory:
         x: Optional[float] = None,
         y: Optional[float] = None,
     ) -> List[EpisodicEvent]:
-        retriever = HierarchyRetriever(self.archive.index, self.hierarchy.state,
-                                       similarity=self.hierarchy.episode_sim)
-        ids = retriever.retrieve(RecallQuery(
-            goal=target_goal, skill=target_skill, landmark=nearest_landmark_id,
-            x=x, y=y, min_quality=min_quality, top_k=top_k))
+        retriever = HierarchyRetriever(
+            self.archive.index,
+            self.hierarchy.state,
+            similarity=self.hierarchy.episode_sim,
+        )
+        ids = retriever.retrieve(
+            RecallQuery(
+                goal=target_goal,
+                skill=target_skill,
+                landmark=nearest_landmark_id,
+                x=x,
+                y=y,
+                min_quality=min_quality,
+                top_k=top_k,
+            )
+        )
         return [self.archive.load(i) for i in ids]
 
     def get_events(self) -> tuple[EpisodicEvent, ...]:
@@ -108,8 +129,13 @@ class EpisodicMemory:
     # ---------- checkpoint ----------
     def export_state(self) -> dict:
         """Index and hierarchy live on disk in the run folder; the checkpoint only needs pointers."""
-        return {"tick": self._tick, "run_id": self.run_id, "episode_dir": str(self.archive.root),
-                "episodes": len(self.archive.index), "hierarchy": self.hierarchy.summary()}
+        return {
+            "tick": self._tick,
+            "run_id": self.run_id,
+            "episode_dir": str(self.archive.root),
+            "episodes": len(self.archive.index),
+            "hierarchy": self.hierarchy.summary(),
+        }
 
     def import_state(self, data: dict) -> None:
         self._tick = data.get("tick", 0)

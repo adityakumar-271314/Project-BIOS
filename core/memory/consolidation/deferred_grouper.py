@@ -10,6 +10,7 @@ to hand them to the hierarchy; it contains no grouping logic and no storage code
     consolidation can never starve; each flush is capped by a per-call budget.
   * finalize(): flush everything and persist; call it at run end / checkpoint.
 """
+
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Optional
@@ -47,7 +48,11 @@ class DeferredGrouper:
         if len(self._queue) >= self.policy.max_pending:
             return True
         oldest = self.memory.meta(self._queue[0])
-        return bool(oldest) and (now_tick - oldest.get("end_tick", now_tick)) >= self.policy.max_staleness_ticks
+        return (
+            bool(oldest)
+            and (now_tick - oldest.get("end_tick", now_tick))
+            >= self.policy.max_staleness_ticks
+        )
 
     def maybe_flush(self, safe: bool, now_tick: int) -> int:
         if not self._queue:

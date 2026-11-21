@@ -6,6 +6,7 @@ per frame), ticks are delta-encoded, spatial context is stored as short arrays, 
 are rounded. unpack() restores exactly the dict shape EpisodicEvent.from_dict expects, and
 payloads without the "kf" key (old format) pass through untouched.
 """
+
 from __future__ import annotations
 from typing import Any, Dict, Optional
 
@@ -40,8 +41,16 @@ def pack(payload: Dict[str, Any], digits: Optional[int] = 4) -> Dict[str, Any]:
             cols["tick"] = [ticks[0]] + [b - a for a, b in zip(ticks, ticks[1:])]
             kf["dt"] = 1
         sc = [
-            [[_enum(s.get("entity_type")), s.get("pos_x"), s.get("pos_y"),
-              s.get("entity_id"), s.get("intensity")] for s in f.get("spatial_context", [])]
+            [
+                [
+                    _enum(s.get("entity_type")),
+                    s.get("pos_x"),
+                    s.get("pos_y"),
+                    s.get("entity_id"),
+                    s.get("intensity"),
+                ]
+                for s in f.get("spatial_context", [])
+            ]
             for f in frames
         ]
         if any(sc):
@@ -68,9 +77,18 @@ def unpack(data: Dict[str, Any]) -> Dict[str, Any]:
     for i in range(n):
         f = {k: v[i] for k, v in cols.items()}
         f["spatial_context"] = (
-            [{"entity_type": e[0], "pos_x": e[1], "pos_y": e[2],
-              "entity_id": e[3], "intensity": e[4]} for e in sc[i]]
-            if sc else []
+            [
+                {
+                    "entity_type": e[0],
+                    "pos_x": e[1],
+                    "pos_y": e[2],
+                    "entity_id": e[3],
+                    "intensity": e[4],
+                }
+                for e in sc[i]
+            ]
+            if sc
+            else []
         )
         frames.append(f)
     out = {k: v for k, v in data.items() if k not in ("kf", "fmt")}

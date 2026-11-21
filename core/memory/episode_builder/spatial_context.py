@@ -7,8 +7,8 @@ from .config import EpisodeBuilderConfig
 
 class SpatialContextExtractor:
     """
-    Extracts and filters salient spatial context references (landmarks, hazards, 
-    and food patches) around keyframes, binding episodic events to spatial-memory points 
+    Extracts and filters salient spatial context references (landmarks, hazards,
+    and food patches) around keyframes, binding episodic events to spatial-memory points
     without duplicating maps.
     """
 
@@ -17,7 +17,7 @@ class SpatialContextExtractor:
 
     def extract(self, frame: EpisodeFrame) -> Tuple[SpatialContextReference, ...]:
         """
-        Returns a tuple of filtered and prioritized spatial context references 
+        Returns a tuple of filtered and prioritized spatial context references
         within the configured capture radius, ensuring independent authority of SpatialMemory[cite: 1].
         """
         contexts: List[SpatialContextReference] = []
@@ -29,7 +29,7 @@ class SpatialContextExtractor:
             target_x = snap.target_x if snap.target_x is not None else agent_x
             target_y = snap.target_y if snap.target_y is not None else agent_y
             dist = math.hypot(target_x - agent_x, target_y - agent_y)
-            
+
             if dist <= self.config.max_capture_radius:
                 contexts.append(
                     SpatialContextReference(

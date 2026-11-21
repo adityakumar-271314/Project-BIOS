@@ -6,6 +6,7 @@ Role: glue between the metadata index (source of rows), the builder (logic) and 
 The hierarchy is a derived view: catch_up() repairs it after a crash and rebuild() recreates
 it from scratch, always producing the same result.
 """
+
 from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional

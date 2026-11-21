@@ -356,6 +356,7 @@ class EpisodeQuality:
     Immutable, lightweight quality metrics for an EpisodicEvent.
     Serves as an operational signal for retention, ranking, and validation.
     """
+
     coherence: float = 1.0
     coverage: float = 1.0
     redundancy: float = 0.0
@@ -428,14 +429,23 @@ class EpisodicEvent:
         # parses the file directly (not only EpisodeArchive) still sees key_frames.
         if data:
             from .storage.payload_codec import unpack
+
             data = unpack(data)
         if not data:
             return cls(
-                start_tick=0, peak_tick=0, end_tick=0, event_type="",
-                peak_significance=0.0, start_x=0.0, start_y=0.0,
-                peak_x=0.0, peak_y=0.0, end_x=0.0, end_y=0.0
+                start_tick=0,
+                peak_tick=0,
+                end_tick=0,
+                event_type="",
+                peak_significance=0.0,
+                start_x=0.0,
+                start_y=0.0,
+                peak_x=0.0,
+                peak_y=0.0,
+                end_x=0.0,
+                end_y=0.0,
             )
-        
+
         start_pos = data.get("start_position", {})
         peak_pos = data.get("peak_position", {})
         end_pos = data.get("end_position", {})
@@ -444,7 +454,11 @@ class EpisodicEvent:
         key_frames = [SparseFrame.from_dict(kf) for kf in kf_data]
 
         sig_data = data.get("signature", {})
-        signature = EpisodeSignature.from_dict(sig_data) if isinstance(sig_data, dict) else sig_data
+        signature = (
+            EpisodeSignature.from_dict(sig_data)
+            if isinstance(sig_data, dict)
+            else sig_data
+        )
 
         qual_data = data.get("quality")
         quality = EpisodeQuality.from_dict(qual_data) if qual_data else None
@@ -466,6 +480,7 @@ class EpisodicEvent:
             quality=quality,
             notes=data.get("notes"),
         )
+
 
 @dataclass(slots=True)
 class ReconstructedTick:
@@ -501,6 +516,7 @@ class EpisodeCandidate:
     contributors: Dict[str, float] = field(default_factory=dict)
     peak_reason: str = ""
 
+
 @dataclass(slots=True, frozen=True)
 class EpisodeMeta:
     """
@@ -509,6 +525,7 @@ class EpisodeMeta:
     there is no fallback to start_tick any more. The run id lives in the index header
     (it is the runXXXX folder name), so rows do not repeat it.
     """
+
     id: int
     event_type: str
     start_tick: int
@@ -534,7 +551,9 @@ class EpisodeMeta:
         if episode_id is None:
             raise ValueError("EpisodeMeta.from_event requires the archive episode id")
         raw_outcome = event.signature.outcome_status
-        outcome_val = raw_outcome.value if hasattr(raw_outcome, "value") else str(raw_outcome)
+        outcome_val = (
+            raw_outcome.value if hasattr(raw_outcome, "value") else str(raw_outcome)
+        )
         return cls(
             id=int(episode_id),
             event_type=event.event_type,

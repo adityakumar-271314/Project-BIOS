@@ -160,15 +160,23 @@ def run_brain_server():
             )
 
             # --- Extract Cognitive State for Replay & Telemetry ---
-            active_goal = getattr(agent.brain, "gsm", None) and getattr(agent.brain.gsm, "active_goal", None)
+            active_goal = getattr(agent.brain, "gsm", None) and getattr(
+                agent.brain.gsm, "active_goal", None
+            )
             goal_name = active_goal.name if active_goal else "Wander"
-            goal_priority = getattr(active_goal, "priority", 0.0) if active_goal else 0.0
+            goal_priority = (
+                getattr(active_goal, "priority", 0.0) if active_goal else 0.0
+            )
 
             # Extract active skill name if present
             active_skill = None
             if hasattr(agent.brain, "active_skill") and agent.brain.active_skill:
                 active_skill = type(agent.brain.active_skill).__name__
-            elif active_goal and hasattr(active_goal, "active_skill") and active_goal.active_skill:
+            elif (
+                active_goal
+                and hasattr(active_goal, "active_skill")
+                and active_goal.active_skill
+            ):
                 active_skill = type(active_goal.active_skill).__name__
 
             # Extract target information if the agent/brain has a current navigation target
@@ -176,10 +184,14 @@ def run_brain_server():
             target_id = None
             target_x = None
             target_y = None
-            
-            nav_target = getattr(agent.brain, "target", None) or getattr(active_goal, "target", None)
+
+            nav_target = getattr(agent.brain, "target", None) or getattr(
+                active_goal, "target", None
+            )
             if nav_target:
-                target_type = getattr(nav_target, "type", str(type(nav_target).__name__))
+                target_type = getattr(
+                    nav_target, "type", str(type(nav_target).__name__)
+                )
                 target_id = getattr(nav_target, "id", None)
                 target_x = getattr(nav_target, "x", getattr(nav_target, "pos_x", None))
                 target_y = getattr(nav_target, "y", getattr(nav_target, "pos_y", None))

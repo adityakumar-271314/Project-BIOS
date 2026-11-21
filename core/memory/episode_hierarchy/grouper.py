@@ -9,6 +9,7 @@ It is idempotent (ids <= state.watermark are skipped) and order-deterministic, s
 all rows from scratch yields exactly the state built incrementally.
 All similarity decisions are delegated to SimilarityEngine.
 """
+
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
@@ -19,9 +20,9 @@ from .similarity import BOUT_WEIGHTS, EPISODE_WEIGHTS, EpisodeFeatures, Similari
 
 @dataclass(slots=True)
 class GrouperConfig:
-    bout_max_gap: int = 300       # ticks between end of bout and start of next episode
-    bout_link: float = 0.55       # min bout-similarity to continue a bout
-    schema_join: float = 0.62     # min episode-similarity to join an existing schema
+    bout_max_gap: int = 300  # ticks between end of bout and start of next episode
+    bout_link: float = 0.55  # min bout-similarity to continue a bout
+    schema_join: float = 0.62  # min episode-similarity to join an existing schema
 
 
 class HierarchyBuilder:
@@ -45,12 +46,16 @@ class HierarchyBuilder:
         state.watermark = eid
         return True
 
-    def _place_in_bout(self, state: HierarchyState, row: Dict[str, Any], feat: EpisodeFeatures) -> None:
+    def _place_in_bout(
+        self, state: HierarchyState, row: Dict[str, Any], feat: EpisodeFeatures
+    ) -> None:
         bout = state.bouts.get(state.open_bout) if state.open_bout else None
         if bout is not None:
             gap = row.get("start_tick", 0) - bout.end_tick
-            if (gap <= self.cfg.bout_max_gap
-                    and self.bout_sim.score(feat, bout.prototype) >= self.cfg.bout_link):
+            if (
+                gap <= self.cfg.bout_max_gap
+                and self.bout_sim.score(feat, bout.prototype) >= self.cfg.bout_link
+            ):
                 bout.add(row, feat)
                 return
             bout.closed = True
@@ -61,7 +66,9 @@ class HierarchyBuilder:
         state.bouts[node_id] = bout
         state.open_bout = node_id
 
-    def _place_in_schema(self, state: HierarchyState, row: Dict[str, Any], feat: EpisodeFeatures) -> None:
+    def _place_in_schema(
+        self, state: HierarchyState, row: Dict[str, Any], feat: EpisodeFeatures
+    ) -> None:
         best: Optional[HierarchyNode] = None
         best_score = 0.0
         for schema in state.schemas.values():

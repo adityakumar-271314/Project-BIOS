@@ -9,6 +9,7 @@ consolidation by id through EpisodicMemory); callers must not encode them again
 (a second encode is harmless - it is detected as a duplicate - but pointless).
 Call finalize() at run end so queued episodes are grouped and the hierarchy is saved.
 """
+
 from typing import Any, Dict, List, Optional
 
 from .boundary.boundary_detector import BoundaryDetector
@@ -30,7 +31,9 @@ class EpisodePipeline:
         deferred_grouper: Optional[DeferredGrouper] = None,
     ):
         self.boundary_detector = boundary_detector or BoundaryDetector()
-        self.builder = episode_builder or EpisodeBuilder(boundary_detector=self.boundary_detector)
+        self.builder = episode_builder or EpisodeBuilder(
+            boundary_detector=self.boundary_detector
+        )
         self.quality_evaluator = quality_evaluator or EpisodeQualityEvaluator()
         self.temporal_buffer = temporal_buffer
         self.episodic_memory = episodic_memory
@@ -38,9 +41,12 @@ class EpisodePipeline:
         self.deferred_grouper = deferred_grouper or DeferredGrouper(episodic_memory)
 
     def process_candidate(self, candidate_tick: int) -> Dict[str, Any]:
-        print(f"[PIPELINE] Retrospective boundary detection & build for tick {candidate_tick}")
+        print(
+            f"[PIPELINE] Retrospective boundary detection & build for tick {candidate_tick}"
+        )
         frames = self.temporal_buffer.get_frame_context(
-            center_tick=candidate_tick, before_ticks=600, after_ticks=180)
+            center_tick=candidate_tick, before_ticks=600, after_ticks=180
+        )
         if not frames:
             return {"events": [], "episode_ids": []}
 
@@ -53,10 +59,18 @@ class EpisodePipeline:
         valid_events: List[Any] = []
         episode_ids: List[int] = []
         for event in raw_episodes:
-            quality, reasons = self.quality_evaluator.evaluate_episode(event, neighbors=raw_episodes)
+            quality, reasons = self.quality_evaluator.evaluate_episode(
+                event, neighbors=raw_episodes
+            )
             event.quality = quality
-            if quality.coherence < 0.3 or quality.coverage < 0.4 or quality.overall_quality < 0.25:
-                print(f"[PIPELINE] Dropping low-quality episode at start tick {event.start_tick}. Reasons: {reasons}")
+            if (
+                quality.coherence < 0.3
+                or quality.coverage < 0.4
+                or quality.overall_quality < 0.25
+            ):
+                print(
+                    f"[PIPELINE] Dropping low-quality episode at start tick {event.start_tick}. Reasons: {reasons}"
+                )
                 continue
             valid_events.append(event)
             episode_id = self.episodic_memory.encode(event)

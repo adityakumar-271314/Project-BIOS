@@ -1,4 +1,5 @@
 """Persistence of HierarchyState (hierarchy.json inside the run folder). Nothing else."""
+
 from __future__ import annotations
 import os
 from pathlib import Path

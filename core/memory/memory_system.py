@@ -302,7 +302,7 @@ class MemorySystem:
         self, landmark_id: int, limit: int = 10
     ) -> List[EpisodicEvent]:
         """
-        Recalls episodes associated with a specific nearest landmark ID 
+        Recalls episodes associated with a specific nearest landmark ID
         using structural signature matching rather than raw coordinate radius math.
         """
         matched = []
@@ -317,7 +317,7 @@ class MemorySystem:
                 if len(matched) >= limit:
                     break
         return matched
-    
+
     def recall_by_outcome(
         self, outcome_status: str, limit: int = 10
     ) -> List[EpisodicEvent]:
@@ -338,7 +338,7 @@ class MemorySystem:
         self, pos_x: float, pos_y: float, radius: float
     ) -> List[EpisodicEvent]:
         """
-        Pulls up dangerous episodes linked to hazard zones within an operational path 
+        Pulls up dangerous episodes linked to hazard zones within an operational path
         by intersecting spatial proximity with environmental exposure signatures.
         """
         danger_types = {
@@ -349,11 +349,12 @@ class MemorySystem:
         }
         # First filter by local spatial proximity buffer
         nearby = self.recall_near(pos_x=pos_x, pos_y=pos_y, radius=radius)
-        
+
         # Then filter/validate against hazard exposure flags or danger event types
         return [
-            event for event in nearby 
-            if event.event_type in danger_types 
+            event
+            for event in nearby
+            if event.event_type in danger_types
             or "high_hazard_zone" in event.signature.environmental_exposure_flags
         ]
 

@@ -12,7 +12,7 @@ from .config import EpisodeBuilderConfig
 
 class SignatureBuilder:
     """
-    Constructs high-level behavioral identities, macro-transitions, resource summaries, 
+    Constructs high-level behavioral identities, macro-transitions, resource summaries,
     qualitative outcomes, and macro-level spatial descriptors.
     """
 
@@ -21,7 +21,7 @@ class SignatureBuilder:
 
     def build(self, window: List[EpisodeFrame]) -> EpisodeSignature:
         """
-        Synthesizes an EpisodeSignature summary from a validated window of episode frames, 
+        Synthesizes an EpisodeSignature summary from a validated window of episode frames,
         distilling frame-level spatial interactions into macro-level descriptors.
         """
         if not window:
@@ -127,7 +127,7 @@ class SignatureBuilder:
         nearest_landmark_id = (
             Counter(target_ids).most_common(1)[0][0] if target_ids else None
         )
-        
+
         env_flags = set()
         if max_hazard > 0.5:
             env_flags.add("high_hazard_zone")
